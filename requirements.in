@@ -1,3 +1,8 @@
 fastapi>=0.115,<1
 uvicorn>=0.34,<1
 pydantic-settings>=2.8,<3
+SQLAlchemy>=2.0,<3
+psycopg[binary]>=3.2,<4
+PyJWT>=2.10,<3
+qrcode[pil]>=8,<9
+stripe>=12,<20

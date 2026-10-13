@@ -1,10 +1,25 @@
-name: Local foundation checks
+name: Local application checks
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
   checks:
     runs-on: ubuntu-latest
+    env:
+      # Disposable CI-only database; never an AWS or production credential.
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:ci-test-only@127.0.0.1:5432/wonderland_test
+    services:
+      test-postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_DB: wonderland_test
+          POSTGRES_PASSWORD: ci-test-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,19 +35,13 @@ jobs:
       - run: npm --prefix frontend ci
       - run: npm --prefix frontend run build
       - run: npm --prefix frontend audit --audit-level=high
-      - run: docker compose config --quiet
-        env:
-          POSTGRES_PASSWORD: ci-local-only-password
-      - run: docker compose build
-      - name: Start local containers and verify HTTP health
+      - run: python scripts/configure-compose.py
+      - run: docker compose --env-file secrets/compose.env config --quiet
+      - run: docker compose --env-file secrets/compose.env build
+      - name: Start containers, migrate, seed, and verify HTTP health
         run: |
-          docker compose up -d --wait --wait-timeout 180 postgres attractions-service booking-service gate-ride-service analytics-worker
+          docker compose --env-file secrets/compose.env up -d --wait --wait-timeout 180 postgres migrate attractions-service booking-service gate-ride-service analytics-worker
           python scripts/smoke-local.py
-        env:
-          POSTGRES_PASSWORD: ci-local-only-password
       - if: always()
-        run: docker compose down --volumes
-        env:
-          POSTGRES_PASSWORD: ci-local-only-password
-# No cloud credentials or deployment actions. Deployment with OIDC and explicit
-# protected-environment approval is a Phase 6 deliverable.
+        run: docker compose --env-file secrets/compose.env down --volumes
+# No AWS credentials, cloud resources, payment calls or deployment actions.

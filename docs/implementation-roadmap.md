@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-Stop after Phase 0 and minimal Phase 1. Show outcome and obtain user review before Phase 2. Later commands involving not-yet-created files are plans, not runnable instructions.
+User reviewed Phase 0/1 and authorized Phase 2. Phase 2 local implementation is ready for review; stop before Phase 3. Actual Stripe test-account delivery and Docker runtime remain unverified. Later commands involving not-yet-created files are plans, not runnable instructions.
 
 ## Phase 0 — Read sources, trace requirements, agree design
 - Files: `docs/*.md`.
@@ -14,7 +14,7 @@ Stop after Phase 0 and minimal Phase 1. Show outcome and obtain user review befo
 ## Phase 1 — Minimal local foundation only
 - Files: `services/*, frontend/, docker-compose.yml, tests/, .github/`.
 - Steps: Create four health-only APIs, React shell, local Postgres/Metabase config.
-- Commands: ./scripts/check-local.sh; docker compose --env-file .env up --build.
+- Commands: ./scripts/check-local.sh; see docs/development.md for the current Compose configuration.
 - Acceptance: API tests and frontend build pass; Docker smoke pending if unavailable.
 - Tests: pytest, TypeScript/build; optional Compose smoke.
 - Evidence: Record real outputs in docs/validation.md.
@@ -23,7 +23,7 @@ Stop after Phase 0 and minimal Phase 1. Show outcome and obtain user review befo
 ## Phase 2 — Catalog, stored tiers, booking and test-payment domain
 - Files: `services/attractions-service/, services/booking-service/, frontend/`.
 - Steps: Migrations/seeds; integer cents; validation; idempotency; signed webhooks; QR/history.
-- Commands: Commands specified with implementation, not speculative scripts.
+- Commands: scripts/local-postgres.py start; scripts/db_migrate.py --seed; scripts/run-local-services.py; scripts/smoke-phase2.py (run with .venv/bin/python).
 - Acceptance: Server pricing and exactly one confirmed purchase per valid payment.
 - Tests: Domain, concurrency and webhook tests.
 - Evidence: Booking/payment/ticket demo.

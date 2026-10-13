@@ -1,12 +1,12 @@
 # Pattern selection and demonstrations
-All rows are designs unless status explicitly says foundation implemented. Lecture 4 pages from uploaded PDF.
+Rows distinguish implemented Phase 2 behavior from future designs. Lecture 4 pages from uploaded PDF.
 
 | Pattern / pages | Problem and rationale | Implementation / status | Trade-off | Failure scenario and demonstration |
 |---|---|---|---|---|
 | API Gateway 25–27 | Multiple external service endpoints | HTTP API + VPC link + internal ALB, P6 | Extra hop, cost and lifecycle dependencies | Stop one target; other routes remain accessible |
 | Service discovery 21–22 | Pod addresses change | Kubernetes Services/DNS P5; Compose DNS config now | Cluster DNS dependency | Replace pod and resolve stable Service name |
-| Circuit breaker 23–24 | Dependency failure cascades | Payment/provider calls P2/P5, not implemented | State per replica, thresholds need tuning | Simulate timeout, open breaker, pending response, half-open recovery |
-| Health checks 36–37 | Process can run but be unready | /health, /health/live, /health/ready now; dependency checks future | Current readiness only skeleton initialization | Kill process; later disable DB and observe readiness 503 without liveness restart loop |
+| Circuit breaker 23–24 | Dependency failure cascades | Stripe test checkout has bounded retries and per-process closed/open/half-open breaker; outage/recovery tested locally | State per replica, thresholds need tuning | Simulate timeout, open breaker, pending response, half-open recovery |
+| Health checks 36–37 | Process can run but be unready | Catalog/booking readiness checks PostgreSQL/schema revision; gate/analytics remain skeleton-only | DB connectivity/revision probes add latency; gate/analytics readiness still limited | Database unavailable yields readiness 503 while liveness stays 200; broader pod failure demo P5 |
 | CQRS 7–14 | Reporting queries compete with validated writes | Reporting schema/outbox P4 | Eventual consistency; shared DB remains | Pause worker, book, then recover report lag |
 | Log aggregation 29–30 | Logs spread across replicas | JSON stdout now; CloudWatch collector P6 | Ingestion and retention cost | Search one request ID across services later |
 | Metrics 31–33 | Need latency/errors/queue insight | Request duration log now; metrics export/alerts P5/P6 | Cardinality and collection overhead | Load burst, inspect latency/errors and backlog age |

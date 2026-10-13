@@ -9,12 +9,12 @@ Page numbers refer to the uploaded PDFs. These are short original summaries, not
 | Lecture 4 pp7–14 | CQRS and when to use it | Separate booking writes and reporting projections, P4 | LO2, LO3 |
 | Lecture 4 pp15–20 | Sidecar use cases | Evaluate; use node log collection rather than unnecessary per-pod sidecars | LO2, LO3 |
 | Lecture 4 pp21–22 | Service discovery | Kubernetes Services/DNS, P5 | LO3 |
-| Lecture 4 pp23–24 | Circuit breaker | Payment/dependency outage stays pending, P2/P5 | LO3 |
+| Lecture 4 pp23–24 | Circuit breaker | Payment breaker/outage tests keep booking pending in P2; broader faults P5 | LO3 |
 | Lecture 4 pp25–27 | API gateway | HTTP API routes to private Kubernetes services, P6 | LO2, LO3 |
 | Lecture 4 pp29–30 | Log aggregation, CloudWatch example | JSON stdout now; CloudWatch collection later | LO5 |
 | Lecture 4 pp31–33 | Push/pull performance metrics | Planned request latency/error/queue-age metrics | LO5 |
 | Lecture 4 pp34–35 | Request ID propagation and timing | Validated request ID and request duration now; propagation/spans later | LO5 |
-| Lecture 4 pp36–37 | Health checks | Liveness and readiness endpoints now; dependency probes later | LO3, LO5 |
+| Lecture 4 pp36–37 | Health checks | Liveness now; catalog/booking PostgreSQL readiness P2; gate/worker dependency probes later | LO3, LO5 |
 | Lecture 4 pp39–43 | Blue-green and canary deployments | Plan blue-green selector switch; distinguish from ordinary rolling update | LO3, LO5 |
 | Lab 1 pp1–3 | Account, MFA, region/console | Manual account preparation later; no account changes now | LO3 |
 | Lab 2 pp1–3 | EC2, SSH, AWS CLI, Lambda | Explain alternatives; CLI preflight later, no mandatory Lambda added | LO2 |

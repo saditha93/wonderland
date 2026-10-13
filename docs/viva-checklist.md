@@ -38,3 +38,6 @@ No completion boxes are checked for features not implemented. Assignment p4 rubr
 - Limitations? Single DB failure domain, small demo capacity, eventual reporting lag, revocation policy, no AWS proof until approved tests.
 
 Explain only implemented behavior as implemented. Keep AI/other assistance acknowledgements aligned with SLIIT policy; personally rehearse code walkthroughs.
+
+## Current Phase 2 rehearsal boundary
+Locally verified: catalog/suitability, stored tiers/price snapshots, pending booking/idempotency, signed local test-payment event, confirmed QR ticket and own booking history. Developer identity is not Cognito login. Stripe test-account delivery, admin screens, gate/ride history, dashboards, Kubernetes/gateway, IaC and cloud evidence remain pending. See phase-2-outcome.md and validation.md. Never present the simulator as a real payment provider integration.

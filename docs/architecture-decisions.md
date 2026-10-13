@@ -13,7 +13,7 @@ Status: accepted as local design baseline; cloud execution awaits later explicit
 Decision: PostgreSQL 17 locally; managed, private, encrypted, Single-AZ RDS PostgreSQL for short demos. Select supported exact engine patch and instance after regional pricing review in P6. Single-AZ is a cost trade-off, not production HA. Use repeatable migrations/seeds; demo data is disposable. Optional retained snapshots require explicit retention and ongoing-cost decision. Do not maintain always-on RDS. DynamoDB would make sense for independently scaled key access, but adds reporting complexity disproportionate to this assessment.
 
 ## ADR-002 — Four small services, shared instance with owned schemas
-Keeps separate deployments and service isolation without an expensive database per service. Accept common DB outage and migration coordination; prohibit cross-schema business writes. Shared middleware is duplicated in tiny skeletons to preserve independent images; extract a versioned common package only when duplication grows.
+Keeps separate deployments and service isolation without an expensive database per service. Accept common DB outage and migration coordination; prohibit cross-schema business writes. Phase 1 duplicated tiny middleware; Phase 2 extracts common handling into a shared package copied into each independent image (ADR-009).
 
 ## ADR-003 — EKS, with local Minikube first
 Kubernetes is mandatory (assignment p4); EKS matches requested AWS direction and Labs 7/8. ECS would reduce cluster management but would not demonstrate Kubernetes. EKS is chargeable even without workloads. Lambda remains an alternative to explain, not an extra service to implement.
@@ -33,3 +33,9 @@ No mock login or permissive admin endpoint in foundation. Cognito and Stripe tes
 
 ## ADR-007 — Blue-green demonstration, no sidecar initially
 Use two versions and controlled Service selector switch with rollback after readiness verification in P5. Requires spare capacity; scale down afterward. Canary gradually shifts a subset of traffic and needs meaningful routing/metrics; do not call an ordinary rolling update a canary. Node-level log agent is simpler than a sidecar for these uniform Python services. Revisit sidecar only for measured TLS/proxy needs.
+
+## ADR-008 — Phase 2 local identity and test payment boundary
+The user authorized Phase 2 after reviewing the foundation. To exercise protected business routes without AWS, add an explicit local/test-only signed developer token CLI and a labelled server-signed payment simulator. There is no public identity minting endpoint, no browser-selected administrator privilege and no production bypass. Default auth is disabled/fail-closed; local identities cannot start outside local/test environments. Cognito login/profile remains Phase 3. A Stripe test adapter is implemented with SDK signature tests and mocked network calls; actual provider delivery requires the user's own private test configuration and remains unverified. This refines ADR-006 without claiming managed authentication or real provider verification.
+
+## ADR-009 — Shared middleware package and native PostgreSQL verification
+Extract common config/auth/logging/database handling into wonderland_common and copy it into each independent service image. This avoids security middleware drift but creates a shared code/version dependency. Native PostgreSQL 17.11 on loopback permits real transaction/concurrency checks while Docker is unavailable; Compose remains the reproducible container path to verify later. Use separate schemas, API roles and a dedicated destructive-test database. Versioned SQL migrations and seeds preserve stored administrator edits.

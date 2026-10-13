@@ -1,43 +1,76 @@
 name: wonderland-local
 services:
   postgres:
-    image: postgres:17.6-alpine
+    image: postgres:17.11-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-wonderland}
-      POSTGRES_USER: ${POSTGRES_USER:-wonderland_local}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-    ports: ["127.0.0.1:5432:5432"]
+      POSTGRES_USER: ${POSTGRES_USER:-wonderland_owner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate secrets/compose.env first}
+    ports: ["127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"]
     volumes: ["postgres-data:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 10
+  migrate:
+    build:
+      context: .
+      dockerfile: infrastructure/local/Dockerfile.migrate
+    environment:
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?Generate secrets/compose.env first}
+      LOCAL_ATTRACTIONS_ROLE_PASSWORD: ${LOCAL_ATTRACTIONS_ROLE_PASSWORD:?Generate secrets/compose.env first}
+      LOCAL_BOOKING_ROLE_PASSWORD: ${LOCAL_BOOKING_ROLE_PASSWORD:?Generate secrets/compose.env first}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
   attractions-service:
     build:
       context: .
       dockerfile: services/attractions-service/Dockerfile
-    environment: &app-env
+    environment:
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
-      APP_VERSION: ${APP_VERSION:-0.1.0}
+      APP_VERSION: ${APP_VERSION:-0.2.0}
+      APP_AUTH_MODE: local
+      APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
+      APP_DATABASE_URL: ${ATTRACTIONS_DATABASE_URL:?Generate secrets/compose.env first}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports: ["127.0.0.1:8001:8000"]
   booking-service:
     build:
       context: .
       dockerfile: services/booking-service/Dockerfile
-    environment: *app-env
+    environment:
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
+      APP_VERSION: ${APP_VERSION:-0.2.0}
+      APP_AUTH_MODE: local
+      APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
+      APP_TICKET_SECRET: ${APP_TICKET_SECRET:?Generate secrets/compose.env first}
+      APP_PAYMENT_PROVIDER: local
+      APP_LOCAL_WEBHOOK_SECRET: ${APP_LOCAL_WEBHOOK_SECRET:?Generate secrets/compose.env first}
+      APP_DATABASE_URL: ${BOOKING_DATABASE_URL:?Generate secrets/compose.env first}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports: ["127.0.0.1:8002:8000"]
   gate-ride-service:
     build:
       context: .
       dockerfile: services/gate-ride-service/Dockerfile
-    environment: *app-env
+    environment:
+      APP_ENVIRONMENT: local
+      APP_VERSION: ${APP_VERSION:-0.2.0}
     ports: ["127.0.0.1:8003:8000"]
   analytics-worker:
     build:
       context: .
       dockerfile: services/analytics-worker/Dockerfile
-    environment: *app-env
+    environment:
+      APP_ENVIRONMENT: local
+      APP_VERSION: ${APP_VERSION:-0.2.0}
     ports: ["127.0.0.1:8004:8000"]
   frontend:
     build:

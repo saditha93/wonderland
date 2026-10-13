@@ -1,4 +1,5 @@
-"""Start four health-only APIs without Docker; stop all with Ctrl-C."""
+"""Start local services without Docker; stop all with Ctrl-C."""
+
 import os
 from pathlib import Path
 import signal
@@ -7,30 +8,80 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-SERVICES = ['attractions-service', 'booking-service', 'gate-ride-service', 'analytics-worker']
+SERVICES = [
+    "attractions-service",
+    "booking-service",
+    "gate-ride-service",
+    "analytics-worker",
+]
+from dotenv import load_dotenv
+
+load_dotenv(ROOT / "secrets/local.env")
 children = []
+
 
 def stop(signum, frame):
     raise KeyboardInterrupt
 
+
 signal.signal(signal.SIGTERM, stop)
 try:
     for port, name in enumerate(SERVICES, 8001):
-        children.append(subprocess.Popen([
-            sys.executable, '-m', 'uvicorn', 'app.main:app', '--app-dir', str(ROOT/'services'/name),
-            '--host', '127.0.0.1', '--port', str(port), '--no-access-log',
-        ], cwd=ROOT, env={**os.environ, 'APP_ENVIRONMENT': 'local'}))
+        env = {**os.environ, "APP_ENVIRONMENT": "local"}
+        database_key = {
+            "attractions-service": "ATTRACTIONS_DATABASE_URL",
+            "booking-service": "BOOKING_DATABASE_URL",
+        }.get(name)
+        for key in list(env):
+            if key.endswith("_DATABASE_URL") or key.startswith("LOCAL_"):
+                env.pop(key, None)
+        if name != "booking-service":
+            for key in (
+                "APP_TICKET_SECRET",
+                "APP_LOCAL_WEBHOOK_SECRET",
+                "APP_STRIPE_SECRET_KEY",
+                "APP_STRIPE_WEBHOOK_SECRET",
+            ):
+                env.pop(key, None)
+        if name not in {"booking-service", "attractions-service"}:
+            env.pop("APP_AUTH_SECRET", None)
+            env.pop("APP_AUTH_MODE", None)
+        if database_key and os.environ.get(database_key):
+            env["APP_DATABASE_URL"] = os.environ[database_key]
+        children.append(
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "uvicorn",
+                    "app.main:app",
+                    "--app-dir",
+                    str(ROOT / "services" / name),
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    str(port),
+                    "--no-access-log",
+                ],
+                cwd=ROOT,
+                env=env,
+            )
+        )
     while True:
         if any(child.poll() is not None for child in children):
-            raise RuntimeError('A service exited; inspect output and check for occupied ports.')
+            raise RuntimeError(
+                "A service exited; inspect output and check for occupied ports."
+            )
         time.sleep(0.5)
 except KeyboardInterrupt:
     pass
 finally:
     for child in children:
-        if child.poll() is None: child.terminate()
+        if child.poll() is None:
+            child.terminate()
     for child in children:
-        try: child.wait(timeout=5)
+        try:
+            child.wait(timeout=5)
         except subprocess.TimeoutExpired:
             child.kill()
             child.wait()
