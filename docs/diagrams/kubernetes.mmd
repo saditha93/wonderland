@@ -1,0 +1,16 @@
+%% Proposed architecture; not deployed in Phase 1
+flowchart TB
+ Gateway[API Gateway VPC link] --> ALB[Internal ALB]
+ subgraph EKS[Namespace wonderland]
+ ALB --> Services[ClusterIP Services and DNS]
+ Services --> Pods[Attractions / Booking / Gate pods]
+ ConfigMap --> Pods
+ Secrets[External secret injection] --> Pods
+ HPA --> Pods
+ Probes[Readiness and liveness] --> Pods
+ Worker[Analytics worker Deployment]
+ end
+ Pods --> RDS[(Private RDS)]
+ Pods --> SQS
+ SQS --> Worker
+ Worker --> RDS

@@ -1,0 +1,22 @@
+# Private teaching materials and extracted source text
+docs/course-materials/
+.DS_Store
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+node_modules/
+dist/
+coverage/
+*.tfstate*
+.terraform/
+*.tfvars
+!*.tfvars.example
+*.tfplan
+secrets/
+tmp/
+.idea/
+.vscode/

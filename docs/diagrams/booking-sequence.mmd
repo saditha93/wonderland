@@ -1,0 +1,18 @@
+%% Proposed architecture; not deployed in Phase 1
+sequenceDiagram
+ actor Visitor
+ participant UI
+ participant Booking
+ participant DB
+ participant Stripe as Stripe test mode
+ Visitor->>UI: Tier, guests, date, slot
+ UI->>Booking: JWT + command + idempotency key
+ Booking->>DB: Validate price and write pending snapshot
+ Booking->>Stripe: Create test checkout (idempotent)
+ Stripe-->>UI: Test checkout URL
+ Visitor->>Stripe: Test payment
+ Stripe->>Booking: Signed webhook
+ Booking->>Booking: Verify signature, amount, event ID
+ Booking->>DB: Atomic confirm + outbox (once)
+ UI->>Booking: Read own booking
+ Booking-->>UI: Confirmed reference and signed QR

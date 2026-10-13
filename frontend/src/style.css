@@ -1,0 +1,5 @@
+@import "tailwindcss";
+:root { font-family: ui-sans-serif, system-ui, sans-serif; color: #113f39; background: #f7f7ef; font-synthesis: none; }
+body { margin: 0; min-width: 320px; }
+button, a { -webkit-tap-highlight-color: transparent; }
+.hero { background-image: radial-gradient(circle at 95% 10%, #347468 0, transparent 45%); }

@@ -1,0 +1,11 @@
+%% Proposed architecture; not deployed in Phase 1
+flowchart LR
+ Command --> Transaction[Domain write and outbox in one transaction]
+ Transaction --> Publisher[Retrying publisher]
+ Publisher --> SQS
+ SQS --> Worker[Deduplicate event ID]
+ Worker --> Commit[Projection and processed ID atomic commit]
+ Commit --> Ack[Delete queue message]
+ Commit --> Reporting[(Reporting facts)]
+ Reporting --> Metabase
+ SQS --> DLQ[Poison message DLQ]
