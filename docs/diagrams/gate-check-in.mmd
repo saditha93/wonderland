@@ -1,0 +1,18 @@
+sequenceDiagram
+    actor Staff
+    participant Gate
+    participant VisitDB as Visits schema
+    participant Catalog as Attractions API
+    Note over Staff,Gate: Administrator access token required
+    Staff->>Gate: Signed ticket + full party count
+    Gate->>Gate: Verify public-key signature, date, expiry and claims
+    Gate->>VisitDB: Atomic unique check-in + arrival outbox
+    VisitDB-->>Gate: Stored guest arrival (or duplicate conflict)
+    Gate-->>Staff: Arrival result
+    Note over Gate: Booking API is not called
+    Staff->>Gate: Ride event ID + checked-in reference + rider count
+    Gate->>VisitDB: Check arrival and party size
+    Gate->>Catalog: Verify open attraction + request ID
+    Catalog-->>Gate: Status (or fail closed)
+    Gate->>VisitDB: Atomic deduplicated ride + outbox
+    Gate-->>Staff: Recorded or duplicate result

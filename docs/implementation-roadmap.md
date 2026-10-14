@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-User reviewed Phase 0/1 and authorized Phase 2. Phase 2 local implementation is ready for review; stop before Phase 3. Actual Stripe test-account delivery and Docker runtime remain unverified. Later commands involving not-yet-created files are plans, not runnable instructions.
+User reviewed earlier phases and authorized Phase 3. Phase 3 local implementation is ready for review; stop before Phase 4. Actual Cognito account verification remains pending. Actual Stripe test-account delivery and Docker runtime remain unverified. Later commands involving not-yet-created files are plans, not runnable instructions.
 
 ## Phase 0 — Read sources, trace requirements, agree design
 - Files: `docs/*.md`.

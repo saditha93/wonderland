@@ -23,3 +23,12 @@
 - Container images and migrations are configured but not executed in Docker; CI is prepared, not run remotely.
 - Domain tests truncate only dedicated *_test databases; keep TEST_DATABASE_URL away from valuable data.
 - Shared SQL instance remains a failure domain; outbox publishing, analytics deduplication, gate isolation and Kubernetes evidence remain future phases.
+
+## Phase 3 remaining risks
+- Actual Cognito signup/login/MFA/group setup is unverified and requires explicit AWS connection approval; offline JWT tests are not cloud evidence.
+- New account/admin screens passed builds and API contracts, but fresh interactive browser/device review remains pending.
+- Full-party arrival, no re-entry/cancellation/refunds and immutable visit ownership keys are explicit current assumptions.
+- Legacy QR format is rejected; re-open confirmed tickets for new RSA tickets. Key distribution, rotation and backup must be secured in AWS.
+- Signed JWTs can remain valid until expiry despite logout/group changes; no online revocation denylist is implemented.
+- Ride status verification races with catalog changes; shared database instance remains a failure domain.
+- Arrival/ride outbox is durable but not published yet; analytics worker/Metabase requirements remain Phase 4.

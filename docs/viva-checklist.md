@@ -41,3 +41,6 @@ Explain only implemented behavior as implemented. Keep AI/other assistance ackno
 
 ## Current Phase 2 rehearsal boundary
 Locally verified: catalog/suitability, stored tiers/price snapshots, pending booking/idempotency, signed local test-payment event, confirmed QR ticket and own booking history. Developer identity is not Cognito login. Stripe test-account delivery, admin screens, gate/ride history, dashboards, Kubernetes/gateway, IaC and cloud evidence remain pending. See phase-2-outcome.md and validation.md. Never present the simulator as a real payment provider integration.
+
+## Current Phase 3 rehearsal boundary
+Locally verified: profile ownership, administrator API guards, tier lifecycle/snapshots, signed RSA gate tickets, full-party unique arrivals, live booking-process outage admission, ride retries, visitor history and operational guest/sales/rider totals. Administrator/account screens are built and await interactive review. Cognito SDK/verifier is prepared and offline-tested; do not claim AWS login/MFA is verified. Metabase, queue worker, Kubernetes/gateway, IaC and cloud evidence remain pending.
