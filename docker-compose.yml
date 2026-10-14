@@ -21,6 +21,7 @@ services:
       MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?Generate secrets/compose.env first}
       LOCAL_ATTRACTIONS_ROLE_PASSWORD: ${LOCAL_ATTRACTIONS_ROLE_PASSWORD:?Generate secrets/compose.env first}
       LOCAL_BOOKING_ROLE_PASSWORD: ${LOCAL_BOOKING_ROLE_PASSWORD:?Generate secrets/compose.env first}
+      LOCAL_VISITS_ROLE_PASSWORD: ${LOCAL_VISITS_ROLE_PASSWORD:?Generate secrets/compose.env first}
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,7 +32,7 @@ services:
       dockerfile: services/attractions-service/Dockerfile
     environment:
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
-      APP_VERSION: ${APP_VERSION:-0.2.0}
+      APP_VERSION: ${APP_VERSION:-0.3.0}
       APP_AUTH_MODE: local
       APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
       APP_DATABASE_URL: ${ATTRACTIONS_DATABASE_URL:?Generate secrets/compose.env first}
@@ -45,10 +46,12 @@ services:
       dockerfile: services/booking-service/Dockerfile
     environment:
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
-      APP_VERSION: ${APP_VERSION:-0.2.0}
+      APP_VERSION: ${APP_VERSION:-0.3.0}
       APP_AUTH_MODE: local
       APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
       APP_TICKET_SECRET: ${APP_TICKET_SECRET:?Generate secrets/compose.env first}
+      APP_TICKET_PRIVATE_KEY_B64: ${APP_TICKET_PRIVATE_KEY_B64:?Generate secrets/compose.env first}
+      APP_TICKET_OWNER_SECRET: ${APP_TICKET_OWNER_SECRET:?Generate secrets/compose.env first}
       APP_PAYMENT_PROVIDER: local
       APP_LOCAL_WEBHOOK_SECRET: ${APP_LOCAL_WEBHOOK_SECRET:?Generate secrets/compose.env first}
       APP_DATABASE_URL: ${BOOKING_DATABASE_URL:?Generate secrets/compose.env first}
@@ -62,7 +65,16 @@ services:
       dockerfile: services/gate-ride-service/Dockerfile
     environment:
       APP_ENVIRONMENT: local
-      APP_VERSION: ${APP_VERSION:-0.2.0}
+      APP_VERSION: ${APP_VERSION:-0.3.0}
+      APP_AUTH_MODE: local
+      APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
+      APP_DATABASE_URL: ${GATE_DATABASE_URL:?Generate secrets/compose.env first}
+      APP_TICKET_PUBLIC_KEY_B64: ${APP_TICKET_PUBLIC_KEY_B64:?Generate secrets/compose.env first}
+      APP_TICKET_OWNER_SECRET: ${APP_TICKET_OWNER_SECRET:?Generate secrets/compose.env first}
+      APP_ATTRACTIONS_URL: http://attractions-service:8000
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports: ["127.0.0.1:8003:8000"]
   analytics-worker:
     build:
@@ -70,7 +82,7 @@ services:
       dockerfile: services/analytics-worker/Dockerfile
     environment:
       APP_ENVIRONMENT: local
-      APP_VERSION: ${APP_VERSION:-0.2.0}
+      APP_VERSION: ${APP_VERSION:-0.3.0}
     ports: ["127.0.0.1:8004:8000"]
   frontend:
     build:

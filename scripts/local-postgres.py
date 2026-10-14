@@ -135,6 +135,10 @@ def main():
         raise SystemExit(
             "Existing local.env targets another database; refusing to overwrite it"
         )
+    from scripts.local_phase3 import ensure_config
+
+    ensure_config(CONFIG)
+    values = dotenv_values(CONFIG)
     engine = create_engine(values["MIGRATION_DATABASE_URL"])
     migrate(engine)
     seed(engine)
@@ -143,6 +147,7 @@ def main():
         {
             "attractions": values["LOCAL_ATTRACTIONS_ROLE_PASSWORD"],
             "booking": values["LOCAL_BOOKING_ROLE_PASSWORD"],
+            "visits": values["LOCAL_VISITS_ROLE_PASSWORD"],
         },
     )
     engine.dispose()

@@ -78,7 +78,7 @@ def identity_info(identity: Identity = Depends(visitor)):
     return {
         "subject": identity.subject,
         "role": identity.role,
-        "mode": "local-development",
+        "mode": identity.mode,
     }
 
 
@@ -434,9 +434,15 @@ def ticket(
         booking = owned(conn, reference, identity)
     if booking["status"] != "confirmed":
         raise HTTPException(409, "Tickets are available only after verified payment")
-    secret = request.app.state.settings.ticket_secret
-    if not secret:
-        raise HTTPException(503, "Ticket signing is not configured")
+    settings = request.app.state.settings
+    from wonderland_common.tickets import owner_tag, signing_key
+
+    private_key = signing_key(settings)
+    extra = {
+        "visit_date": booking["visit_date"].isoformat(),
+        "guest_count": booking["guest_count"],
+        "owner_tag": owner_tag(identity.subject, settings),
+    }
     expires = datetime.combine(
         booking["visit_date"] + timedelta(days=1), time.min, PARK_TIMEZONE
     )
@@ -448,9 +454,10 @@ def ticket(
             "ref": reference,
             "iat": datetime.now(timezone.utc),
             "exp": expires,
+            **extra,
         },
-        secret.get_secret_value(),
-        algorithm="HS256",
+        private_key,
+        algorithm="RS256",
     )
     buffer = BytesIO()
     qrcode.make(token).save(buffer, format="PNG")
@@ -460,3 +467,141 @@ def ticket(
         "qr_data_url": "data:image/png;base64,"
         + base64.b64encode(buffer.getvalue()).decode(),
     }
+
+
+class TierDefinition(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    name: str = Field(min_length=2, max_length=80)
+    min_guests: int = Field(ge=1, le=5, strict=True)
+    max_guests: int = Field(ge=1, le=5, strict=True)
+    price_cents: int = Field(gt=0, le=10000000, strict=True)
+    active: bool = Field(default=True, strict=True)
+
+
+class ProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    display_name: str = Field(min_length=1, max_length=80)
+    preferred_language: str = Field(pattern=r"^(en|si|ta)$", default="en")
+
+
+@router.get("/profile")
+def get_profile(
+    identity: Identity = Depends(visitor), engine: Engine = Depends(database)
+):
+    with engine.connect() as conn:
+        row = (
+            conn.execute(
+                text(
+                    "SELECT display_name,preferred_language,updated_at FROM booking.visitor_profiles WHERE owner_id=:owner"
+                ),
+                {"owner": identity.subject},
+            )
+            .mappings()
+            .first()
+        )
+    return (
+        dict(row)
+        if row
+        else {"display_name": "", "preferred_language": "en", "updated_at": None}
+    )
+
+
+@router.put("/profile")
+def save_profile(
+    body: ProfileUpdate,
+    identity: Identity = Depends(visitor),
+    engine: Engine = Depends(database),
+):
+    with engine.begin() as conn:
+        return dict(
+            conn.execute(
+                text("""INSERT INTO booking.visitor_profiles(owner_id,display_name,preferred_language)
+            VALUES (:owner,:name,:lang) ON CONFLICT(owner_id) DO UPDATE SET display_name=EXCLUDED.display_name,
+            preferred_language=EXCLUDED.preferred_language,updated_at=now() RETURNING display_name,preferred_language,updated_at"""),
+                {
+                    "owner": identity.subject,
+                    "name": body.display_name,
+                    "lang": body.preferred_language,
+                },
+            )
+            .mappings()
+            .one()
+        )
+
+
+@router.get("/admin/ticket-tiers", dependencies=[Depends(administrator)])
+def all_tiers(engine: Engine = Depends(database)):
+    with engine.connect() as conn:
+        return [
+            dict(r)
+            for r in conn.execute(
+                text("SELECT * FROM booking.ticket_tiers ORDER BY max_guests,name")
+            ).mappings()
+        ]
+
+
+def tier_values(body):
+    if body.min_guests > body.max_guests:
+        raise HTTPException(422, "Minimum guests cannot exceed maximum")
+    return body.model_dump()
+
+
+@router.post(
+    "/admin/ticket-tiers", status_code=201, dependencies=[Depends(administrator)]
+)
+def create_tier(body: TierDefinition, engine: Engine = Depends(database)):
+    from sqlalchemy.exc import IntegrityError
+
+    values = {"id": uuid4(), **tier_values(body)}
+    try:
+        with engine.begin() as conn:
+            return dict(
+                conn.execute(
+                    text("""INSERT INTO booking.ticket_tiers(id,name,min_guests,max_guests,price_cents,active)
+                VALUES (:id,:name,:min_guests,:max_guests,:price_cents,:active) RETURNING *"""),
+                    values,
+                )
+                .mappings()
+                .one()
+            )
+    except IntegrityError:
+        raise HTTPException(409, "Ticket tier name is already in use") from None
+
+
+@router.put("/admin/ticket-tiers/{tier_id}", dependencies=[Depends(administrator)])
+def replace_tier(
+    tier_id: UUID, body: TierDefinition, engine: Engine = Depends(database)
+):
+    from sqlalchemy.exc import IntegrityError
+
+    try:
+        with engine.begin() as conn:
+            row = (
+                conn.execute(
+                    text("""UPDATE booking.ticket_tiers SET name=:name,min_guests=:min_guests,
+                max_guests=:max_guests,price_cents=:price_cents,active=:active,revision=revision+1,updated_at=now()
+                WHERE id=:id RETURNING *"""),
+                    {"id": tier_id, **tier_values(body)},
+                )
+                .mappings()
+                .first()
+            )
+            if not row:
+                raise HTTPException(404, "Ticket tier not found")
+            return dict(row)
+    except IntegrityError:
+        raise HTTPException(409, "Ticket tier name is already in use") from None
+
+
+@router.get("/admin/sales", dependencies=[Depends(administrator)])
+def sales(engine: Engine = Depends(database)):
+    with engine.connect() as conn:
+        return [
+            dict(r)
+            for r in conn.execute(
+                text("""SELECT b.tier_id,t.name AS tier_name,b.currency,count(*) AS tickets,
+            sum(b.guest_count) AS guests,sum(b.amount_cents) AS revenue_cents FROM booking.bookings b
+            JOIN booking.ticket_tiers t ON t.id=b.tier_id
+            WHERE b.status='confirmed' GROUP BY b.tier_id,t.name,b.currency ORDER BY tier_name""")
+            ).mappings()
+        ]

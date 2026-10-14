@@ -38,7 +38,11 @@ def test_health_contract(service, endpoint, scope):
     name, module = service
     with TestClient(module.app) as client:
         response = client.get(endpoint)
-    domain_service = name in {"attractions-service", "booking-service"}
+    domain_service = name in {
+        "attractions-service",
+        "booking-service",
+        "gate-ride-service",
+    }
     expected_status = 503 if domain_service and endpoint == "/health/ready" else 200
     expected_scope = (
         ("database" if endpoint == "/health/ready" else "process")

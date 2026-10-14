@@ -1,10 +1,11 @@
 import json
+import jwt
 import logging
 import re
 import sys
 from time import perf_counter
 from uuid import uuid4
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,11 +15,16 @@ from .database import create_database
 SAFE_REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
-def create_app(service: str, schema: str) -> FastAPI:
+def create_app(service: str, schema: str, revision: int = 1) -> FastAPI:
     settings = Settings()
     app = FastAPI(title=f"Wonderland {service}", version=settings.version)
     app.state.settings = settings
     app.state.engine = create_database(settings)
+    if settings.auth_mode == "cognito":
+        # No network on startup: fixed configured issuer, cached keys, bounded timeout.
+        app.state.jwks_client = jwt.PyJWKClient(
+            settings.cognito_issuer + "/.well-known/jwks.json", lifespan=300, timeout=3
+        )
     logger = logging.getLogger(service)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter("%(message)s"))
@@ -79,6 +85,8 @@ def create_app(service: str, schema: str) -> FastAPI:
     def live():
         return health("process")
 
+    expected_revision = revision
+
     @app.get("/health/ready")
     def ready():
         engine = app.state.engine
@@ -91,9 +99,12 @@ def create_app(service: str, schema: str) -> FastAPI:
                 revision = conn.execute(
                     text(f"SELECT max(version) FROM {schema}.schema_migrations")
                 ).scalar()
-                if revision != 1:
+                if revision != expected_revision:
                     raise ValueError("Migration required")
-        except (SQLAlchemyError, ValueError):
+            check = getattr(app.state, "readiness_check", None)
+            if check:
+                check()
+        except (SQLAlchemyError, ValueError, HTTPException):
             return JSONResponse(
                 {**health("database"), "status": "unavailable"}, status_code=503
             )

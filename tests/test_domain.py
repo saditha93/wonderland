@@ -1,3 +1,4 @@
+import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 import json
@@ -235,8 +236,8 @@ def test_confirm_once_and_signed_qr_ticket(domain):
     ].startswith("data:image/png;base64,")
     claims = jwt.decode(
         ticket["ticket_token"],
-        domain["module"].settings.ticket_secret.get_secret_value(),
-        algorithms=["HS256"],
+        base64.b64decode(domain["module"].settings.ticket_public_key_b64),
+        algorithms=["RS256"],
         audience="wonderland-gate",
         issuer="wonderland-tickets",
     )

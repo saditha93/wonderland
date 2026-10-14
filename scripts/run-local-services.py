@@ -31,6 +31,7 @@ try:
         database_key = {
             "attractions-service": "ATTRACTIONS_DATABASE_URL",
             "booking-service": "BOOKING_DATABASE_URL",
+            "gate-ride-service": "GATE_DATABASE_URL",
         }.get(name)
         for key in list(env):
             if key.endswith("_DATABASE_URL") or key.startswith("LOCAL_"):
@@ -38,12 +39,18 @@ try:
         if name != "booking-service":
             for key in (
                 "APP_TICKET_SECRET",
+                "APP_TICKET_PRIVATE_KEY_PATH",
+                "APP_TICKET_PRIVATE_KEY_B64",
                 "APP_LOCAL_WEBHOOK_SECRET",
                 "APP_STRIPE_SECRET_KEY",
                 "APP_STRIPE_WEBHOOK_SECRET",
             ):
                 env.pop(key, None)
-        if name not in {"booking-service", "attractions-service"}:
+        if name not in {"booking-service", "gate-ride-service"}:
+            env.pop("APP_TICKET_OWNER_SECRET", None)
+            env.pop("APP_TICKET_PUBLIC_KEY_B64", None)
+            env.pop("APP_TICKET_PUBLIC_KEY_PATH", None)
+        if name not in {"booking-service", "attractions-service", "gate-ride-service"}:
             env.pop("APP_AUTH_SECRET", None)
             env.pop("APP_AUTH_MODE", None)
         if database_key and os.environ.get(database_key):
@@ -67,11 +74,17 @@ try:
                 env=env,
             )
         )
+    reported = set()
     while True:
-        if any(child.poll() is not None for child in children):
-            raise RuntimeError(
-                "A service exited; inspect output and check for occupied ports."
-            )
+        for index, child in enumerate(children):
+            if child.poll() is not None and index not in reported:
+                print(
+                    f"{SERVICES[index]} stopped; other services continue. Inspect its logs before restarting.",
+                    flush=True,
+                )
+                reported.add(index)
+        if len(reported) == len(children):
+            raise RuntimeError("All service processes stopped")
         time.sleep(0.5)
 except KeyboardInterrupt:
     pass

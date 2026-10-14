@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = {
     "attractions": ROOT / "services/attractions-service/migrations",
     "booking": ROOT / "services/booking-service/migrations",
+    "visits": ROOT / "services/gate-ride-service/migrations",
 }
 
 
@@ -175,15 +176,22 @@ def grant_service_roles(engine, passwords):
                 conn.exec_driver_sql(
                     f"GRANT SELECT, INSERT, UPDATE ON {schema}.attractions TO {role}"
                 )
-            else:
+            elif schema == "booking":
                 conn.exec_driver_sql(
-                    f"GRANT SELECT, UPDATE ON booking.ticket_tiers TO {role}"
+                    f"GRANT SELECT, INSERT, UPDATE ON booking.ticket_tiers TO {role}"
                 )
                 conn.exec_driver_sql(
                     f"GRANT SELECT, INSERT, UPDATE ON booking.bookings TO {role}"
                 )
                 conn.exec_driver_sql(
                     f"GRANT SELECT, INSERT ON booking.payment_events, booking.outbox TO {role}"
+                )
+                conn.exec_driver_sql(
+                    f"GRANT SELECT, INSERT, UPDATE ON booking.visitor_profiles TO {role}"
+                )
+            else:
+                conn.exec_driver_sql(
+                    f"GRANT SELECT, INSERT ON visits.check_ins,visits.ride_events,visits.outbox TO {role}"
                 )
 
 

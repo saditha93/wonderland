@@ -79,10 +79,12 @@ with httpx.Client(
     ticket = client.get(f"/api/booking/bookings/{ref}/ticket")
     ticket.raise_for_status()
     assert ticket.json()["booking"]["payment_status"] == "paid"
+    import base64
+
     jwt.decode(
         ticket.json()["ticket_token"],
-        settings.ticket_secret.get_secret_value(),
-        algorithms=["HS256"],
+        base64.b64decode(settings.ticket_public_key_b64),
+        algorithms=["RS256"],
         audience="wonderland-gate",
         issuer="wonderland-tickets",
     )

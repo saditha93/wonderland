@@ -107,3 +107,14 @@ def retire(attraction_id: UUID, engine: Engine = Depends(database)):
         if not row:
             raise HTTPException(404, "Attraction not found")
         return dict(row)
+
+
+@router.get("/admin/attractions", dependencies=[Depends(administrator)])
+def all_attractions(engine: Engine = Depends(database)):
+    with engine.connect() as conn:
+        return [
+            dict(r)
+            for r in conn.execute(
+                text("SELECT * FROM attractions.attractions ORDER BY name LIMIT 200")
+            ).mappings()
+        ]

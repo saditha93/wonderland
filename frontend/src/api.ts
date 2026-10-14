@@ -1,3 +1,4 @@
+import { cognitoEnabled, managedAccessToken } from "./auth";
 export type Attraction = {
   id: string;
   name: string;
@@ -51,14 +52,20 @@ export async function api<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token)
+    headers.set(
+      "Authorization",
+      `Bearer ${cognitoEnabled ? await managedAccessToken() : token}`,
+    );
   if (options.body) headers.set("Content-Type", "application/json");
-  const response = await fetch(path, {
+  const base = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+  const response = await fetch(`${base}${path}`, {
     ...options,
+    signal: options.signal ?? AbortSignal.timeout(10000),
     headers,
     cache: "no-store",
   });
-  const body: unknown = await response.json();
+  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const detail =
       typeof body === "object" && body !== null && "detail" in body
@@ -67,7 +74,9 @@ export async function api<T>(
     throw new Error(
       typeof detail === "string"
         ? detail
-        : "Please check your input and try again.",
+        : response.status === 422
+          ? "Please check your input and try again."
+          : "The service is temporarily unavailable.",
     );
   }
   return body as T;

@@ -1,3 +1,6 @@
+import base64
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 import importlib.util
 import os
 from pathlib import Path
@@ -55,13 +58,39 @@ def postgres_engine():
     engine.dispose()
 
 
+class OfflineKeys:
+    def __init__(self, private, public):
+        self.private, self.public = private, public
+
+    def __iter__(self):
+        return iter((self.private, self.public))
+
+    def __repr__(self):
+        return "<ephemeral offline RSA keys; private material hidden>"
+
+
+@pytest.fixture(scope="session")
+def rsa_keys():
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    public = key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    return OfflineKeys(private, public)
+
+
 @pytest.fixture
-def domain(postgres_engine, monkeypatch):
+def domain(postgres_engine, monkeypatch, rsa_keys):
+    private_key, public_key = rsa_keys
     from scripts.db_migrate import seed
 
     with postgres_engine.begin() as conn:
         conn.exec_driver_sql(
-            "TRUNCATE booking.outbox,booking.payment_events,booking.bookings,booking.ticket_tiers,attractions.attractions CASCADE"
+            "TRUNCATE visits.outbox,visits.ride_events,visits.check_ins,booking.visitor_profiles,booking.outbox,booking.payment_events,booking.bookings,booking.ticket_tiers,attractions.attractions CASCADE"
         )
     seed(postgres_engine)
     for key, value in {
@@ -77,6 +106,15 @@ def domain(postgres_engine, monkeypatch):
         monkeypatch.setenv(key, value)
     monkeypatch.delenv("APP_STRIPE_SECRET_KEY", raising=False)
     monkeypatch.delenv("APP_STRIPE_WEBHOOK_SECRET", raising=False)
+    monkeypatch.setenv(
+        "APP_TICKET_PRIVATE_KEY_B64", base64.b64encode(private_key).decode()
+    )
+    monkeypatch.setenv(
+        "APP_TICKET_PUBLIC_KEY_B64", base64.b64encode(public_key).decode()
+    )
+    monkeypatch.setenv("APP_TICKET_OWNER_SECRET", secrets.token_urlsafe(48))
+    monkeypatch.delenv("APP_TICKET_PRIVATE_KEY_PATH", raising=False)
+    monkeypatch.delenv("APP_TICKET_PUBLIC_KEY_PATH", raising=False)
     booking = load_service("booking-service")
     attractions = load_service("attractions-service")
     from datetime import datetime, timedelta, timezone

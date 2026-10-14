@@ -1,4 +1,6 @@
 from typing import Literal
+from pathlib import Path
+import re
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -6,10 +8,21 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="APP_", hide_input_in_errors=True)
     environment: str = "local"
-    version: str = "0.2.0"
+    version: str = "0.3.0"
     database_url: SecretStr | None = None
-    auth_mode: Literal["disabled", "local"] = "disabled"
+    auth_mode: Literal["disabled", "local", "cognito"] = "disabled"
     auth_secret: SecretStr | None = None
+    cognito_region: str = "us-east-1"
+    cognito_user_pool_id: str | None = None
+    cognito_client_id: str | None = None
+    cognito_admin_group: str = "administrators"
+    cognito_audience: str | None = None
+    ticket_private_key_b64: SecretStr | None = None
+    ticket_public_key_b64: str | None = None
+    ticket_private_key_path: Path | None = None
+    ticket_public_key_path: Path | None = None
+    ticket_owner_secret: SecretStr | None = None
+    attractions_url: str = "http://127.0.0.1:8001"
     ticket_secret: SecretStr | None = None
     payment_provider: Literal["local", "stripe"] = "local"
     local_webhook_secret: SecretStr | None = None
@@ -27,7 +40,12 @@ class Settings(BaseSettings):
             "postgresql+psycopg://"
         ):
             raise ValueError("A PostgreSQL psycopg URL is required")
-        for name in ("auth_secret", "ticket_secret", "local_webhook_secret"):
+        for name in (
+            "auth_secret",
+            "ticket_secret",
+            "ticket_owner_secret",
+            "local_webhook_secret",
+        ):
             value = getattr(self, name)
             if value and len(value.get_secret_value()) < 32:
                 raise ValueError(f"{name} must contain at least 32 characters")
@@ -38,4 +56,27 @@ class Settings(BaseSettings):
             and not self.stripe_secret_key.get_secret_value().startswith("sk_test_")
         ):
             raise ValueError("Only Stripe test secret keys are permitted")
+        if self.auth_mode == "cognito":
+            pool = self.cognito_user_pool_id or ""
+            if not re.fullmatch(
+                r"(?:[a-z]{2}|us-gov)-[a-z]+-\d", self.cognito_region
+            ) or not re.fullmatch(
+                re.escape(self.cognito_region) + r"_[A-Za-z0-9]{1,100}", pool
+            ):
+                raise ValueError(
+                    "Cognito region and matching user pool ID are required"
+                )
+            if not self.cognito_client_id or not re.fullmatch(
+                r"[a-zA-Z0-9]{1,128}", self.cognito_client_id
+            ):
+                raise ValueError("Cognito app client ID is required")
         return self
+
+    @property
+    def cognito_issuer(self):
+        suffix = (
+            "amazonaws.com.cn"
+            if self.cognito_region.startswith("cn-")
+            else "amazonaws.com"
+        )
+        return f"https://cognito-idp.{self.cognito_region}.{suffix}/{self.cognito_user_pool_id}"

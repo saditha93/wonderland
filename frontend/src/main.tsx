@@ -10,8 +10,22 @@ import {
   type Tier,
 } from "./api";
 import "./style.css";
+import { AuthPanel } from "./AuthPanel";
+import { AdminPanel } from "./AdminPanel";
+import { VisitorAccount } from "./VisitorAccount";
+import { cognitoEnabled, clearManagedSession } from "./auth";
 
-type Page = "home" | "attractions" | "book" | "history" | "payment" | "ticket";
+type Page =
+  | "home"
+  | "attractions"
+  | "book"
+  | "history"
+  | "payment"
+  | "ticket"
+  | "login"
+  | "profile"
+  | "visits"
+  | "admin";
 const pages: Page[] = [
   "home",
   "attractions",
@@ -19,6 +33,10 @@ const pages: Page[] = [
   "history",
   "payment",
   "ticket",
+  "login",
+  "profile",
+  "visits",
+  "admin",
 ];
 function readLocation(): { page: Page; reference: string } {
   const params = new URLSearchParams(window.location.search);
@@ -58,6 +76,7 @@ function App() {
   const [token, setToken] = useState("");
   const [draft, setDraft] = useState("");
   const [identity, setIdentity] = useState("");
+  const [role, setRole] = useState<"visitor" | "admin" | null>(null);
   const [history, setHistory] = useState<Booking[]>([]);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [checkout, setCheckout] = useState<Checkout | null>(null);
@@ -91,22 +110,20 @@ function App() {
   }, []);
   useEffect(() => {
     let active = true;
-    void Promise.all([
+    void Promise.allSettled([
       api<Attraction[]>("/api/attractions/attractions"),
       api<Tier[]>("/api/booking/ticket-tiers"),
     ])
       .then(([a, t]) => {
-        if (active) {
-          setAttractions(a);
-          setTiers(t);
-          setTierId(t[0]?.id ?? "");
-        }
-      })
-      .catch(() => {
-        if (active)
-          setCatalogError(
-            "The catalog is unavailable. Start PostgreSQL and the local services, then refresh.",
-          );
+        if (!active) return;
+        const errors: string[] = [];
+        if (a.status === "fulfilled") setAttractions(a.value);
+        else errors.push("Attractions are temporarily unavailable.");
+        if (t.status === "fulfilled") {
+          setTiers(t.value);
+          setTierId(t.value[0]?.id ?? "");
+        } else errors.push("Ticket prices are temporarily unavailable.");
+        setCatalogError(errors.join(" "));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -182,6 +199,10 @@ function App() {
     epoch.current++;
     setToken("");
     setIdentity("");
+    setRole(null);
+    void clearManagedSession().catch(() =>
+      setError("Managed sign-out could not complete. Local session cleared."),
+    );
     setDraft("");
     setHistory([]);
     setBooking(null);
@@ -194,7 +215,7 @@ function App() {
   async function connect(e: React.FormEvent) {
     e.preventDefault();
     await run(async (current) => {
-      const result = await api<{ subject: string }>(
+      const result = await api<{ subject: string; role: "visitor" | "admin" }>(
         "/api/booking/identity",
         draft.trim(),
       );
@@ -202,6 +223,7 @@ function App() {
       epoch.current++;
       setToken(draft.trim());
       setIdentity(result.subject);
+      setRole(result.role);
       setDraft("");
       setHistory([]);
       setBooking(null);
@@ -210,6 +232,38 @@ function App() {
       setBusy(false);
       commandKey.current = crypto.randomUUID();
     });
+  }
+  async function acceptManagedSession(value: string) {
+    const current = epoch.current;
+    const result = await api<{ subject: string; role: "visitor" | "admin" }>(
+      "/api/booking/identity",
+      value,
+    );
+    if (current !== epoch.current) return;
+    epoch.current++;
+    setToken(value);
+    setIdentity(result.subject);
+    setRole(result.role);
+    setHistory([]);
+    setBooking(null);
+    setTicket(null);
+    setCheckout(null);
+    setBusy(false);
+    commandKey.current = crypto.randomUUID();
+    navigate(result.role === "admin" ? "admin" : "profile");
+  }
+  async function refreshPublicData() {
+    const [a, t] = await Promise.allSettled([
+      api<Attraction[]>("/api/attractions/attractions"),
+      api<Tier[]>("/api/booking/ticket-tiers"),
+    ]);
+    if (a.status === "fulfilled") setAttractions(a.value);
+    if (t.status === "fulfilled") {
+      setTiers(t.value);
+      setTierId(t.value[0]?.id ?? "");
+      setGuests(t.value[0]?.min_guests ?? 1);
+      changeCommand();
+    }
   }
   async function createBooking(e: React.FormEvent) {
     e.preventDefault();
@@ -237,8 +291,10 @@ function App() {
   );
   const authNotice = !token ? (
     <div className="notice">
-      Connect a signed local development token below to book or view your
-      history. Public attractions and prices are available without a token.
+      {cognitoEnabled
+        ? "Sign in to book or view your history."
+        : "Connect a signed local development token below to book or view your history."}{" "}
+      Public attractions and prices are available without a token.
     </div>
   ) : null;
   const bookingSummary = booking && (
@@ -288,6 +344,8 @@ function App() {
               ["attractions", "Explore"],
               ["book", "Book a visit"],
               ["history", "My bookings"],
+              ["visits", "My visits"],
+              ["profile", "My profile"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -298,6 +356,19 @@ function App() {
               {label}
             </button>
           ))}
+          {role === "admin" && (
+            <button
+              onClick={() => navigate("admin")}
+              aria-current={page === "admin" ? "page" : undefined}
+            >
+              Administrator
+            </button>
+          )}
+          {token ? (
+            <button onClick={disconnect}>Sign out</button>
+          ) : (
+            <button onClick={() => navigate("login")}>Sign in</button>
+          )}
         </nav>
       </header>
       <main className="shell">
@@ -741,48 +812,67 @@ function App() {
             )}
           </section>
         )}
-        <details className="developer-panel">
-          <summary>
-            Local development identity{" "}
-            {identity ? `· ${identity}` : "· not connected"}
-          </summary>
-          <p>
-            This phase uses signed developer tokens, not Cognito login. Tokens
-            stay in memory and are cleared on refresh. Generate one with{" "}
-            <code>.venv/bin/python scripts/local-token.py</code>, then paste it
-            here. Never use AWS credentials or payment secrets.
-          </p>
-          <form onSubmit={connect}>
-            <label>
-              Local access token
-              <input
-                type="password"
-                autoComplete="off"
-                value={draft}
-                maxLength={8192}
-                onChange={(e) => setDraft(e.target.value)}
-                required
-              />
-            </label>
-            <div className="button-row">
-              <button className="secondary" disabled={busy}>
-                Connect token
-              </button>
-              {token && (
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={disconnect}
-                >
-                  Disconnect
-                </button>
-              )}
+        {page === "login" && <AuthPanel onSession={acceptManagedSession} />}
+        {(page === "profile" || page === "visits") && (
+          <VisitorAccount key={identity + page} token={token} view={page} />
+        )}
+        {page === "admin" &&
+          (role === "admin" && token ? (
+            <AdminPanel
+              key={identity}
+              token={token}
+              onDataChanged={() => void refreshPublicData()}
+            />
+          ) : (
+            <div role="alert" className="error">
+              Administrator access is required. Backend permissions are checked
+              on every operation.
             </div>
-          </form>
-        </details>
+          ))}
+        {!cognitoEnabled && (
+          <details className="developer-panel">
+            <summary>
+              Local development identity{" "}
+              {identity ? `· ${identity}` : "· not connected"}
+            </summary>
+            <p>
+              This phase uses signed developer tokens, not Cognito login. Tokens
+              stay in memory and are cleared on refresh. Generate one with{" "}
+              <code>.venv/bin/python scripts/local-token.py</code>, then paste
+              it here. Never use AWS credentials or payment secrets.
+            </p>
+            <form onSubmit={connect}>
+              <label>
+                Local access token
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={draft}
+                  maxLength={8192}
+                  onChange={(e) => setDraft(e.target.value)}
+                  required
+                />
+              </label>
+              <div className="button-row">
+                <button className="secondary" disabled={busy}>
+                  Connect token
+                </button>
+                {token && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={disconnect}
+                  >
+                    Disconnect
+                  </button>
+                )}
+              </div>
+            </form>
+          </details>
+        )}
       </main>
       <footer>
-        Wonderland Theme Park · SE6020 · Phase 2 local development · No AWS
+        Wonderland Theme Park · SE6020 · Phase 3 local development · No AWS
         deployment
       </footer>
     </>

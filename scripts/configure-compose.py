@@ -4,11 +4,16 @@ from pathlib import Path
 import argparse
 import os
 import secrets
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts.local_phase3 import ensure_config
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--output", type=Path, default=Path("secrets/compose.env"))
 args = parser.parse_args()
 if args.output.exists():
+    ensure_config(args.output)
     print("Compose configuration already exists; preserved without changing passwords.")
     raise SystemExit(0)
 args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -36,6 +41,7 @@ values = {
 fd = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 with os.fdopen(fd, "w") as file:
     file.write("\n".join(f"{k}={v}" for k, v in values.items()) + "\n")
+ensure_config(args.output)
 print(
     "Generated private Compose configuration. Use docker compose --env-file secrets/compose.env; never commit this file."
 )

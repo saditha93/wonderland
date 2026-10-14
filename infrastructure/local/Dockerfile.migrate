@@ -7,5 +7,6 @@ COPY wonderland_common /app/wonderland_common
 COPY scripts/db_migrate.py /app/scripts/db_migrate.py
 COPY services/attractions-service/migrations /app/services/attractions-service/migrations
 COPY services/booking-service/migrations /app/services/booking-service/migrations
+COPY services/gate-ride-service/migrations /app/services/gate-ride-service/migrations
 USER 10001
 CMD ["python", "scripts/db_migrate.py", "--seed"]
