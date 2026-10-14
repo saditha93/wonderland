@@ -14,3 +14,5 @@ For the simple app walkthrough, use the [MVP demo guide](demo-guide.md). You do 
 | Report and costs | [Report outline](report-outline.md), [cost management](cost-management.md), [risks](requirements-risks.md) |
 
 The existing Terraform, Kubernetes, CI, queue and Metabase integrations remain available for assessment work. Phase documents record what was verified at that time; the current MVP UI/startup is described in the short guide. Cloud/account operations require the previously agreed approval. No existing data or credentials were removed during MVP simplification.
+
+MVP verification on 15 October 2026: 135 Python tests passed with no skips; both frontend builds passed; the one-command startup/readiness/shutdown check passed. A real local HTTP rehearsal verified password login, today's booking, simulated payment, administrator reference lookup, duplicate check-in denial, ride recording and source/report reconciliation. Interactive browser appearance was not reviewed in this update.

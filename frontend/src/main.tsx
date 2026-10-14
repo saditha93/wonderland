@@ -548,14 +548,13 @@ function App() {
                   </select>
                 </label>
                 <p className="muted">
-                  Times are in Asia/Colombo;
-                  capacity limits are not defined yet.
+                  Arrival times use Sri Lanka time.
                 </p>
                 <button
                   className="primary"
                   disabled={busy || !token || !selectedTier}
                 >
-                  {busy ? "Creating booking…" : "Continue to test payment →"}
+                  {busy ? "Creating booking…" : "Create booking"}
                 </button>
               </form>
               <aside className="panel order-summary">
@@ -568,9 +567,8 @@ function App() {
                   {selectedTier ? money(selectedTier.price_cents) : "—"}
                 </strong>
                 <p className="muted">
-                  The server validates the current stored price and records a
-                  price snapshot. Your pending booking will show the final total
-                  before payment.
+                  Review your final total before paying. Your booking keeps
+                  this price even if ticket prices change later.
                 </p>
               </aside>
             </div>

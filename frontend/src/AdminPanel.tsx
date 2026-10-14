@@ -69,6 +69,7 @@ export function AdminPanel({
   const [tierId, setTierId] = useState("");
   const [t, setT] = useState<EditTier>(emptyTier);
   const [scan, setScan] = useState("");
+  const [scanToken, setScanToken] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [guests, setGuests] = useState(1);
   const [rideRef, setRideRef] = useState("");
@@ -275,14 +276,13 @@ export function AdminPanel({
               <article className="panel" key={i}>
                 <h3>{r.attraction_name}</h3>
                 <p>
-                  {r.riders} riders · {r.ride_events} recorded events
+                  {r.riders} riders · {r.ride_events} rides recorded
                 </p>
               </article>
             ))}
           </div>
           <p className="muted">
-            These are operational totals. Open Analytics to view the stored
-            event reports and processing status.
+            Open Reports to see sales and visitor trends.
           </p>
         </>
       )}
@@ -560,7 +560,7 @@ export function AdminPanel({
                   },
                 );
                 if (alive.current) {
-                  setScan(ticketToken);
+                  setScanToken(ticketToken);
                   setPreview(p);
                   setGuests(p.guest_count);
                 }
@@ -569,11 +569,13 @@ export function AdminPanel({
           >
             <label>
               Booking reference or QR scan
-              <textarea
+              <input
+                type="text"
                 value={scan}
                 placeholder="Paste the WL- booking reference"
                 onChange={(e) => {
                   setScan(e.target.value);
+                  setScanToken("");
                   setPreview(null);
                 }}
                 required
@@ -616,7 +618,7 @@ export function AdminPanel({
                   await api("/api/gate/admin/check-ins", token, {
                     method: "POST",
                     body: JSON.stringify({
-                      ticket_token: scan,
+                      ticket_token: scanToken,
                       guest_count: guests,
                     }),
                   });
@@ -624,6 +626,7 @@ export function AdminPanel({
                     setRideRef(preview?.reference ?? "");
                     rideId.current = crypto.randomUUID();
                     setScan("");
+                    setScanToken("");
                     setPreview(null);
                   }
                 }, "Arrival recorded. Repeat scans will be rejected.")

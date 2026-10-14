@@ -162,7 +162,7 @@ export function AnalyticsPanel({ token }: { token: string }) {
                 <tr>
                   <th>Attraction</th>
                   <th>Riders</th>
-                  <th>Ride events</th>
+                  <th>Rides recorded</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,7 +214,7 @@ export function AnalyticsPanel({ token }: { token: string }) {
                 (sum, r) => sum + Number(r.arriving_guests),
                 0,
               )}{" "}
-              arrivals occurred outside the provisional opening hours. They are
+              arrivals occurred outside opening hours. They are
               included in daily totals.
             </p>
           )}
