@@ -1,4 +1,4 @@
-# Local development and verification — Phase 5
+# Local development and verification — Phase 6
 Use Python 3.12 and Node.js 22.12+ (Node 22 is the container/CI baseline). Install Python dependencies from requirements-dev.lock and frontend dependencies with npm ci. Application verification used CPython 3.12 and available Node 26; Node 22 containers still require execution. Base images use tags, not digests; harden and verify architecture support before deployment.
 
 ## Native PostgreSQL on this Mac
@@ -106,3 +106,7 @@ The local configuration upgrade adds reporting and read-only BI credentials whil
 ## Phase 5 Minikube
 
 See [local Kubernetes guide](local-kubernetes.md) and [Phase 5 outcome](phase-5-outcome.md). The isolated cluster frontend is forwarded on 5180; native frontend/data remain separate. Use `scripts/local-token.py --env-file secrets/kubernetes.env` for its developer identity. A dedicated kubeconfig and explicit named local context guard deployment/failure commands. `scripts/demo-kubernetes.py` provides bounded self-heal, readiness, worker recovery, blue-green and autoscale demonstrations. Stop the named cluster/VM without deleting persistent demo data.
+
+## Phase 6 offline/cloud boundary
+
+Run `.venv/bin/python scripts/validate-cloud.py` to initialize provider downloads with backend disabled, validate four roots and run mocked plans. This is not an AWS plan. `scripts/cloud.py` refuses account operations without explicit authorization and verifies the configured account/non-root role. Saved plans/action hashes and cost acknowledgment gate mutations. See docs/cloud-runbook.md and docs/phase-6-outcome.md. Keep cloud targets, provider cache/state/plans, credentials, rendered Secrets and uploads private/ignored. Existing native and Minikube data stay separate.

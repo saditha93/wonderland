@@ -2,7 +2,9 @@ from wonderland_common.web import create_app, SAFE_REQUEST_ID
 from .routes import router, CatalogLookup
 
 app = create_app("gate-ride-service", "visits")
-app.state.catalog = CatalogLookup(app.state.settings.attractions_url)
+app.state.catalog = CatalogLookup(
+    app.state.settings.attractions_url, app.state.settings.internal_ca_path
+)
 app.include_router(router)
 settings = app.state.settings
 logger = app.state.logger

@@ -1,3 +1,3 @@
-# Planned implementation
+# Local Terraform modules
 
-Reserved for later phases. No deployable resources or fabricated success outputs are included in the Phase 1 foundation. See `docs/implementation-roadmap.md`.
+`network/` creates the dedicated VPC, two public worker subnets, two private DB/ALB subnets and public egress routing. `queue/` creates encrypted standard SQS/DLQ with a three-receive redrive policy, scoped redrive allow policy and TLS-only main queue access. Root/provider versions are pinned; no remote module dependency floats. Offline mocked plan tests exercise the roots. No AWS operation has been run.

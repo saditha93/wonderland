@@ -2,9 +2,12 @@
 
 from contextlib import asynccontextmanager
 from threading import Event, Thread
+from time import monotonic
 from fastapi import Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from botocore.exceptions import BotoCoreError, ClientError
+from .sqs_transport import SqsTransport
 from wonderland_common.web import create_app, SAFE_REQUEST_ID
 from wonderland_common.auth import administrator
 from .pipeline import tick
@@ -17,14 +20,37 @@ logger = app.state.logger
 @asynccontextmanager
 async def lifespan(app):
     stop = Event()
+    transport = None
+    if settings.analytics_enabled and settings.analytics_transport == "sqs":
+        import boto3
+        from botocore.config import Config
+
+        client = boto3.client(
+            "sqs",
+            region_name=settings.aws_region,
+            config=Config(
+                connect_timeout=3,
+                read_timeout=5,
+                retries={"max_attempts": 2, "mode": "standard"},
+            ),
+        )
+        app.state.sqs_client = client
+        transport = SqsTransport(client, settings.sqs_queue_url)
 
     def run():
         while not stop.is_set():
             try:
-                tick(app.state.engine)
-            except SQLAlchemyError:
+                if transport:
+                    transport.publish(app.state.engine, limit=25)
+                    for _ in range(5):
+                        if transport.consume(app.state.engine) == 0:
+                            break
+                else:
+                    tick(app.state.engine)
+                app.state.pipeline_last_success = monotonic()
+            except (SQLAlchemyError, BotoCoreError, ClientError):
                 logger.warning(
-                    '{"event":"pipeline_retry","reason":"database_unavailable"}'
+                    '{"event":"pipeline_retry","reason":"dependency_unavailable"}'
                 )
             stop.wait(1)
 
@@ -48,6 +74,12 @@ def check_pipeline():
     thread = getattr(app.state, "pipeline_thread", None)
     if settings.analytics_enabled and not thread.is_alive():
         raise ValueError("Pipeline thread stopped")
+    if (
+        settings.analytics_enabled
+        and settings.analytics_transport == "sqs"
+        and monotonic() - getattr(app.state, "pipeline_last_success", 0) > 30
+    ):
+        raise ValueError("Queue pipeline has not completed a recent successful cycle")
     with app.state.engine.connect() as conn:
         conn.execute(text("SELECT event_id FROM reporting.queue LIMIT 0"))
         for schema in ("booking", "visits"):
@@ -82,10 +114,42 @@ def metrics():
                 "SELECT (SELECT count(*) FROM booking.outbox WHERE published_at IS NULL)+(SELECT count(*) FROM visits.outbox WHERE published_at IS NULL)"
             )
         ).scalar()
+    remote = None
+    if settings.analytics_transport == "sqs":
+        client = getattr(app.state, "sqs_client", None)
+        if client is None:
+            remote = {"status": "unavailable"}
+        else:
+            try:
+                attrs = client.get_queue_attributes(
+                    QueueUrl=settings.sqs_queue_url,
+                    AttributeNames=[
+                        "ApproximateNumberOfMessages",
+                        "ApproximateNumberOfMessagesNotVisible",
+                    ],
+                )["Attributes"]
+                dead = (
+                    client.get_queue_attributes(
+                        QueueUrl=settings.sqs_dead_queue_url,
+                        AttributeNames=["ApproximateNumberOfMessages"],
+                    )["Attributes"]
+                    if settings.sqs_dead_queue_url
+                    else {}
+                )
+                remote = {
+                    "status": "approximate",
+                    "visible": int(attrs["ApproximateNumberOfMessages"]),
+                    "in_flight": int(attrs["ApproximateNumberOfMessagesNotVisible"]),
+                    "dead_letters": int(dead.get("ApproximateNumberOfMessages", 0)),
+                }
+            except (BotoCoreError, ClientError):
+                remote = {"status": "unavailable"}
     return {
         **result,
+        "remote_queue": remote,
         "unpublished_events": unpublished,
         "processing_enabled": settings.analytics_enabled,
+        "transport": settings.analytics_transport,
         "timezone": "Asia/Colombo",
         "open_hour": 9,
         "close_hour": 18,
@@ -95,6 +159,8 @@ def metrics():
 
 @app.post("/admin/analytics/redrive/{event_id}", dependencies=[Depends(administrator)])
 def redrive(event_id: str):
+    if settings.analytics_transport == "sqs":
+        raise HTTPException(409, "Use the separately authorized SQS DLQ workflow")
     if app.state.engine is None:
         raise HTTPException(503, "Analytics database unavailable")
     with app.state.engine.begin() as conn:
@@ -111,6 +177,11 @@ def redrive(event_id: str):
 
 @app.get("/admin/analytics/dead-letters", dependencies=[Depends(administrator)])
 def dead_letters():
+    if settings.analytics_transport == "sqs":
+        raise HTTPException(
+            409,
+            "SQS dead letters are in the AWS DLQ; local queue controls are disabled",
+        )
     if app.state.engine is None:
         raise HTTPException(503, "Analytics database unavailable")
     with app.state.engine.connect() as conn:

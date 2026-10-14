@@ -13,7 +13,7 @@ def documents():
     return [
         d
         for path in (ROOT / "infrastructure/kubernetes").glob("**/*.yaml")
-        if path.name != "kustomization.yaml"
+        if path.name != "kustomization.yaml" and "aws" not in path.parts
         for d in yaml.safe_load_all(path.read_text())
         if d
     ]

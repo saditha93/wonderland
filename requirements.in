@@ -7,3 +7,4 @@ PyJWT[crypto]>=2.10,<3
 qrcode[pil]>=8,<9
 stripe>=12,<20
 httpx>=0.28,<1
+boto3>=1.40,<2

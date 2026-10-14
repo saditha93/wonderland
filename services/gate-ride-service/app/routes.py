@@ -5,6 +5,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import httpx
+import ssl
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy import text
@@ -20,13 +21,18 @@ PARK_TZ = ZoneInfo("Asia/Colombo")
 
 
 class CatalogLookup:
-    def __init__(self, base_url):
+    def __init__(self, base_url, ca_path=None):
         self.base_url = base_url.rstrip("/")
+        self.verify = (
+            ssl.create_default_context(cafile=str(ca_path)) if ca_path else True
+        )
         self.breaker = CircuitBreaker()
 
     def get(self, attraction_id, request_id=None):
         def request():
-            with httpx.Client(timeout=3, follow_redirects=False) as client:
+            with httpx.Client(
+                timeout=3, follow_redirects=False, verify=self.verify
+            ) as client:
                 response = client.get(
                     f"{self.base_url}/attractions/{attraction_id}",
                     headers={"X-Request-ID": request_id} if request_id else {},

@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-User reviewed earlier phases and authorized Phase 5. Local Kubernetes implementation and live demonstrations are ready for review; stop before Phase 6. Actual Cognito account verification remains pending. Actual Stripe test-account delivery remains unverified. Local application images now build/run in Minikube; remote CI and separate Compose runtime remain unverified. Later commands involving not-yet-created files are plans, not runnable instructions.
+User reviewed earlier phases and authorized Phase 6. Terraform/lifecycle implementation is validated offline and ready for review; stop before Phase 7 account access/deployment. Actual Cognito account verification remains pending. Actual Stripe test-account delivery remains unverified. Local application images now build/run in Minikube; remote CI and separate Compose runtime remain unverified. Later commands involving not-yet-created files are plans, not runnable instructions.
 
 ## Phase 0 — Read sources, trace requirements, agree design
 - Files: `docs/*.md`.
@@ -59,11 +59,11 @@ User reviewed earlier phases and authorized Phase 5. Local Kubernetes implementa
 ## Phase 6 — Real Terraform and lifecycle scripts
 - Files: `infrastructure/terraform/, infrastructure/kubernetes/aws/, scripts/`.
 - Steps: Pinned providers/modules, secure states, least privilege, stage core/edge/workloads; guard apply/destroy.
-- Commands: terraform fmt -check; terraform validate; plan only after approval to connect.
+- Commands: scripts/validate-cloud.py (with .venv/bin/python); guarded cloud.py/preflight/deploy/verify/destroy commands only after account/action approval.
 - Acceptance: Real scripts show target/plan/cost, refuse unapproved apply/destroy; no fake success.
 - Tests: Static validation and script failure-path checks.
-- Evidence: Reviewed plans and staging explanation.
-- Remaining risks: Gateway/LB ordering, certificate/domain, state bootstrap.
+- Evidence: Four provider-valid mocked plans, local cloud manifest/TLS/Helm checks, refusal tests and actual lifecycle code; live plans remain Phase 7.
+- Remaining risks: Real account/region/domain/versions/prices/permissions and all managed integration/cleanup remain unverified. See docs/phase-6-outcome.md.
 
 ## Phase 7 — Approved cloud rehearsal
 - Files: `AWS resources and evidence docs`.

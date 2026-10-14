@@ -10,8 +10,9 @@ def create_database(settings):
     return create_engine(
         settings.database_url.get_secret_value(),
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=5,
+        pool_timeout=3,
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_max_overflow,
         connect_args={"connect_timeout": 3},
     )
 

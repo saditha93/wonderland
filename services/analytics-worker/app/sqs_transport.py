@@ -5,6 +5,9 @@ policy. Default local runtime uses transactional PostgreSQL instead.
 """
 
 import json
+from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
+from .pipeline import Envelope
 from sqlalchemy import text
 from .pipeline import project
 
@@ -29,8 +32,15 @@ class SqsTransport:
         completed = 0
         for message in response.get("Messages", []):
             # Database commit precedes delete. A lost delete or process crash replays safely.
-            with engine.begin() as conn:
-                project(conn, json.loads(message["Body"]))
+            try:
+                raw = json.loads(message["Body"])
+                Envelope.model_validate(raw)
+                with engine.begin() as conn:
+                    project(conn, raw)
+            except (ValueError, ValidationError, IntegrityError):
+                # Leave poison messages unacknowledged for configured visibility retry/DLQ.
+                # Continue the batch so one poison message cannot starve valid messages.
+                continue
             self.client.delete_message(
                 QueueUrl=self.queue_url, ReceiptHandle=message["ReceiptHandle"]
             )

@@ -1,0 +1,21 @@
+{
+  "account_id": "111111111111",
+  "region": "us-east-1",
+  "profile": "wonderland-demo",
+  "name": "wonderland-demo",
+  "release": "r20261014-a1b2c3",
+  "state_bucket": "REPLACE-WITH-UNIQUE-STATE-BUCKET",
+  "operator_role_arn": "arn:aws:iam::111111111111:role/wonderland-operator",
+  "operator_cidr": "203.0.113.1/32",
+  "azs": ["us-east-1a", "us-east-1b"],
+  "eks_version": "REVIEW-STANDARD-SUPPORT-VERSION",
+  "rds_engine_version": "REVIEW-AVAILABLE-17-PATCH",
+  "node_instance_type": "m7g.large",
+  "db_instance_class": "db.t4g.small",
+  "alarm_email": "REPLACE-WITH-YOUR-EMAIL",
+  "tls_server_name": "api.REPLACE-WITH-YOUR-DOMAIN",
+  "hosted_zone_id": "REPLACE-WITH-EXISTING-PUBLIC-ZONE-ID",
+  "allow_database_destroy": false,
+  "retain_final_snapshot": true,
+  "final_snapshot_suffix": "REPLACE-WITH-UNIQUE-BACKUP-ID"
+}

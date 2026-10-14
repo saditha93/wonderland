@@ -61,3 +61,12 @@ Locally verified: profile ownership, administrator API guards, tier lifecycle/sn
 - Stop analytics, create a local scenario, show durable backlog, restore and reconcile.
 - Stop cluster PostgreSQL, contrast liveness/readiness and Service endpoints, restore and verify persistence.
 - Run bounded catalog HTTP load; show CPU HPA scale-up and scale-down. Explain single-node and CPU-only limits.
+
+## Phase 6 evidence
+- Explain four states and why persistent resources cannot reference the temporary edge.
+- Show offline schema/mock checks and guard refusal; distinguish them from a real AWS plan/apply.
+- Explain actual ALB discovery, HTTPS VPC link, SG ownership and reverse cleanup order.
+- Explain managed master secret versus per-service/BI/metadata credentials, migration-only owner and IRSA.
+- Explain SQS replay/poison/DLQ versus local transactional queue semantics.
+- Explain TLS identity checks, ALB target limitation, log reader scope, short-demo certificates and metrics-server trust.
+- Show protected RDS/snapshot choices and residual audit; never claim zero cost or successful cloud deployment without evidence.

@@ -1,23 +1,21 @@
-# Current validation — Phase 5, 14 October 2026
+# Current validation — Phase 6, 14 October 2026
 
-Local verification only. No AWS account access, payment-provider request, Terraform apply/destroy, Git commit or push performed. Earlier validation snapshots are in validation-phase-1.md through validation-phase-4.md.
+No AWS account was contacted, no live Terraform plan/apply/destroy ran, and no registry/Git push or payment-provider request occurred. Earlier records remain in validation-phase-1.md through validation-phase-5.md. A mock plan/schema check is not cloud execution evidence.
 
 | Check | Actual evidence | Limit |
 |---|---|---|
-| Automated suite | 105 passed, no skips; nine Kubernetes safety/security tests and 96 existing tests | Dedicated native *_test PostgreSQL; one upstream Starlette TestClient deprecation warning |
-| Test failure privacy | Unavailable-DB preflight hides connection details; subprocess password-sentinel test passes; exposed native owner credential rotated | Initial stopped-DB attempt failed and is not counted as successful verification |
-| Frontend | TypeScript/Vite production build passed; static nginx image built | Interactive UI review pending after prior browser policy rejection |
-| Container runtime | Six application/migration images built and loaded into real Minikube; green catalog tag loaded | Local ARM64 runtime; base image tags can drift |
-| Kubernetes schemas | All Kustomize resources accepted by server-side dry run | Local Kubernetes v1.37.0; AWS overlay not implemented |
-| Deployment | Migration completed; APIs/frontend/PostgreSQL ready; 2 GiB PVC Bound | Single-node development cluster |
-| Business integration | Actual HTTP via static gateway: tiers/booking/simulated payment/RSA ticket/full-party gate/ride dedupe/history/reporting | Local/test auth only; no external payment/Cognito calls |
-| Reporting reconciliation | Two purchases / 28,000 cents / eight arriving guests / four riders matched stored operations | Isolated cluster demo data, separate from native Metabase |
-| Self-healing | Deleted catalog pod; new UID ready; 20/20 catalog requests succeeded during replacement | Pod replacement, not node/zone HA |
-| Blue-green | Green 0.5.1 selected and verified; rollback to blue 0.5.0 verified; green scaled to zero | Same domain artifact, different release metadata; not a functional update/canary |
-| Worker outage | Worker at zero; domain operations succeed; three events buffered; restart drains and reconciles | Shared DB remains a failure domain |
-| DB readiness/persistence | DB at zero: live 200/ready 503; unready catalog endpoints removed; restore retains booking count | PVC survives pod restart, not backup/restore or node loss |
-| Autoscaling | 49,693 requests, zero failures over 100 seconds; HPA 2 → 3 ready → 2 verified | CPU-based local test, maximum three replicas; no production capacity claim |
-| Credentials/configuration | Private cluster env/kubeconfig mode 0600; no tracked secrets/tmp/course materials; Compose config validates | Local Secrets/PVC not claimed encrypted; no NetworkPolicy/TLS/cloud IAM |
-| Cloud/remote | Not executed | EKS/API Gateway/Cognito/SQS/Terraform/remote CI remain unverified |
+| Python regression | 118 passed, no skips; 13 Phase 6 tests and 105 earlier tests | One existing Starlette TestClient deprecation warning |
+| Terraform formatting/schema | Four pinned roots validate against real AWS provider 6.68.0 with backend disabled | No account credentials or live refresh |
+| Terraform mocked plans | Four offline security plans pass | Does not verify resource existence, quotas, IAM permissions, regional availability or costs |
+| Approval guards | CLI refuses before creating a session without explicit access; wrong account/root/role denied; matching action/plan hashes required; tamper/drift/persistent destroy rejected | No paid mutation executed |
+| TLS | Real local HTTPS request fails without the internal CA and passes with it; cloud URLs/probes/proxy use TLS/RDS verify-full | Actual AWS certificates/traffic remain unverified |
+| Cloud workload schemas | Synthetic render passes local Minikube server-side dry run | No cloud apply or reference/permission validation |
+| Nginx TLS syntax | Actual nginx syntax check passes with generated ephemeral local certificates | No production routing/load claim |
+| Helm | Pinned public ALB chart renders with expected controller image | No EKS chart installation |
+| SQS | Real PostgreSQL/offline-client replay tests still pass; poison message does not starve valid batch; remote status/local-control boundaries implemented | Actual IRSA/queue/DLQ/alerts unverified |
+| Secret/privacy contracts | No local JWT secret in cloud pods; private ticket only booking; metadata password separate from URI; API log glob excludes vendor/migration/other namespaces | Actual RDS/Metabase/log delivery/redaction still needs AWS verification |
+| Images | Analytics and migration images build/import with networking disabled | Actual cloud migration not run |
+| Frontend/config | TypeScript/Vite production build and Compose config validate; shell wrappers parse | Interactive UI/chart review and remote CI pending |
+| Existing local services | Four readiness endpoints on localhost:5180 return 200 | Phase 5 images/data remain separate from cloud preparation |
 
-See [Phase 5 outcome](phase-5-outcome.md) and [local Kubernetes guide](local-kubernetes.md) for commands and limitations. Stop before Phase 6. The first frontend image build found a helper Dockerfile path error, which was fixed before the successful complete build. The first load sampler stopped before a delayed HPA response; it reported failure rather than a false pass. The monitor now allows a bounded controller delay and checks actual ready replicas, then waits for scale-down.
+See [Phase 6 outcome](phase-6-outcome.md), [cloud runbook](cloud-runbook.md) and docs/evidence/phase6-2026-10-14.txt. Sequential provider checks resolved local concurrent plugin startup failures. HCL syntax, application-test scoping of the vendored operator manifest, gate CA wiring and SG ownership issues were fixed before the successful final checks. No failed intermediate run is counted as successful evidence. Real cloud execution belongs to Phase 7 after target selection, actual plan/cost review and explicit approval.

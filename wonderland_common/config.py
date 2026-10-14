@@ -1,7 +1,7 @@
 from typing import Literal
 from pathlib import Path
 import re
-from pydantic import SecretStr, model_validator
+from pydantic import SecretStr, model_validator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +10,13 @@ class Settings(BaseSettings):
     environment: str = "local"
     version: str = "0.4.0"
     analytics_enabled: bool = False
+    analytics_transport: Literal["postgres", "sqs"] = "postgres"
+    sqs_queue_url: str | None = None
+    sqs_dead_queue_url: str | None = None
+    aws_region: str | None = None
+    internal_ca_path: Path | None = None
+    database_pool_size: int = Field(default=5, ge=1, le=10)
+    database_max_overflow: int = Field(default=5, ge=0, le=10)
     database_url: SecretStr | None = None
     auth_mode: Literal["disabled", "local", "cognito"] = "disabled"
     auth_secret: SecretStr | None = None
@@ -71,6 +78,24 @@ class Settings(BaseSettings):
                 r"[a-zA-Z0-9]{1,128}", self.cognito_client_id
             ):
                 raise ValueError("Cognito app client ID is required")
+        if self.database_url and self.environment == "aws":
+            from sqlalchemy.engine import make_url
+
+            query = make_url(self.database_url.get_secret_value()).query
+            if query.get("sslmode") != "verify-full" or not query.get("sslrootcert"):
+                raise ValueError(
+                    "AWS database connections must verify the TLS server certificate"
+                )
+        if self.analytics_transport == "sqs":
+            if not self.sqs_queue_url or not self.aws_region:
+                raise ValueError("SQS requires a region and queue URL")
+            if not re.fullmatch(
+                r"https://sqs\."
+                + re.escape(self.aws_region)
+                + r"\.amazonaws\.com/[0-9]{12}/[A-Za-z0-9_-]+",
+                self.sqs_queue_url,
+            ):
+                raise ValueError("Use the configured region's commercial AWS SQS URL")
         return self
 
     @property

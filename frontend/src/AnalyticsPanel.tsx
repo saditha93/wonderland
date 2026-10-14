@@ -39,6 +39,12 @@ type Analytics = {
   }[];
   unpublished_events: number;
   processing_enabled: boolean;
+  remote_queue?: {
+    status: string;
+    visible?: number;
+    in_flight?: number;
+    dead_letters?: number;
+  } | null;
 };
 export function AnalyticsPanel({ token }: { token: string }) {
   const metabaseUrl =
@@ -99,6 +105,13 @@ export function AnalyticsPanel({ token }: { token: string }) {
       )}
       {data && (
         <>
+          {data.remote_queue && (
+            <p className="notice">
+              SQS status: {data.remote_queue.status}.{" "}
+              {data.remote_queue.status === "approximate" &&
+                `Approximately ${data.remote_queue.visible} waiting, ${data.remote_queue.in_flight} in flight, ${data.remote_queue.dead_letters} in the dead-letter queue.`}
+            </p>
+          )}
           <div className="notice">
             {!data.processing_enabled && "Processing is disabled. "}Events
             awaiting publication: {data.unpublished_events}.{" "}

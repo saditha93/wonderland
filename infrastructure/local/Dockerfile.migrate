@@ -5,6 +5,7 @@ COPY requirements.lock .
 RUN pip install --no-cache-dir -r requirements.lock && useradd --uid 10001 --create-home migrator
 COPY wonderland_common /app/wonderland_common
 COPY scripts/db_migrate.py /app/scripts/db_migrate.py
+COPY scripts/cloud_migrate.py /app/scripts/cloud_migrate.py
 COPY services/attractions-service/migrations /app/services/attractions-service/migrations
 COPY services/booking-service/migrations /app/services/booking-service/migrations
 COPY services/gate-ride-service/migrations /app/services/gate-ride-service/migrations

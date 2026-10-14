@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 import secrets
 import httpx
 from dotenv import dotenv_values
@@ -20,16 +21,44 @@ parser.add_argument("--env-file", type=Path, default=ROOT / "secrets/local.env")
 parser.add_argument(
     "--database-host", help="Use postgres for the Docker analytics profile"
 )
+parser.add_argument(
+    "--allow-cloud-reporting",
+    action="store_true",
+    help="Only after the separately approved cloud deployment",
+)
+parser.add_argument("--metabase-url", default="http://127.0.0.1:3000")
 args = parser.parse_args()
+address = urlparse(args.metabase_url)
+if (
+    address.scheme != "http"
+    or address.hostname not in {"127.0.0.1", "localhost"}
+    or address.username
+    or address.query
+):
+    raise SystemExit(
+        "Metabase API must use the local encrypted-Kubernetes port-forward or native loopback"
+    )
 values = dotenv_values(args.env_file)
 url = make_url(values["BI_DATABASE_URL"])
-if url.username != "wonderland_bi" or url.host not in {
-    "127.0.0.1",
-    "localhost",
-    "postgres",
-}:
+allowed_host = url.host in {"127.0.0.1", "localhost", "postgres"}
+if args.allow_cloud_reporting:
+    allowed_host = bool(
+        url.host
+        and url.host.endswith(".rds.amazonaws.com")
+        and url.query.get("sslmode") == "verify-full"
+    )
+if args.database_host and (
+    args.database_host not in {url.host, "postgres"}
+    or (args.allow_cloud_reporting and args.database_host != url.host)
+):
+    raise SystemExit("Database-host override refused")
+if url.username != "wonderland_bi" or not allowed_host:
     raise SystemExit("Refusing a non-project reporting database")
-private = ROOT / "secrets/metabase.json"
+private = ROOT / (
+    "secrets/metabase-cloud.json"
+    if args.allow_cloud_reporting
+    else "secrets/metabase.json"
+)
 config = (
     json.loads(private.read_text())
     if private.exists()
@@ -42,13 +71,14 @@ config = (
 
 def save():
     fd = os.open(private, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
     with os.fdopen(fd, "w") as stream:
         json.dump(config, stream, indent=2)
     os.chmod(private, 0o600)
 
 
 save()
-client = httpx.Client(base_url="http://127.0.0.1:3000", timeout=120)
+client = httpx.Client(base_url=args.metabase_url, timeout=120)
 
 
 def request(method, path, **kwargs):
@@ -101,7 +131,10 @@ if not database:
                 "dbname": url.database,
                 "user": url.username,
                 "password": url.password,
-                "ssl": False,
+                "ssl": args.allow_cloud_reporting,
+                "additional-options": "sslmode=verify-full&sslrootcert=/run/rds-ca/global-bundle.pem"
+                if args.allow_cloud_reporting
+                else "",
                 "schema-filters-type": "inclusion",
                 "schema-filters-patterns": "reporting",
             },
@@ -190,5 +223,5 @@ if len(verified.get("dashcards", [])) != len(cards):
     raise SystemExit("Dashboard card count verification failed")
 save()
 request("DELETE", "/api/session", json={"session_id": session["id"]})
-print(f"Private dashboard ready: http://localhost:3000/dashboard/{dashboard['id']}")
-print("Local login credentials: secrets/metabase.json (private; never commit or share)")
+print(f"Private dashboard ready: {args.metabase_url}/dashboard/{dashboard['id']}")
+print("Login credentials saved privately; never commit or share the credential file")
