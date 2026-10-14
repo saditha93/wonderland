@@ -1,4 +1,4 @@
-# Local development and verification — Phase 3
+# Local development and verification — Phase 5
 Use Python 3.12 and Node.js 22.12+ (Node 22 is the container/CI baseline). Install Python dependencies from requirements-dev.lock and frontend dependencies with npm ci. Application verification used CPython 3.12 and available Node 26; Node 22 containers still require execution. Base images use tags, not digests; harden and verify architecture support before deployment.
 
 ## Native PostgreSQL on this Mac
@@ -28,7 +28,7 @@ Protected endpoints fail closed unless local mode is explicitly configured. Ther
 # These deliberately display a local credential in your private terminal:
 .venv/bin/python scripts/local-token.py
 .venv/bin/python scripts/local-token.py --subject another-visitor
-# Admin API testing only; administrator UI is Phase 3:
+# Administrator API and UI:
 .venv/bin/python scripts/local-token.py --subject demo-admin --role admin
 # To avoid displaying a token, write it into an ignored file instead:
 .venv/bin/python scripts/local-token.py --output tmp/visitor-token
@@ -44,7 +44,7 @@ Paste the visitor token into **Local development identity** at the bottom of the
 5. The local simulator signs a server-generated event. Verification checks signature, freshness, checkout, amount and currency before confirming atomically and writing one outbox purchase event.
 6. View/download the signed QR ticket and find the confirmed booking in My bookings. Returning without paying leaves it pending.
 
-The local simulator does not contact Stripe or move money. Gate scanning, visit history, profiles and administrator management are implemented in Phase 3. Refund/cancellation policy, checkout-expiry recovery, capacity limits, reporting projections and queues are not implemented. Default booking date is tomorrow in Asia/Colombo; dates are limited to today through 365 days ahead and past same-day slots are rejected. Initial slots 09:00, 12:00 and 15:00 and Family/Group minimum of one guest are explicit provisional choices.
+The local simulator does not contact Stripe or move money. Gate scanning, visit history, profiles and administrator management are implemented in Phase 3. Refund/cancellation policy, checkout-expiry recovery, capacity limits are not implemented. Reporting projections and durable local queues are implemented in Phase 4. Default booking date is tomorrow in Asia/Colombo; dates are limited to today through 365 days ahead and past same-day slots are rejected. Initial slots 09:00, 12:00 and 15:00 and Family/Group minimum of one guest are explicit provisional choices.
 
 ## Validation
 ```bash
@@ -55,7 +55,7 @@ The local simulator does not contact Stripe or move money. Gate scanning, visit 
 .venv/bin/python scripts/smoke-phase3.py
 ```
 
-PostgreSQL integration fixtures truncate only dedicated database names ending in `_test`; never point TEST_DATABASE_URL at valuable data. When TEST_DATABASE_URL is absent, those tests are skipped, not passed. Native setup creates it in private local.env, and CI provisions its own disposable PostgreSQL. A configured but unavailable test database fails the run. Health readiness checks catalog DB/schema revision and booking DB/schema revision plus signing/ownership keys; gate readiness verifies its SQL revision and public/ownership keys; analytics readiness remains skeleton-only.
+PostgreSQL integration fixtures truncate only dedicated database names ending in `_test`; never point TEST_DATABASE_URL at valuable data. When TEST_DATABASE_URL is absent, those tests are skipped, not passed. Native setup creates it in private local.env, and CI provisions its own disposable PostgreSQL. A configured but unavailable test database fails the run. Health readiness checks catalog DB/schema revision and booking DB/schema revision plus signing/ownership keys; gate readiness verifies its SQL revision and public/ownership keys; analytics readiness checks reporting revision, queue/outbox access and enabled worker thread.
 
 The HTTP demo uses `demo-visitor` and creates a real stored, local simulated Family purchase for tomorrow. It reuses matching commands, so it can leave repeatable data you can inspect with the default visitor token. Automated tests use the separate test database and do not erase your development bookings.
 
@@ -70,11 +70,11 @@ docker compose --env-file secrets/compose.env up --build -d --wait
 .venv/bin/python scripts/local-token.py --env-file secrets/compose.env
 ```
 
-Compose uses a separate generated secret file; its tokens are not interchangeable with native-mode tokens. It exposes PostgreSQL on loopback port 5433, services on 8001–8004 and frontend on 5173. Internal PostgreSQL hostname is `postgres:5432`. PostgreSQL becomes healthy, a one-shot migrator applies schemas/seeds/role grants, then catalog/booking start. Gate is database-backed and uses only its public ticket key. Analytics is still a skeleton. Always include the same --env-file on subsequent Compose commands. Never print `docker compose config` without --quiet when collecting public evidence: resolved configuration contains credentials.
+Compose uses a separate generated secret file; its tokens are not interchangeable with native-mode tokens. It exposes PostgreSQL on loopback port 5433, services on 8001–8004 and frontend on 5173. Internal PostgreSQL hostname is `postgres:5432`. PostgreSQL becomes healthy, a one-shot migrator applies schemas/seeds/role grants, then catalog/booking start. Gate is database-backed and uses only its public ticket key. Analytics uses its reporting role and starts durable processing after migration. Always include the same --env-file on subsequent Compose commands. Never print `docker compose config` without --quiet when collecting public evidence: resolved configuration contains credentials.
 
 Stop with `docker compose --env-file secrets/compose.env down`; named volumes persist. `down --volumes` intentionally deletes local database/Metabase volumes; use only for a deliberate disposable reset. Changing environment passwords does not change existing database passwords.
 
-Optional Metabase: `docker compose --env-file secrets/compose.env --profile analytics up -d`. Configure manually at http://localhost:3000. Its embedded H2 metadata volume is development-only; real read-only reporting role, stored analytics facts and dashboards are Phase 4. Do not give Metabase the migration owner credential. This phase does not claim working dashboards.
+Optional Metabase: `docker compose --env-file secrets/compose.env --profile analytics up -d`. Provision at http://localhost:3000 with scripts/provision-metabase.py --env-file secrets/compose.env --database-host postgres. Its embedded H2 metadata volume is development-only; dashboards use actual reporting views through the BI login. Do not give Metabase the migration owner credential. Native dashboards are SQL-verified; Docker runtime remains unverified.
 
 ## Optional Stripe test-account verification (manual, not performed)
 The adapter creates test Checkout Sessions using backend snapshots and a stable provider idempotency key. Network calls use a five-second HTTP timeout and one SDK retry; a per-process circuit breaker opens after three failures, waits 30 seconds and permits a half-open probe. Booking remains pending on provider failure. The endpoint verifies the raw signed payload and never trusts the return URL to confirm payment.
@@ -97,4 +97,12 @@ Signed tickets now use RS256 with public-only gate verification. Re-open older c
 
 For manual gate testing after arrival slots have passed, `scripts/smoke-phase3.py --scenario manual --prepare-only` explicitly seeds a current-day visit date before normal verified local payment confirmation, then stops before scanning. This is a local test-data operation using the migration owner; it is not an exposed booking bypass or a normal visitor workflow. The demo identity is phase3-demo-visitor. Copy the ticket's Local demo gate scan data, switch to demo-admin, validate and register arrival. A second scan must return a duplicate error.
 
-Arrival/ride timestamps are PostgreSQL timestamptz instants; daily operational totals convert to Asia/Colombo. Prices use integer cents. Booking and ride history preserve snapshots, while operational totals aggregate by stable IDs. Outbox publishing/reporting remain Phase 4.
+Arrival/ride timestamps are PostgreSQL timestamptz instants; daily operational totals convert to Asia/Colombo. Prices use integer cents. Booking and ride history preserve snapshots, while operational totals aggregate by stable IDs. Outbox publishing/reporting are implemented in Phase 4.
+
+## Phase 4 analytics
+
+The local configuration upgrade adds reporting and read-only BI credentials while preserving keys/data. The launcher enables the durable publisher/consumer by default; set `APP_ANALYTICS_ENABLED=false` before starting it to demonstrate buffered operations. `scripts/smoke-phase4.py` reconciles confirmed bookings/cents/guests, arrivals and rides with reporting facts and checks protected reporting APIs. See [Phase 4 outcome](phase-4-outcome.md) for Metabase JAR download/start/provision and recovery commands. Docker analytics profile now pins Metabase 0.58.35; Application containers are now verified in Minikube P5; the separate Compose runtime remains unverified. Production frontend Metabase links require public VITE_METABASE_URL.
+
+## Phase 5 Minikube
+
+See [local Kubernetes guide](local-kubernetes.md) and [Phase 5 outcome](phase-5-outcome.md). The isolated cluster frontend is forwarded on 5180; native frontend/data remain separate. Use `scripts/local-token.py --env-file secrets/kubernetes.env` for its developer identity. A dedicated kubeconfig and explicit named local context guard deployment/failure commands. `scripts/demo-kubernetes.py` provides bounded self-heal, readiness, worker recovery, blue-green and autoscale demonstrations. Stop the named cluster/VM without deleting persistent demo data.

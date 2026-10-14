@@ -8,7 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="APP_", hide_input_in_errors=True)
     environment: str = "local"
-    version: str = "0.3.0"
+    version: str = "0.4.0"
+    analytics_enabled: bool = False
     database_url: SecretStr | None = None
     auth_mode: Literal["disabled", "local", "cognito"] = "disabled"
     auth_secret: SecretStr | None = None

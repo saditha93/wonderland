@@ -1,7 +1,9 @@
+import { AnalyticsPanel } from "./AnalyticsPanel";
 import { useEffect, useRef, useState } from "react";
 import { api, money, type Attraction, type Tier } from "./api";
 
-type Tab = "overview" | "attractions" | "pricing" | "gate" | "rides";
+type Tab =
+  "overview" | "attractions" | "pricing" | "gate" | "rides" | "analytics";
 type TierRow = Tier & { active: boolean };
 type EditAttraction = Omit<Attraction, "id">;
 type EditTier = {
@@ -175,25 +177,32 @@ export function AdminPanel({
       <p className="eyebrow">Park operations</p>
       <h1 className="page-title">Administrator dashboard</h1>
       <nav className="admin-tabs" aria-label="Administrator sections">
-        {(["overview", "attractions", "pricing", "gate", "rides"] as Tab[]).map(
-          (id) => (
-            <button
-              className={tab === id ? "primary" : "secondary"}
-              key={id}
-              onClick={() => {
-                setTab(id);
-                setMessage("");
-                setError("");
-              }}
-            >
-              {id === "gate"
-                ? "Gate check-in"
-                : id === "rides"
-                  ? "Ride usage"
-                  : id}
-            </button>
-          ),
-        )}
+        {(
+          [
+            "overview",
+            "attractions",
+            "pricing",
+            "gate",
+            "rides",
+            "analytics",
+          ] as Tab[]
+        ).map((id) => (
+          <button
+            className={tab === id ? "primary" : "secondary"}
+            key={id}
+            onClick={() => {
+              setTab(id);
+              setMessage("");
+              setError("");
+            }}
+          >
+            {id === "gate"
+              ? "Gate check-in"
+              : id === "rides"
+                ? "Ride usage"
+                : id}
+          </button>
+        ))}
         <button
           className="text-button"
           onClick={() => setRefresh((v) => v + 1)}
@@ -275,11 +284,12 @@ export function AdminPanel({
             ))}
           </div>
           <p className="muted">
-            These are operational totals. Metabase reporting dashboards will be
-            added in the analytics phase.
+            These are operational totals. Open Analytics to view the stored
+            event reports and processing status.
           </p>
         </>
       )}
+      {tab === "analytics" && <AnalyticsPanel token={token} />}
       {tab === "attractions" && (
         <div className="booking-layout">
           <form className="panel booking-form" onSubmit={saveAttraction}>

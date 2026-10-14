@@ -1,0 +1,123 @@
+Wonderland Phase 5 local evidence collected 2026-10-14T18:34:02.915191+05:30
+Only local demo resources; no AWS/remote deployment.
+
+
+kubernetes-final-smoke.log
+PASS Kubernetes gateway, service discovery, simulated payment, RSA ticket, arrival, ride retry and stored analytics
+Local Kubernetes demo reference: WL-1A4B9F62C9FE493EA9D5127727A58D38
+PASS Kubernetes reporting/source reconciliation
+
+
+kubernetes-self-heal.log
+pod "attractions-service-blue-7d69686467-2cs47" deleted from wonderland namespace
+deployment "attractions-service-blue" successfully rolled out
+PASS self-heal: replacement pod ready; 20/20 catalog requests succeeded during replacement
+
+
+kubernetes-blue-green.log
+deployment.apps/attractions-service-green created
+Waiting for deployment "attractions-service-green" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "attractions-service-green" rollout to finish: 1 of 2 updated replicas are available...
+deployment "attractions-service-green" successfully rolled out
+service/attractions-service patched
+service/attractions-service patched
+deployment.apps/attractions-service-green scaled
+PASS green selector switch: release metadata 0.5.1 served; catalog remains available
+PASS rollback to blue 0.5.0; green scaled to zero. Domain code is identical in both demo releases.
+
+
+kubernetes-recovery.log
+deployment.apps/analytics-worker scaled
+pod/analytics-worker-5dc747698c-wvwts condition met
+PASS Kubernetes booking, gate and rides while analytics is offline
+deployment.apps/analytics-worker scaled
+Waiting for deployment "analytics-worker" rollout to finish: 0 of 1 updated replicas are available...
+deployment "analytics-worker" successfully rolled out
+PASS Kubernetes gateway, service discovery, simulated payment, RSA ticket, arrival, ride retry and stored analytics
+Local Kubernetes demo reference: WL-14AD7D64467E4D9897C95FD60BE40143
+PASS Kubernetes reporting/source reconciliation
+PASS isolated worker outage: booking/gate/rides succeeded; 3 events durably awaiting publication
+PASS restarted worker drains backlog without duplicate arrival/ride or purchase counts
+
+
+kubernetes-readiness.log
+statefulset.apps/postgres scaled
+pod/postgres-0 condition met
+statefulset.apps/postgres scaled
+Waiting for 1 pods to be ready...
+partitioned roll out complete: 1 new pods have been updated...
+PASS DB outage: API liveness 200, readiness 503; unready endpoints removed; frontend process remains healthy
+PASS readiness recovery and persistent booking count after PostgreSQL restart
+
+
+kubernetes-autoscale.log
+NAME                                        CPU(cores)   MEMORY(bytes)   
+attractions-service-blue-7d69686467-65sxt   105m         63Mi            
+attractions-service-blue-7d69686467-z42qn   17m          60Mi            
+attractions-service-blue-7d69686467-zw97x   83m          76Mi            
+Catalog load: 49693 successful, 0 failed requests; max HPA desired/current replicas 3
+PASS CPU HPA scaled catalog from 2 to 3 ready replicas using actual HTTP traffic
+PASS HPA returned to 2 replicas after load stopped
+
+
+kubernetes-hpa-up.txt
+NAME                                                   REFERENCE                             TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/attractions-blue   Deployment/attractions-service-blue   cpu: 263%/70%   2         3         3          9m34s
+
+NAME                                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/attractions-service-blue   3/3     3            3           9m34s
+
+
+kubernetes-final-status.txt
+NAME                                            READY   STATUS      RESTARTS   AGE
+pod/analytics-worker-5dc747698c-l9kbc           1/1     Running     0          9m54s
+pod/attractions-service-blue-7d69686467-65sxt   1/1     Running     0          10m
+pod/attractions-service-blue-7d69686467-zw97x   1/1     Running     0          11m
+pod/booking-service-8d554c6b5-2p77p             1/1     Running     0          11m
+pod/booking-service-8d554c6b5-drfnd             1/1     Running     0          11m
+pod/frontend-59d95b8d7f-qwx67                   1/1     Running     0          11m
+pod/gate-ride-service-67b6546c5c-sr8nv          1/1     Running     0          11m
+pod/postgres-0                                  1/1     Running     0          9m45s
+pod/schema-migrate-v5-x5pth                     0/1     Completed   0          11m
+
+NAME                          TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/analytics-worker      ClusterIP   10.96.127.163    <none>        8000/TCP   11m
+service/attractions-service   ClusterIP   10.107.135.88    <none>        8000/TCP   11m
+service/booking-service       ClusterIP   10.99.85.101     <none>        8000/TCP   11m
+service/frontend              ClusterIP   10.101.207.105   <none>        8080/TCP   11m
+service/gate-ride-service     ClusterIP   10.96.111.93     <none>        8000/TCP   11m
+service/postgres              ClusterIP   None             <none>        5432/TCP   11m
+
+NAME                                                   REFERENCE                             TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/attractions-blue   Deployment/attractions-service-blue   cpu: 4%/70%   2         3         2          11m
+
+NAME                                    STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+persistentvolumeclaim/data-postgres-0   Bound    pvc-dfd12903-f317-4e6a-aae7-0f97dd051413   2Gi        RWO            standard       <unset>                 11m
+NAME                                        CPU(cores)   MEMORY(bytes)   
+analytics-worker-5dc747698c-l9kbc           7m           60Mi            
+attractions-service-blue-7d69686467-65sxt   5m           63Mi            
+attractions-service-blue-7d69686467-zw97x   4m           77Mi            
+booking-service-8d554c6b5-2p77p             18m          68Mi            
+booking-service-8d554c6b5-drfnd             16m          76Mi            
+frontend-59d95b8d7f-qwx67                   1m           4Mi             
+gate-ride-service-67b6546c5c-sr8nv          4m           62Mi            
+postgres-0                                  14m          58Mi            
+
+
+kubernetes-schema-validation.log
+namespace/wonderland unchanged (server dry run)
+configmap/app-config unchanged (server dry run)
+service/analytics-worker unchanged (server dry run)
+service/attractions-service unchanged (server dry run)
+service/booking-service unchanged (server dry run)
+service/frontend unchanged (server dry run)
+service/gate-ride-service unchanged (server dry run)
+service/postgres unchanged (server dry run)
+deployment.apps/analytics-worker unchanged (server dry run)
+deployment.apps/attractions-service-blue configured (server dry run)
+deployment.apps/booking-service unchanged (server dry run)
+deployment.apps/frontend unchanged (server dry run)
+deployment.apps/gate-ride-service unchanged (server dry run)
+statefulset.apps/postgres configured (server dry run)
+horizontalpodautoscaler.autoscaling/attractions-blue unchanged (server dry run)
+job.batch/schema-migrate-v5 unchanged (server dry run)

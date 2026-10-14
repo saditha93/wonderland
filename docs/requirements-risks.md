@@ -32,3 +32,9 @@
 - Signed JWTs can remain valid until expiry despite logout/group changes; no online revocation denylist is implemented.
 - Ride status verification races with catalog changes; shared database instance remains a failure domain.
 - Arrival/ride outbox is durable but not published yet; analytics worker/Metabase requirements remain Phase 4.
+
+## Phase 4 residual risks
+Local queue and operational storage share PostgreSQL; recovery does not prove database/node high availability. Real SQS visibility/redrive/IAM and AWS integration remain unverified. Completed events/deduplication facts currently have no archival policy. Reports use all stored history and provisional park hours 09:00–18:00; outside-hours arrivals are reported separately and remain in daily totals. Native Metabase uses development-only H2 metadata and separate local credentials. Interactive Analytics/Metabase chart review remains pending after the previous browser policy rejection; actual SQL/API/build checks passed.
+
+## Phase 5 residual risks
+Single-node Minikube proves pod replacement and PVC persistence across pod restart, not node/multi-AZ high availability. Cluster data and tokens differ from native mode; native Metabase is not silently reconnected. HPA is CPU-based and bounded to three catalog replicas; this is no production capacity/SLA evidence. Blue-green demo releases share domain code and differ in metadata. No NetworkPolicy, local Secret/PVC encryption, HTTPS/cloud gateway, cluster autoscaler, cloud alerts or remote CI execution is claimed. Local tooling/VM consumes disk and memory until stopped; stopping preserves data. An unavailable native-DB regression traceback exposed a local owner credential, which was rotated; new preflight suppresses connection details and has a sentinel-leak regression test.

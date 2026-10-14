@@ -202,6 +202,7 @@ def record_ride(body: Ride, request: Request, engine: Engine = Depends(database)
         payload = {
             "booking_reference": body.booking_reference,
             "attraction_id": str(body.attraction_id),
+            "attraction_name": attraction["name"],
             "guest_count": body.guest_count,
         }
         conn.execute(

@@ -1,0 +1,48 @@
+{
+  "name": "Wonderland \u2014 stored event analytics",
+  "description": "Eventual reporting; purchases count bookings, arrivals and ride popularity count guests. Asia/Colombo; provisional opening hours 09:00\u201318:00. USD money is integer cents. Includes zero-activity hours; ties share ranks.",
+  "cards": [
+    {
+      "key": "daily-arrivals",
+      "name": "Daily visitor arrivals",
+      "sql": "daily-arrivals.sql",
+      "display": "line"
+    },
+    {
+      "key": "tickets-by-tier",
+      "name": "Purchased tickets by tier",
+      "sql": "tickets-by-tier.sql",
+      "display": "bar"
+    },
+    {
+      "key": "revenue-by-tier",
+      "name": "Revenue by tier (USD cents)",
+      "sql": "revenue-by-tier.sql",
+      "display": "bar"
+    },
+    {
+      "key": "popular-attractions",
+      "name": "Most popular attractions (riders)",
+      "sql": "popular-attractions.sql",
+      "display": "bar"
+    },
+    {
+      "key": "busy-quiet-hours",
+      "name": "Busiest and quietest hours (park time)",
+      "sql": "busy-quiet-hours.sql",
+      "display": "bar"
+    },
+    {
+      "key": "arrival-hours",
+      "name": "Daily arrivals by opening hour (zero filled)",
+      "sql": "arrival-hours.sql",
+      "display": "table"
+    },
+    {
+      "key": "outside-hours",
+      "name": "Arrivals outside provisional opening hours",
+      "sql": "outside-hours.sql",
+      "display": "table"
+    }
+  ]
+}

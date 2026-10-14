@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  APP_ENVIRONMENT: local
+  APP_VERSION: 0.5.0
+  APP_AUTH_MODE: local
+  APP_PAYMENT_PROVIDER: local
+  APP_ATTRACTIONS_URL: http://attractions-service:8000

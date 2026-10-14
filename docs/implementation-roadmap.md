@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-User reviewed earlier phases and authorized Phase 3. Phase 3 local implementation is ready for review; stop before Phase 4. Actual Cognito account verification remains pending. Actual Stripe test-account delivery and Docker runtime remain unverified. Later commands involving not-yet-created files are plans, not runnable instructions.
+User reviewed earlier phases and authorized Phase 5. Local Kubernetes implementation and live demonstrations are ready for review; stop before Phase 6. Actual Cognito account verification remains pending. Actual Stripe test-account delivery remains unverified. Local application images now build/run in Minikube; remote CI and separate Compose runtime remain unverified. Later commands involving not-yet-created files are plans, not runnable instructions.
 
 ## Phase 0 — Read sources, trace requirements, agree design
 - Files: `docs/*.md`.
@@ -41,20 +41,20 @@ User reviewed earlier phases and authorized Phase 3. Phase 3 local implementatio
 ## Phase 4 — Durable event pipeline and actual dashboards
 - Files: `services/analytics-worker/, analytics/`.
 - Steps: Outbox; local transport adapter; SQS adapter; event dedupe; read model; dashboard provisioning.
-- Commands: Migration/seed/worker commands added in this phase.
+- Commands: scripts/local-postgres.py start; scripts/run-local-services.py; scripts/run-metabase.py; scripts/provision-metabase.py; scripts/smoke-phase4.py (all with .venv/bin/python).
 - Acceptance: Five mandatory metrics query persisted facts.
 - Tests: Replay/crash/reconciliation/timezone tests.
-- Evidence: Pause worker, recover; inspect Metabase SQL.
-- Remaining risks: Eventual consistency, DLQ handling, zero activity hours.
+- Evidence: Disabled-consumer backlog and restart reconciliation passed; seven Metabase SQL questions executed. See docs/phase-4-outcome.md.
+- Remaining risks: Actual SQS/cloud integration and interactive chart review pending; provisional opening hours; shared database failure domain and retention.
 
 ## Phase 5 — Minikube and failure/scale demonstrations
 - Files: `infrastructure/kubernetes/{base,local}, tests/`.
 - Steps: Namespace/config/secret/probes/resources; Services; HPA; blue-green.
-- Commands: minikube start --driver=docker; kubectl apply -k infrastructure/kubernetes/local (after manifests exist).
+- Commands: scripts/local-kubernetes.py start/build/deploy/verify/forward; scripts/smoke-kubernetes.py; scripts/demo-kubernetes.py (all with .venv/bin/python).
 - Acceptance: Discovery, scale, self-heal and rollback demonstrable.
 - Tests: Fault injection/load; readiness failure and recovery.
-- Evidence: Pod deletion, logs and version switch.
-- Remaining risks: Local capacity; HPA needs metrics-server.
+- Evidence: Real pod replacement, live business/analytics flow, worker/DB recovery, blue-green switch/rollback and actual CPU HPA 2→3→2 verified; see docs/phase-5-outcome.md.
+- Remaining risks: Single-node/shared-DB failure domain; provisional local resources; cloud gateway/security remain later work.
 
 ## Phase 6 — Real Terraform and lifecycle scripts
 - Files: `infrastructure/terraform/, infrastructure/kubernetes/aws/, scripts/`.

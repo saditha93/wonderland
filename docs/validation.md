@@ -1,26 +1,23 @@
-# Current validation — Phase 3, 14 October 2026
-Local verification only. No AWS account access, Terraform apply/destroy, actual Cognito account request, external payment call, Git commit or push occurred. Historical records are in validation-phase-1.md and validation-phase-2.md.
+# Current validation — Phase 5, 14 October 2026
+
+Local verification only. No AWS account access, payment-provider request, Terraform apply/destroy, Git commit or push performed. Earlier validation snapshots are in validation-phase-1.md through validation-phase-4.md.
 
 | Check | Actual evidence | Limit |
 |---|---|---|
-| PostgreSQL integration suite | 86 passed, no integration skips; one upstream TestClient deprecation warning | Dedicated *_test database; no development data truncation |
-| Original booking/payment flow | Existing domain tests continue passing after RSA ticket migration | External Stripe test-account delivery remains unverified |
-| Cognito verification | Real RSA/JWK verification with offline keys; issuer/client/token_use/expiry/group/audience/algorithm checks; unknown key and key-fetch failure tests | No real AWS pool used |
-| Local profiles/admin APIs | Own profile only; role changes rejected; protected catalog/tier lifecycle and snapshot-preserving changes tested | New UI forms have build/API-level validation, not a fresh browser walkthrough |
-| Gate arrivals | Six concurrent scans admit one party; duplicate scans return 409; full guest counts; wrong date/forgery/legacy denied | Full-party policy; no partial arrival/re-entry/refund/revocation |
-| Ride usage | Check-in required, date/count bounds, concurrent event deduplication, changed-payload conflict, catalog fail-closed behavior | Catalog status and event insertion are not a distributed transaction |
-| Atomicity | Arrival and ride outbox failures roll back domain writes; retry succeeds | Queue/worker delivery is Phase 4 |
-| Visitor history | Owned visits/rides only; different visitor receives no other records | Bounded lists; pagination future |
-| Stable-ID totals | Renaming tiers/attractions does not split totals; confirmed snapshot amounts counted | Operational SQL, not Metabase reporting |
-| Key readiness | Missing gate keys yield readiness 503 while liveness stays 200; booking/gate use RSA key validation | Cloud secrets distribution/rotation unverified |
-| Live local HTTP | Profile, admin denial, confirmed signed ticket, four-guest arrival, duplicate scan, two-rider event and owned history passed through Vite | Local simulator and PostgreSQL only |
-| Live service isolation | Stopped booking process; gate independently admitted four guests and stayed ready; all services restored | Shared DB remained online; not a node/DB failover test |
-| Database roles | Each of attractions/booking/visits can use only its own schema; no cross-schema usage | Local privileged migrator excluded from API processes; cloud IAM pending |
-| Frontend | TypeScript and Vite production build passed; public/admin data loads degrade independently | Available Node 26; Node 22 image baseline and interactive MFA/UI review unverified |
-| Dependency audits | pip-audit: no known runtime vulnerabilities; npm audit: zero vulnerabilities reported | Advisory snapshot only |
-| YAML/Git hygiene | Compose/CI/Amplify YAML parsed; private files ignored/untracked; diff whitespace clean | Docker absent, so no claim of container execution; GitHub CI unrun |
-| Managed cloud integration | Not executed, per approval boundary | Cognito/Amplify/Gateway/EKS/Terraform remain future approved verification |
+| Automated suite | 105 passed, no skips; nine Kubernetes safety/security tests and 96 existing tests | Dedicated native *_test PostgreSQL; one upstream Starlette TestClient deprecation warning |
+| Test failure privacy | Unavailable-DB preflight hides connection details; subprocess password-sentinel test passes; exposed native owner credential rotated | Initial stopped-DB attempt failed and is not counted as successful verification |
+| Frontend | TypeScript/Vite production build passed; static nginx image built | Interactive UI review pending after prior browser policy rejection |
+| Container runtime | Six application/migration images built and loaded into real Minikube; green catalog tag loaded | Local ARM64 runtime; base image tags can drift |
+| Kubernetes schemas | All Kustomize resources accepted by server-side dry run | Local Kubernetes v1.37.0; AWS overlay not implemented |
+| Deployment | Migration completed; APIs/frontend/PostgreSQL ready; 2 GiB PVC Bound | Single-node development cluster |
+| Business integration | Actual HTTP via static gateway: tiers/booking/simulated payment/RSA ticket/full-party gate/ride dedupe/history/reporting | Local/test auth only; no external payment/Cognito calls |
+| Reporting reconciliation | Two purchases / 28,000 cents / eight arriving guests / four riders matched stored operations | Isolated cluster demo data, separate from native Metabase |
+| Self-healing | Deleted catalog pod; new UID ready; 20/20 catalog requests succeeded during replacement | Pod replacement, not node/zone HA |
+| Blue-green | Green 0.5.1 selected and verified; rollback to blue 0.5.0 verified; green scaled to zero | Same domain artifact, different release metadata; not a functional update/canary |
+| Worker outage | Worker at zero; domain operations succeed; three events buffered; restart drains and reconciles | Shared DB remains a failure domain |
+| DB readiness/persistence | DB at zero: live 200/ready 503; unready catalog endpoints removed; restore retains booking count | PVC survives pod restart, not backup/restore or node loss |
+| Autoscaling | 49,693 requests, zero failures over 100 seconds; HPA 2 → 3 ready → 2 verified | CPU-based local test, maximum three replicas; no production capacity claim |
+| Credentials/configuration | Private cluster env/kubeconfig mode 0600; no tracked secrets/tmp/course materials; Compose config validates | Local Secrets/PVC not claimed encrypted; no NetworkPolicy/TLS/cloud IAM |
+| Cloud/remote | Not executed | EKS/API Gateway/Cognito/SQS/Terraform/remote CI remain unverified |
 
-Reproduce native checks with `.venv/bin/python scripts/local-postgres.py start` and `./scripts/check-local.sh`. Start the local APIs and Vite for `scripts/smoke-local.py`, `scripts/smoke-phase2.py` and `scripts/smoke-phase3.py`. Repeatable scenario keys/event IDs prevent retries from creating duplicate purchases/arrivals/rides. Different named demo scenarios intentionally create separate local bookings.
-
-The first expanded run exposed two test-fixture issues (restoring a disabled booking DB and converting an RSA public key to JWK). They were fixed; this record does not count those failed runs as passes. One upstream Starlette TestClient/httpx deprecation warning remains visible. No cloud success, mark allocation or production readiness is claimed.
+See [Phase 5 outcome](phase-5-outcome.md) and [local Kubernetes guide](local-kubernetes.md) for commands and limitations. Stop before Phase 6. The first frontend image build found a helper Dockerfile path error, which was fixed before the successful complete build. The first load sampler stopped before a delayed HPA response; it reported failure rather than a false pass. The monitor now allows a bounded controller delay and checks actual ready replicas, then waits for scale-down.

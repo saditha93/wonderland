@@ -42,6 +42,7 @@ def test_health_contract(service, endpoint, scope):
         "attractions-service",
         "booking-service",
         "gate-ride-service",
+        "analytics-worker",
     }
     expected_status = 503 if domain_service and endpoint == "/health/ready" else 200
     expected_scope = (

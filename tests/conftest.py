@@ -51,6 +51,20 @@ def postgres_engine():
             "Refusing destructive integration fixtures outside a dedicated *_test database"
         )
     engine = create_engine(url, pool_size=10, max_overflow=10)
+    from sqlalchemy.exc import SQLAlchemyError
+
+    available = True
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        available = False
+    if not available:
+        engine.dispose()
+        pytest.fail(
+            "Test PostgreSQL unavailable; start scripts/local-postgres.py first. Connection details suppressed.",
+            pytrace=False,
+        )
     from scripts.db_migrate import migrate
 
     migrate(engine)
@@ -90,7 +104,7 @@ def domain(postgres_engine, monkeypatch, rsa_keys):
 
     with postgres_engine.begin() as conn:
         conn.exec_driver_sql(
-            "TRUNCATE visits.outbox,visits.ride_events,visits.check_ins,booking.visitor_profiles,booking.outbox,booking.payment_events,booking.bookings,booking.ticket_tiers,attractions.attractions CASCADE"
+            "TRUNCATE reporting.queue,reporting.processed_events,reporting.purchases,reporting.arrivals,reporting.rides,visits.outbox,visits.ride_events,visits.check_ins,booking.visitor_profiles,booking.outbox,booking.payment_events,booking.bookings,booking.ticket_tiers,attractions.attractions CASCADE"
         )
     seed(postgres_engine)
     for key, value in {

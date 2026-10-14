@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
-from scripts.db_migrate import migrate, seed, grant_service_roles
+from scripts.db_migrate import migrate, seed, grant_service_roles, grant_bi_login
 
 DATA = ROOT / "tmp/postgres"
 SECRET_DIR = ROOT / "secrets"
@@ -148,8 +148,10 @@ def main():
             "attractions": values["LOCAL_ATTRACTIONS_ROLE_PASSWORD"],
             "booking": values["LOCAL_BOOKING_ROLE_PASSWORD"],
             "visits": values["LOCAL_VISITS_ROLE_PASSWORD"],
+            "reporting": values["LOCAL_REPORTING_ROLE_PASSWORD"],
         },
     )
+    grant_bi_login(engine, values["LOCAL_BI_ROLE_PASSWORD"])
     engine.dispose()
     print(
         "Project PostgreSQL ready on 127.0.0.1:55432; migrations/seeds applied. Secrets saved privately, not printed."

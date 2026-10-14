@@ -21,6 +21,8 @@ services:
       MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?Generate secrets/compose.env first}
       LOCAL_ATTRACTIONS_ROLE_PASSWORD: ${LOCAL_ATTRACTIONS_ROLE_PASSWORD:?Generate secrets/compose.env first}
       LOCAL_BOOKING_ROLE_PASSWORD: ${LOCAL_BOOKING_ROLE_PASSWORD:?Generate secrets/compose.env first}
+      LOCAL_REPORTING_ROLE_PASSWORD: ${LOCAL_REPORTING_ROLE_PASSWORD:?Generate secrets/compose.env first}
+      LOCAL_BI_ROLE_PASSWORD: ${LOCAL_BI_ROLE_PASSWORD:?Generate secrets/compose.env first}
       LOCAL_VISITS_ROLE_PASSWORD: ${LOCAL_VISITS_ROLE_PASSWORD:?Generate secrets/compose.env first}
     depends_on:
       postgres:
@@ -32,7 +34,7 @@ services:
       dockerfile: services/attractions-service/Dockerfile
     environment:
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
-      APP_VERSION: ${APP_VERSION:-0.3.0}
+      APP_VERSION: ${APP_VERSION:-0.4.0}
       APP_AUTH_MODE: local
       APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
       APP_DATABASE_URL: ${ATTRACTIONS_DATABASE_URL:?Generate secrets/compose.env first}
@@ -46,7 +48,7 @@ services:
       dockerfile: services/booking-service/Dockerfile
     environment:
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
-      APP_VERSION: ${APP_VERSION:-0.3.0}
+      APP_VERSION: ${APP_VERSION:-0.4.0}
       APP_AUTH_MODE: local
       APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
       APP_TICKET_SECRET: ${APP_TICKET_SECRET:?Generate secrets/compose.env first}
@@ -65,7 +67,7 @@ services:
       dockerfile: services/gate-ride-service/Dockerfile
     environment:
       APP_ENVIRONMENT: local
-      APP_VERSION: ${APP_VERSION:-0.3.0}
+      APP_VERSION: ${APP_VERSION:-0.4.0}
       APP_AUTH_MODE: local
       APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
       APP_DATABASE_URL: ${GATE_DATABASE_URL:?Generate secrets/compose.env first}
@@ -82,7 +84,14 @@ services:
       dockerfile: services/analytics-worker/Dockerfile
     environment:
       APP_ENVIRONMENT: local
-      APP_VERSION: ${APP_VERSION:-0.3.0}
+      APP_VERSION: ${APP_VERSION:-0.4.0}
+      APP_AUTH_MODE: local
+      APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
+      APP_DATABASE_URL: ${ANALYTICS_DATABASE_URL:?Generate secrets/compose.env first}
+      APP_ANALYTICS_ENABLED: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports: ["127.0.0.1:8004:8000"]
   frontend:
     build:
@@ -94,10 +103,12 @@ services:
       API_ANALYTICS_TARGET: http://analytics-worker:8000
     ports: ["127.0.0.1:5173:5173"]
   metabase:
-    image: metabase/metabase:v0.56.2
+    image: metabase/metabase:v0.58.35
     profiles: ["analytics"]
     ports: ["127.0.0.1:3000:3000"]
     environment:
+      MB_ANON_TRACKING_ENABLED: "false"
+      MB_CHECK_FOR_UPDATES: "false"
       MB_DB_FILE: /metabase-data/metabase.db
     volumes: ["metabase-data:/metabase-data"]
     depends_on:

@@ -32,6 +32,7 @@ try:
             "attractions-service": "ATTRACTIONS_DATABASE_URL",
             "booking-service": "BOOKING_DATABASE_URL",
             "gate-ride-service": "GATE_DATABASE_URL",
+            "analytics-worker": "ANALYTICS_DATABASE_URL",
         }.get(name)
         for key in list(env):
             if key.endswith("_DATABASE_URL") or key.startswith("LOCAL_"):
@@ -50,7 +51,11 @@ try:
             env.pop("APP_TICKET_OWNER_SECRET", None)
             env.pop("APP_TICKET_PUBLIC_KEY_B64", None)
             env.pop("APP_TICKET_PUBLIC_KEY_PATH", None)
-        if name not in {"booking-service", "attractions-service", "gate-ride-service"}:
+        if name == "analytics-worker":
+            env["APP_ANALYTICS_ENABLED"] = os.environ.get(
+                "APP_ANALYTICS_ENABLED", "true"
+            )
+        if name not in SERVICES:
             env.pop("APP_AUTH_SECRET", None)
             env.pop("APP_AUTH_MODE", None)
         if database_key and os.environ.get(database_key):

@@ -8,5 +8,6 @@ COPY scripts/db_migrate.py /app/scripts/db_migrate.py
 COPY services/attractions-service/migrations /app/services/attractions-service/migrations
 COPY services/booking-service/migrations /app/services/booking-service/migrations
 COPY services/gate-ride-service/migrations /app/services/gate-ride-service/migrations
+COPY services/analytics-worker/migrations /app/services/analytics-worker/migrations
 USER 10001
 CMD ["python", "scripts/db_migrate.py", "--seed"]

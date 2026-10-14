@@ -1,0 +1,15 @@
+flowchart LR
+  B[Booking confirmation] --> BO[(Booking outbox)]
+  G[Gate / ride transaction] --> VO[(Visits outbox)]
+  BO --> P[Publisher: SKIP LOCKED]
+  VO --> P
+  P --> Q[(Durable local PostgreSQL queue)]
+  Q --> W[Validate / dedupe / project]
+  W --> F[(Reporting facts + completion ack)]
+  W -->|Invalid after 3 attempts| D[(Dead letters)]
+  D -->|Authorized redrive after fixing cause| Q
+  F --> V[Read-only aggregate views]
+  V --> M[Private Metabase dashboard]
+  V --> A[Protected administrator analytics]
+  P -. Future cloud transport / offline tested .-> S[SQS / DLQ]
+  S -. Commit before delete .-> W

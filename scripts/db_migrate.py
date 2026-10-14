@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = {
+    "reporting": ROOT / "services/analytics-worker/migrations",
     "attractions": ROOT / "services/attractions-service/migrations",
     "booking": ROOT / "services/booking-service/migrations",
     "visits": ROOT / "services/gate-ride-service/migrations",
@@ -189,10 +190,73 @@ def grant_service_roles(engine, passwords):
                 conn.exec_driver_sql(
                     f"GRANT SELECT, INSERT, UPDATE ON booking.visitor_profiles TO {role}"
                 )
-            else:
+            elif schema == "visits":
                 conn.exec_driver_sql(
                     f"GRANT SELECT, INSERT ON visits.check_ins,visits.ride_events,visits.outbox TO {role}"
                 )
+
+            elif schema == "reporting":
+                conn.exec_driver_sql(
+                    f"REVOKE INSERT, UPDATE ON ALL TABLES IN SCHEMA reporting FROM {role}"
+                )
+                conn.exec_driver_sql(
+                    f"GRANT SELECT ON ALL TABLES IN SCHEMA reporting TO {role}"
+                )
+                conn.exec_driver_sql(
+                    f"GRANT INSERT ON reporting.queue,reporting.processed_events,reporting.purchases,reporting.arrivals,reporting.rides TO {role}"
+                )
+                conn.exec_driver_sql(f"GRANT UPDATE ON reporting.queue TO {role}")
+                for source in ("booking", "visits"):
+                    conn.exec_driver_sql(f"GRANT USAGE ON SCHEMA {source} TO {role}")
+                    conn.exec_driver_sql(
+                        f"REVOKE UPDATE ON {source}.outbox FROM {role}"
+                    )
+                    conn.exec_driver_sql(
+                        f"GRANT SELECT, UPDATE(published_at) ON {source}.outbox TO {role}"
+                    )
+        # Fixed read-only BI role; no operational schema access or queue access.
+        if "reporting" in passwords:
+            conn.exec_driver_sql(
+                "DO $$ BEGIN CREATE ROLE wonderland_bi NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+            )
+            conn.exec_driver_sql("GRANT USAGE ON SCHEMA reporting TO wonderland_bi")
+            views = (
+                "daily_arrivals",
+                "tickets_by_tier",
+                "revenue_by_tier",
+                "popular_attractions",
+                "arrival_hours",
+                "busiest_quiet_hours",
+                "outside_hours_arrivals",
+            )
+            for view in views:
+                conn.exec_driver_sql(
+                    f"GRANT SELECT ON reporting.{view} TO wonderland_bi"
+                )
+
+
+def grant_bi_login(engine, password):
+    import re
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{32,100}", password):
+        raise ValueError("Invalid generated BI password")
+    with engine.begin() as conn:
+        # Provision once; repeated runs preserve the original password.
+        login = conn.execute(
+            text("SELECT rolcanlogin FROM pg_roles WHERE rolname='wonderland_bi'")
+        ).scalar()
+        if login is False:
+            try:
+                conn.exec_driver_sql(
+                    f"ALTER ROLE wonderland_bi LOGIN PASSWORD '{password}'"
+                )
+            except SQLAlchemyError:
+                raise RuntimeError(
+                    "BI login provisioning failed; credentials suppressed"
+                ) from None
+        conn.exec_driver_sql(
+            "ALTER ROLE wonderland_bi SET default_transaction_read_only=on"
+        )
 
 
 def main():
@@ -216,6 +280,8 @@ def main():
         }
         if all(passwords.values()):
             grant_service_roles(engine, passwords)
+        if os.environ.get("LOCAL_BI_ROLE_PASSWORD"):
+            grant_bi_login(engine, os.environ["LOCAL_BI_ROLE_PASSWORD"])
         print(
             "Migrations complete"
             + (

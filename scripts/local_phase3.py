@@ -39,11 +39,29 @@ def ensure_config(path):
             username="wonderland_visits", password=password
         )
         additions["GATE_DATABASE_URL"] = url.render_as_string(hide_password=False)
+    if not values.get("ANALYTICS_DATABASE_URL"):
+        password = secrets.token_urlsafe(36)
+        additions["LOCAL_REPORTING_ROLE_PASSWORD"] = password
+        url = make_url(values["MIGRATION_DATABASE_URL"]).set(
+            username="wonderland_reporting", password=password
+        )
+        additions["ANALYTICS_DATABASE_URL"] = url.render_as_string(hide_password=False)
+    if not values.get("BI_DATABASE_URL"):
+        password = secrets.token_urlsafe(36)
+        additions["LOCAL_BI_ROLE_PASSWORD"] = password
+        url = make_url(values["MIGRATION_DATABASE_URL"]).set(
+            username="wonderland_bi", password=password
+        )
+        additions["BI_DATABASE_URL"] = url.render_as_string(hide_password=False)
     if additions:
         with path.open("a") as stream:
             stream.write(
                 "\n" + "\n".join(f"{k}={v}" for k, v in additions.items()) + "\n"
             )
-    contents = path.read_text().replace("APP_VERSION=0.2.0", "APP_VERSION=0.3.0")
+    contents = (
+        path.read_text()
+        .replace("APP_VERSION=0.2.0", "APP_VERSION=0.4.0")
+        .replace("APP_VERSION=0.3.0", "APP_VERSION=0.4.0")
+    )
     path.write_text(contents)
     os.chmod(path, 0o600)

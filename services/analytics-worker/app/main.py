@@ -1,81 +1,124 @@
-"""Health-only foundation. No business routes or event consumption yet."""
-import json
-import logging
-import re
-import sys
-from time import perf_counter
-from uuid import uuid4
+"""Protected reporting API plus independently pausable local pipeline."""
 
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from contextlib import asynccontextmanager
+from threading import Event, Thread
+from fastapi import Depends, HTTPException
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from wonderland_common.web import create_app, SAFE_REQUEST_ID
+from wonderland_common.auth import administrator
+from .pipeline import tick
 
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="APP_")
-    environment: str = "local"
-    version: str = "0.1.0"
+app = create_app("analytics-worker", "reporting", revision=2)
+settings = app.state.settings
+logger = app.state.logger
 
 
-settings = Settings()
-SERVICE_NAME = "analytics-worker"
-logger = logging.getLogger(SERVICE_NAME)
-# Application logs are JSON on stdout; exclude raw URLs, headers and bodies.
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter("%(message)s"))
-logger.handlers = [handler]
-logger.setLevel(logging.INFO)
-logger.propagate = False
-app = FastAPI(title=f"Wonderland {SERVICE_NAME}", version=settings.version)
-SAFE_REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+@asynccontextmanager
+async def lifespan(app):
+    stop = Event()
+
+    def run():
+        while not stop.is_set():
+            try:
+                tick(app.state.engine)
+            except SQLAlchemyError:
+                logger.warning(
+                    '{"event":"pipeline_retry","reason":"database_unavailable"}'
+                )
+            stop.wait(1)
+
+    worker = None
+    if settings.analytics_enabled and app.state.engine is not None:
+        worker = Thread(target=run, daemon=True, name="analytics-pipeline")
+        app.state.pipeline_thread = worker
+        worker.start()
+    yield
+    stop.set()
+    if worker:
+        worker.join(timeout=10)
 
 
-class Health(BaseModel):
-    service: str
-    status: str
-    version: str
-    environment: str
-    scope: str
+app.router.lifespan_context = lifespan
 
 
-@app.middleware("http")
-async def request_context(request: Request, call_next):
-    incoming = request.headers.get("x-request-id", "")
-    request_id = incoming if SAFE_REQUEST_ID.fullmatch(incoming) else str(uuid4())
-    request.state.request_id = request_id
-    started = perf_counter()
-    status = 500
-    try:
-        response = await call_next(request)
-        status = response.status_code
-        response.headers["X-Request-ID"] = request_id
-        return response
-    finally:
-        route = request.scope.get("route")
-        logger.info(json.dumps({
-            "event": "http_request", "service": SERVICE_NAME,
-            "request_id": request_id, "method": request.method,
-            "route": getattr(route, "path", "unmatched"),
-            "status": status, "duration_ms": round((perf_counter()-started)*1000, 3),
-        }))
+def check_pipeline():
+    if settings.analytics_enabled and not getattr(app.state, "pipeline_thread", None):
+        raise ValueError("Pipeline not started")
+    thread = getattr(app.state, "pipeline_thread", None)
+    if settings.analytics_enabled and not thread.is_alive():
+        raise ValueError("Pipeline thread stopped")
+    with app.state.engine.connect() as conn:
+        conn.execute(text("SELECT event_id FROM reporting.queue LIMIT 0"))
+        for schema in ("booking", "visits"):
+            conn.execute(text(f"SELECT event_id FROM {schema}.outbox LIMIT 0"))
 
 
-def health(scope: str) -> Health:
-    return Health(service=SERVICE_NAME, status="ok", version=settings.version,
-                  environment=settings.environment, scope=scope)
+app.state.readiness_check = check_pipeline
 
 
-@app.get("/health", response_model=Health)
-def summary():
-    return health("skeleton-only")
+@app.get("/admin/analytics", dependencies=[Depends(administrator)])
+def metrics():
+    if app.state.engine is None:
+        raise HTTPException(503, "Analytics database unavailable")
+    with app.state.engine.connect() as conn:
+        conn.exec_driver_sql(
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+        )
+        result = {
+            name: [dict(row) for row in conn.execute(text(query)).mappings()]
+            for name, query in {
+                "daily_arrivals": "SELECT * FROM reporting.daily_arrivals ORDER BY day DESC LIMIT 366",
+                "tickets_by_tier": "SELECT * FROM reporting.tickets_by_tier ORDER BY purchased_tickets DESC,tier_id",
+                "revenue_by_tier": "SELECT * FROM reporting.revenue_by_tier ORDER BY revenue_cents DESC,tier_id",
+                "popular_attractions": "SELECT * FROM reporting.popular_attractions ORDER BY riders DESC,attraction_id",
+                "busiest_quiet_hours": "SELECT * FROM reporting.busiest_quiet_hours ORDER BY hour",
+                "outside_hours_arrivals": "SELECT * FROM reporting.outside_hours_arrivals ORDER BY day DESC LIMIT 366",
+                "pipeline": "SELECT status,count(*) AS events,min(enqueued_at) FILTER(WHERE status='pending') AS oldest_pending_at,max(completed_at) AS last_completed_at FROM reporting.queue GROUP BY status ORDER BY status",
+            }.items()
+        }
+        unpublished = conn.execute(
+            text(
+                "SELECT (SELECT count(*) FROM booking.outbox WHERE published_at IS NULL)+(SELECT count(*) FROM visits.outbox WHERE published_at IS NULL)"
+            )
+        ).scalar()
+    return {
+        **result,
+        "unpublished_events": unpublished,
+        "processing_enabled": settings.analytics_enabled,
+        "timezone": "Asia/Colombo",
+        "open_hour": 9,
+        "close_hour": 18,
+        "consistency": "eventual",
+    }
 
 
-@app.get("/health/live", response_model=Health)
-def live():
-    return health("process")
+@app.post("/admin/analytics/redrive/{event_id}", dependencies=[Depends(administrator)])
+def redrive(event_id: str):
+    if app.state.engine is None:
+        raise HTTPException(503, "Analytics database unavailable")
+    with app.state.engine.begin() as conn:
+        changed = conn.execute(
+            text(
+                "UPDATE reporting.queue SET status='pending',attempts=0,available_at=now(),failure_code=NULL WHERE event_id=:id AND status='dead' RETURNING event_id"
+            ),
+            {"id": event_id},
+        ).scalar()
+    if not changed:
+        raise HTTPException(404, "Dead-letter event not found")
+    return {"event_id": changed, "status": "pending"}
 
 
-@app.get("/health/ready", response_model=Health)
-def ready():
-    # No business dependencies exist yet. Add actual dependency checks in P2/P4.
-    return health("skeleton-only")
+@app.get("/admin/analytics/dead-letters", dependencies=[Depends(administrator)])
+def dead_letters():
+    if app.state.engine is None:
+        raise HTTPException(503, "Analytics database unavailable")
+    with app.state.engine.connect() as conn:
+        return [
+            dict(row)
+            for row in conn.execute(
+                text(
+                    "SELECT event_id,attempts,failure_code,enqueued_at FROM reporting.queue WHERE status='dead' ORDER BY enqueued_at LIMIT 100"
+                )
+            ).mappings()
+        ]

@@ -3,6 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements.lock /app/requirements.lock
 RUN pip install --no-cache-dir -r requirements.lock && useradd --uid 10001 --create-home appuser
+COPY wonderland_common /app/wonderland_common
 COPY services/analytics-worker/app /app/app
 USER 10001
 EXPOSE 8000

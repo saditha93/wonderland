@@ -44,3 +44,20 @@ Locally verified: catalog/suitability, stored tiers/price snapshots, pending boo
 
 ## Current Phase 3 rehearsal boundary
 Locally verified: profile ownership, administrator API guards, tier lifecycle/snapshots, signed RSA gate tickets, full-party unique arrivals, live booking-process outage admission, ride retries, visitor history and operational guest/sales/rider totals. Administrator/account screens are built and await interactive review. Cognito SDK/verifier is prepared and offline-tested; do not claim AWS login/MFA is verified. Metabase, queue worker, Kubernetes/gateway, IaC and cloud evidence remain pending.
+
+## Phase 4 evidence
+- Explain queue atomicity, at-least-once SQS behavior and database deduplication separately.
+- Open Administrator → Analytics, then the private Metabase dashboard; inspect its saved SQL.
+- Show full-party guest counts versus ticket/booking counts and integer cents.
+- Explain Asia/Colombo boundaries, provisional 09–18 hours, zero buckets, ties and outside-hours totals.
+- Disable processing, create a new local smoke scenario, restore processing and reconcile sources with facts.
+- Explain retries/DLQ/redrive and the shared PostgreSQL failure domain. Actual SQS/cloud execution is unverified.
+
+## Phase 5 evidence
+- Show the named Minikube node, pods, Services, metrics and Bound PVC using the dedicated context.
+- Exercise the cluster app on 5180; explain separate native/cluster credentials and data.
+- Delete one catalog pod and show replacement UID while requests succeed.
+- Switch blue/green selectors, show version metadata, roll back and explain identical domain code.
+- Stop analytics, create a local scenario, show durable backlog, restore and reconcile.
+- Stop cluster PostgreSQL, contrast liveness/readiness and Service endpoints, restore and verify persistence.
+- Run bounded catalog HTTP load; show CPU HPA scale-up and scale-down. Explain single-node and CPU-only limits.
