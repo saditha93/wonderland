@@ -92,6 +92,7 @@ def secrets_manifest(values):
         "gate-ticket": {"public-key": values["APP_TICKET_PUBLIC_KEY_B64"]},
         "ticket-owner": {"owner-secret": values["APP_TICKET_OWNER_SECRET"]},
         "booking-payment": {"webhook-secret": values["APP_LOCAL_WEBHOOK_SECRET"]},
+        "local-login": {"accounts": values.get("APP_LOCAL_ACCOUNTS_JSON", "{}")},
         "migration-config": {
             k: v
             for k, v in values.items()
@@ -229,7 +230,7 @@ def main():
         kubectl("get", "pods,services,hpa,pvc")
         kubectl("top", "pods")
     elif args.action == "forward":
-        kubectl("port-forward", "--address=127.0.0.1", "service/frontend", "5180:8080")
+        kubectl("port-forward", "--address=127.0.0.1", "service/frontend", "5180:8080", "5181:8081")
     elif args.action == "stop":
         run(["minikube", "-p", PROFILE, "stop"])
         print(

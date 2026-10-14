@@ -11,9 +11,8 @@ import {
 } from "./api";
 import "./style.css";
 import { AuthPanel } from "./AuthPanel";
-import { AdminPanel } from "./AdminPanel";
 import { VisitorAccount } from "./VisitorAccount";
-import { cognitoEnabled, clearManagedSession } from "./auth";
+import { clearManagedSession } from "./auth";
 
 type Page =
   | "home"
@@ -24,8 +23,7 @@ type Page =
   | "ticket"
   | "login"
   | "profile"
-  | "visits"
-  | "admin";
+  | "visits";
 const pages: Page[] = [
   "home",
   "attractions",
@@ -36,7 +34,6 @@ const pages: Page[] = [
   "login",
   "profile",
   "visits",
-  "admin",
 ];
 function readLocation(): { page: Page; reference: string } {
   const params = new URLSearchParams(window.location.search);
@@ -74,16 +71,14 @@ function App() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [token, setToken] = useState("");
-  const [draft, setDraft] = useState("");
   const [identity, setIdentity] = useState("");
-  const [role, setRole] = useState<"visitor" | "admin" | null>(null);
   const [history, setHistory] = useState<Booking[]>([]);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [checkout, setCheckout] = useState<Checkout | null>(null);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [tierId, setTierId] = useState("");
   const [guests, setGuests] = useState(1);
-  const [visitDate, setVisitDate] = useState(() => parkDate(1));
+  const [visitDate, setVisitDate] = useState(() => parkDate(import.meta.env.VITE_DEMO_MODE === "true" ? 0 : 1));
   const [slot, setSlot] = useState("09:00");
   const commandKey = useRef(crypto.randomUUID());
   const epoch = useRef(0);
@@ -199,11 +194,9 @@ function App() {
     epoch.current++;
     setToken("");
     setIdentity("");
-    setRole(null);
     void clearManagedSession().catch(() =>
       setError("Managed sign-out could not complete. Local session cleared."),
     );
-    setDraft("");
     setHistory([]);
     setBooking(null);
     setTicket(null);
@@ -212,27 +205,6 @@ function App() {
     setError("");
     commandKey.current = crypto.randomUUID();
   }
-  async function connect(e: React.FormEvent) {
-    e.preventDefault();
-    await run(async (current) => {
-      const result = await api<{ subject: string; role: "visitor" | "admin" }>(
-        "/api/booking/identity",
-        draft.trim(),
-      );
-      if (current !== epoch.current) return;
-      epoch.current++;
-      setToken(draft.trim());
-      setIdentity(result.subject);
-      setRole(result.role);
-      setDraft("");
-      setHistory([]);
-      setBooking(null);
-      setTicket(null);
-      setCheckout(null);
-      setBusy(false);
-      commandKey.current = crypto.randomUUID();
-    });
-  }
   async function acceptManagedSession(value: string) {
     const current = epoch.current;
     const result = await api<{ subject: string; role: "visitor" | "admin" }>(
@@ -240,30 +212,20 @@ function App() {
       value,
     );
     if (current !== epoch.current) return;
+    if (result.role !== "visitor") {
+      await clearManagedSession();
+      throw new Error("Use the administrator portal to sign in with this account.");
+    }
     epoch.current++;
     setToken(value);
     setIdentity(result.subject);
-    setRole(result.role);
     setHistory([]);
     setBooking(null);
     setTicket(null);
     setCheckout(null);
     setBusy(false);
     commandKey.current = crypto.randomUUID();
-    navigate(result.role === "admin" ? "admin" : "profile");
-  }
-  async function refreshPublicData() {
-    const [a, t] = await Promise.allSettled([
-      api<Attraction[]>("/api/attractions/attractions"),
-      api<Tier[]>("/api/booking/ticket-tiers"),
-    ]);
-    if (a.status === "fulfilled") setAttractions(a.value);
-    if (t.status === "fulfilled") {
-      setTiers(t.value);
-      setTierId(t.value[0]?.id ?? "");
-      setGuests(t.value[0]?.min_guests ?? 1);
-      changeCommand();
-    }
+    navigate("profile");
   }
   async function createBooking(e: React.FormEvent) {
     e.preventDefault();
@@ -291,10 +253,8 @@ function App() {
   );
   const authNotice = !token ? (
     <div className="notice">
-      {cognitoEnabled
-        ? "Sign in to book or view your history."
-        : "Connect a signed local development token below to book or view your history."}{" "}
-      Public attractions and prices are available without a token.
+      Sign in to book or view your history.{" "}
+      <button className="text-button" onClick={() => navigate("login")}>Sign in</button>
     </div>
   ) : null;
   const bookingSummary = booking && (
@@ -313,7 +273,7 @@ function App() {
         </dd>
       </div>
       <div>
-        <dt>Stored total</dt>
+        <dt>Total</dt>
         <dd>{money(booking.amount_cents, booking.currency)}</dd>
       </div>
       <div>
@@ -344,8 +304,7 @@ function App() {
               ["attractions", "Explore"],
               ["book", "Book a visit"],
               ["history", "My bookings"],
-              ["visits", "My visits"],
-              ["profile", "My profile"],
+              ["profile", "My account"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -356,14 +315,6 @@ function App() {
               {label}
             </button>
           ))}
-          {role === "admin" && (
-            <button
-              onClick={() => navigate("admin")}
-              aria-current={page === "admin" ? "page" : undefined}
-            >
-              Administrator
-            </button>
-          )}
           {token ? (
             <button onClick={disconnect}>Sign out</button>
           ) : (
@@ -372,6 +323,7 @@ function App() {
         </nav>
       </header>
       <main className="shell">
+        {import.meta.env.VITE_DEMO_MODE === "true" && <p className="demo-note">Demo · No real payments. You can book today's visit at any time.</p>}
         {error && (
           <div role="alert" className="error">
             {error}
@@ -400,9 +352,7 @@ function App() {
               >
                 Explore the park <span aria-hidden="true">↗</span>
               </button>
-              <div className="hero-note">
-                Local development · Test payments only
-              </div>
+
             </section>
             <section className="section">
               <div className="section-top">
@@ -598,7 +548,7 @@ function App() {
                   </select>
                 </label>
                 <p className="muted">
-                  Times are in Asia/Colombo. Time slots are provisional;
+                  Times are in Asia/Colombo;
                   capacity limits are not defined yet.
                 </p>
                 <button
@@ -690,57 +640,26 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <p className="muted">
-                      This is a test environment. No real-money payment is
-                      supported. Returning from checkout never confirms a
-                      booking by itself.
-                    </p>
+                    <p className="muted">Demo payment only. No money is charged.</p>
                     {!checkout && (
                       <button
                         className="primary"
                         disabled={busy}
-                        onClick={() =>
-                          void run(async (current) => {
-                            const result = await api<Checkout>(
-                              `/api/booking/bookings/${reference}/checkout`,
-                              token,
-                              { method: "POST" },
-                            );
-                            if (current === epoch.current) setCheckout(result);
-                          })
-                        }
-                      >
-                        Start test checkout
-                      </button>
-                    )}
-                    {checkout?.provider === "local" && (
-                      <div className="simulator">
-                        <h3>Local payment simulator</h3>
-                        <p>
-                          No card details or payment provider connection. This
-                          sends a server-signed test event through verification
-                          and confirmation.
-                        </p>
-                        <button
-                          className="primary"
-                          disabled={busy}
-                          onClick={() =>
-                            void run(async (current) => {
-                              await api(
-                                `/api/booking/bookings/${reference}/sandbox-pay`,
-                                token,
-                                { method: "POST" },
-                              );
-                              if (current === epoch.current)
-                                navigate("ticket", reference);
-                            })
+                        onClick={() => void run(async (current) => {
+                          const result = await api<Checkout>(
+                            `/api/booking/bookings/${reference}/checkout`, token, { method: "POST" },
+                          );
+                          if (current !== epoch.current) return;
+                          if (result.provider === "local") {
+                            await api(`/api/booking/bookings/${reference}/sandbox-pay`, token, { method: "POST" });
+                            if (current === epoch.current) navigate("ticket", reference);
+                          } else {
+                            setCheckout(result);
                           }
-                        >
-                          {busy
-                            ? "Verifying…"
-                            : "Simulate successful test payment"}
-                        </button>
-                      </div>
+                        })}
+                      >
+                        {busy ? "Processing…" : "Continue to payment"}
+                      </button>
                     )}
                     {checkout?.provider === "stripe" &&
                       checkout.checkout_url && (
@@ -798,8 +717,7 @@ function App() {
                 <code>{ticket.booking.reference}</code>
                 {bookingSummary}
                 <p className="muted">
-                  Valid until the end of the visit date in Asia/Colombo. Gate
-                  scanning is a Phase 3 feature.
+                  Valid on the visit date in Asia/Colombo. Present this QR ticket at the gate.
                 </p>
                 <a
                   className="secondary inline-button"
@@ -808,72 +726,24 @@ function App() {
                 >
                   Download QR ticket
                 </a>
+
               </article>
             )}
           </section>
         )}
         {page === "login" && <AuthPanel onSession={acceptManagedSession} />}
         {(page === "profile" || page === "visits") && (
-          <VisitorAccount key={identity + page} token={token} view={page} />
-        )}
-        {page === "admin" &&
-          (role === "admin" && token ? (
-            <AdminPanel
-              key={identity}
-              token={token}
-              onDataChanged={() => void refreshPublicData()}
-            />
-          ) : (
-            <div role="alert" className="error">
-              Administrator access is required. Backend permissions are checked
-              on every operation.
-            </div>
-          ))}
-        {!cognitoEnabled && (
-          <details className="developer-panel">
-            <summary>
-              Local development identity{" "}
-              {identity ? `· ${identity}` : "· not connected"}
-            </summary>
-            <p>
-              This phase uses signed developer tokens, not Cognito login. Tokens
-              stay in memory and are cleared on refresh. Generate one with{" "}
-              <code>.venv/bin/python scripts/local-token.py</code>, then paste
-              it here. Never use AWS credentials or payment secrets.
-            </p>
-            <form onSubmit={connect}>
-              <label>
-                Local access token
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={draft}
-                  maxLength={8192}
-                  onChange={(e) => setDraft(e.target.value)}
-                  required
-                />
-              </label>
-              <div className="button-row">
-                <button className="secondary" disabled={busy}>
-                  Connect token
-                </button>
-                {token && (
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={disconnect}
-                  >
-                    Disconnect
-                  </button>
-                )}
-              </div>
-            </form>
-          </details>
+          <>
+            <nav className="admin-tabs" aria-label="My account">
+              <button className={page === "profile" ? "primary" : "secondary"} onClick={() => navigate("profile")}>Profile</button>
+              <button className={page === "visits" ? "primary" : "secondary"} onClick={() => navigate("visits")}>Visit history</button>
+            </nav>
+            <VisitorAccount key={identity + page} token={token} view={page} />
+          </>
         )}
       </main>
       <footer>
-        Wonderland Theme Park · SE6020 · Phase 3 local development · No AWS
-        deployment
+        Wonderland Theme Park · Plan a day of wonder
       </footer>
     </>
   );

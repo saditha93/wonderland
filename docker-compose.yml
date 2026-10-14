@@ -51,6 +51,7 @@ services:
       APP_VERSION: ${APP_VERSION:-0.4.0}
       APP_AUTH_MODE: local
       APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Generate secrets/compose.env first}
+      APP_LOCAL_ACCOUNTS_JSON: ${APP_LOCAL_ACCOUNTS_JSON:?Generate secrets/compose.env first}
       APP_TICKET_SECRET: ${APP_TICKET_SECRET:?Generate secrets/compose.env first}
       APP_TICKET_PRIVATE_KEY_B64: ${APP_TICKET_PRIVATE_KEY_B64:?Generate secrets/compose.env first}
       APP_TICKET_OWNER_SECRET: ${APP_TICKET_OWNER_SECRET:?Generate secrets/compose.env first}
@@ -102,6 +103,16 @@ services:
       API_GATE_TARGET: http://gate-ride-service:8000
       API_ANALYTICS_TARGET: http://analytics-worker:8000
     ports: ["127.0.0.1:5173:5173"]
+  admin-frontend:
+    build:
+      context: frontend
+    command: ["npm", "run", "dev:admin", "--", "--host", "0.0.0.0"]
+    environment:
+      API_ATTRACTIONS_TARGET: http://attractions-service:8000
+      API_BOOKING_TARGET: http://booking-service:8000
+      API_GATE_TARGET: http://gate-ride-service:8000
+      API_ANALYTICS_TARGET: http://analytics-worker:8000
+    ports: ["127.0.0.1:5174:5174"]
   metabase:
     image: metabase/metabase:v0.58.35
     profiles: ["analytics"]

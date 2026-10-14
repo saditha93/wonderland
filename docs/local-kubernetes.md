@@ -1,6 +1,6 @@
 # Phase 5 local Kubernetes guide
 
-This environment is separate from the native Phase 4 app/database. Native frontend uses port 5173; the Kubernetes gateway is forwarded on **5180**. Kubernetes demo bookings belong to this cluster's database and do not appear in native Metabase, which remains connected to the native database. Phase 5 validates reporting through the cluster's own reporting API and SQL reconciliation. It does not move Metabase to Kubernetes or connect AWS.
+This environment is separate from the native Phase 4 app/database. Native frontend uses port 5173; the Kubernetes gateway is forwarded on **5180** for visitors and **5181** for administration. Kubernetes demo bookings belong to this cluster's database and do not appear in native Metabase, which remains connected to the native database. Phase 5 validates reporting through the cluster's own reporting API and SQL reconciliation. It does not move Metabase to Kubernetes or connect AWS.
 
 ## Prerequisites and scope
 
@@ -22,14 +22,9 @@ colima start --profile wonderland --cpu 4 --memory 6 --disk 30 --runtime docker 
 
 The start helper pins Kubernetes v1.37.0 and enables metrics-server. Its environment explicitly selects Docker context `colima-wonderland`. Colima initially selects that Docker context globally; subsequent project commands select it explicitly. Homebrew installs Docker plugins under `/opt/homebrew/lib/docker/cli-plugins`; register that directory using Homebrew’s printed instructions, or link the plugins into `~/.docker/cli-plugins` without replacing existing files. This machine uses such links for Buildx and Compose. Default kubectl configuration is not used. A dedicated kubeconfig and the named Minikube profile are checked before mutations; non-local endpoints are rejected. The helper does not inspect or contact AWS credentials.
 
-Open [the Kubernetes app](http://localhost:5180). Generate a private visitor/admin token using the isolated cluster configuration:
+Open [the visitor app](http://localhost:5180) and [the separate administrator app](http://localhost:5181). The forward helper exposes both ports. After an upgrade, build/deploy again to include both app artifacts and the local login configuration.
 
-```bash
-.venv/bin/python scripts/local-token.py --env-file secrets/kubernetes.env
-.venv/bin/python scripts/local-token.py --env-file secrets/kubernetes.env --subject demo-admin --role admin
-```
-
-These commands intentionally display your local token; use only in your own terminal. Paste it into Local development identity. Native tokens are signed with a different secret and are not interchangeable. No public token-minting endpoint exists. Tokens remain in browser memory.
+Setup creates private `secrets/kubernetes.accounts.json`. Open it locally for passwords. Use `visitor@wonderland.local` in the visitor app, `admin@wonderland.local` in the administrator app, and `kube-test@wonderland.local` in the visitor app to inspect the `phase5-demo-visitor` smoke history. Native credentials do not work here. Both apps have sign-in forms; sessions remain in memory and clear on refresh. No token copying is required.
 
 In another terminal, while forwarding:
 

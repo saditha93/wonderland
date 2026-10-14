@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="APP_", hide_input_in_errors=True)
     environment: str = "local"
+    demo_mode: bool = False
     version: str = "0.4.0"
     analytics_enabled: bool = False
     analytics_transport: Literal["postgres", "sqs"] = "postgres"
@@ -20,6 +21,7 @@ class Settings(BaseSettings):
     database_url: SecretStr | None = None
     auth_mode: Literal["disabled", "local", "cognito"] = "disabled"
     auth_secret: SecretStr | None = None
+    local_accounts_json: SecretStr | None = None
     cognito_region: str = "us-east-1"
     cognito_user_pool_id: str | None = None
     cognito_client_id: str | None = None
@@ -40,6 +42,29 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def safe_configuration(self):
+        if self.demo_mode and (self.environment not in {"local", "test"} or self.auth_mode != "local"):
+            raise ValueError("Demo mode requires local/test identity mode")
+        if self.local_accounts_json:
+            import json
+
+            if self.auth_mode != "local" or self.environment not in {"local", "test"}:
+                raise ValueError("Local password accounts are prohibited outside local/test identity mode")
+            try:
+                accounts = json.loads(self.local_accounts_json.get_secret_value())
+                if not isinstance(accounts, dict) or not 1 <= len(accounts) <= 100:
+                    raise ValueError()
+                for email, row in accounts.items():
+                    if (
+                        not isinstance(email, str)
+                        or not isinstance(row, dict)
+                        or row.get("role") not in {"visitor", "admin"}
+                        or not isinstance(row.get("subject"), str)
+                        or not 1 <= len(row["subject"]) <= 160
+                        or not re.fullmatch(r"[a-f0-9]{32}:[a-f0-9]{128}", row.get("password_hash", ""))
+                    ):
+                        raise ValueError()
+            except (ValueError, TypeError):
+                raise ValueError("Local account configuration is invalid") from None
         if self.auth_mode == "local" and self.environment not in {"local", "test"}:
             raise ValueError(
                 "Local identities are prohibited outside local/test environments"

@@ -1,4 +1,6 @@
 # Local development and verification — Phase 6
+
+Start with the [complete local run and test guide](local-test-guide.md) for the ordered acceptance walkthrough, including native startup, manual gate tests, Metabase and Kubernetes demonstrations.
 Use Python 3.12 and Node.js 22.12+ (Node 22 is the container/CI baseline). Install Python dependencies from requirements-dev.lock and frontend dependencies with npm ci. Application verification used CPython 3.12 and available Node 26; Node 22 containers still require execution. Base images use tags, not digests; harden and verify architecture support before deployment.
 
 ## Native PostgreSQL on this Mac
@@ -21,24 +23,19 @@ The start script creates separate `wonderland` and `wonderland_test` databases, 
 
 Secrets are generated into ignored `secrets/local.env` and `secrets/native-postgres.password` with mode 0600. Do not delete/regenerate keys casually: access tokens and signed tickets depend on them. Database-role passwords are not automatically rotated; deleting configuration without resetting the disposable cluster can cause credential mismatch.
 
-## Local identity and managed authentication boundary
-Protected endpoints fail closed unless local mode is explicitly configured. There is no public token-minting HTTP endpoint or fake visitor registration. The developer CLI issues signed one-hour HS256 access tokens. Local identities are forbidden outside `local`/`test` environments; Cognito verification and frontend integration are implemented; actual AWS verification requires separate approval (see cognito-integration.md).
+## Separate visitor and administrator apps
 
-```bash
-# These deliberately display a local credential in your private terminal:
-.venv/bin/python scripts/local-token.py
-.venv/bin/python scripts/local-token.py --subject another-visitor
-# Administrator API and UI:
-.venv/bin/python scripts/local-token.py --subject demo-admin --role admin
-# To avoid displaying a token, write it into an ignored file instead:
-.venv/bin/python scripts/local-token.py --output tmp/visitor-token
-```
+Run `npm --prefix frontend run dev` for the visitor app at http://localhost:5173 and `npm --prefix frontend run dev:admin` in another terminal for administration at http://localhost:5174. `npm --prefix frontend run build` builds both independent entry points into `frontend/dist` and `frontend/dist-admin`; the visitor bundle excludes the administrator dashboard.
 
-Paste the visitor token into **Local development identity** at the bottom of the page and select Connect token. The browser verifies it through `/identity`, keeps it only in memory and clears it on refresh/disconnect. Never paste AWS credentials or payment keys. After refresh (including a Stripe redirect), reconnect a local token to view your own booking.
+Rerun `.venv/bin/python scripts/local-postgres.py start` after upgrading and restart the APIs. Setup preserves existing data/keys and generates private password accounts in `secrets/local.accounts.json`. Open it locally for the passwords. Use `visitor@wonderland.local` in the visitor app and `admin@wonderland.local` in the admin app. The gate-test visitor is `gate-test@wonderland.local` (existing subject `phase3-demo-visitor`); the ownership-test visitor is `other@wonderland.local`.
+
+Both apps use email/password forms. There are no token-paste panels. Local sign-in is password-verified, rate-limited and enabled only in local/test identity mode. Only salted scrypt password hashes are passed to the booking service. Roles/subjects come from server configuration, and the backend continues enforcing permissions. Passwords/configuration remain ignored and mode 0600. Refresh or expiry requires signing in again; tokens remain in memory. The CLI token tool remains available for API smoke scripts.
+
+Cognito SDK/JWT verification remains prepared and offline-tested; AWS verification needs separate approval. Local password accounts are prohibited in cloud configuration. The new separate admin app still needs its own approved cloud hosting/auth configuration before deployment.
 
 ## Local booking demonstration
 1. Browse attractions and details; note status and age/height guidance.
-2. Connect a visitor token. Choose a tier, guest count, future date and time slot.
+2. Sign in as a visitor. Choose a tier, guest count, future date and time slot.
 3. Submit once; the server stores the current price snapshot and a pending booking. Repeated identical commands with the same idempotency key reuse that booking.
 4. Review the stored total. Start test checkout, then choose **Simulate successful test payment**.
 5. The local simulator signs a server-generated event. Verification checks signature, freshness, checkout, amount and currency before confirming atomically and writing one outbox purchase event.
@@ -67,10 +64,9 @@ Install/start Docker Desktop or equivalent Docker engine/Compose plugin manually
 docker compose --env-file secrets/compose.env config --quiet
 docker compose --env-file secrets/compose.env up --build -d --wait
 .venv/bin/python scripts/smoke-local.py
-.venv/bin/python scripts/local-token.py --env-file secrets/compose.env
 ```
 
-Compose uses a separate generated secret file; its tokens are not interchangeable with native-mode tokens. It exposes PostgreSQL on loopback port 5433, services on 8001–8004 and frontend on 5173. Internal PostgreSQL hostname is `postgres:5432`. PostgreSQL becomes healthy, a one-shot migrator applies schemas/seeds/role grants, then catalog/booking start. Gate is database-backed and uses only its public ticket key. Analytics uses its reporting role and starts durable processing after migration. Always include the same --env-file on subsequent Compose commands. Never print `docker compose config` without --quiet when collecting public evidence: resolved configuration contains credentials.
+Compose uses separate private credentials in `secrets/compose.accounts.json`; sign in at visitor port 5173 or administrator port 5174. Its credentials/tokens are not interchangeable with native mode. It exposes PostgreSQL on loopback port 5433, services on 8001–8004 and frontend on 5173. Internal PostgreSQL hostname is `postgres:5432`. PostgreSQL becomes healthy, a one-shot migrator applies schemas/seeds/role grants, then catalog/booking start. Gate is database-backed and uses only its public ticket key. Analytics uses its reporting role and starts durable processing after migration. Always include the same --env-file on subsequent Compose commands. Never print `docker compose config` without --quiet when collecting public evidence: resolved configuration contains credentials.
 
 Stop with `docker compose --env-file secrets/compose.env down`; named volumes persist. `down --volumes` intentionally deletes local database/Metabase volumes; use only for a deliberate disposable reset. Changing environment passwords does not change existing database passwords.
 
@@ -91,11 +87,11 @@ The workflow provisions disposable PostgreSQL for integration tests, builds the 
 ## Phase 3 operation notes
 Run scripts/local-postgres.py start again to apply migration 002 and visits migration 001, preserve existing keys, generate new RSA/ownership keys and grant the visits role. Do not start multiple API runners. The runner now leaves healthy siblings running when one exits, which supports fault demonstrations; Ctrl-C still stops all children it owns. Restore a stopped API by restarting the runner.
 
-Local access tokens still expire after one hour. Use --subject demo-admin --role admin for administrator screens and --subject phase3-demo-visitor for the seeded visit history. Never self-assign administrator groups through profile/signup. In approved Cognito mode, sign-in happens through the SDK, tokens remain in memory and API calls fetch refreshed access tokens as needed.
+Local sessions expire after one hour and clear on refresh. Sign in at the separate administrator URL using its admin password, or as `gate-test@wonderland.local` in the visitor app to see the Phase 3 smoke history. Cognito stays disabled until explicitly approved and configured.
 
 Signed tickets now use RS256 with public-only gate verification. Re-open older confirmed tickets to generate the current format; legacy Phase 2 QR payloads are rejected. Gate checks the visit date and full party size, independent of booking API uptime. No partial arrivals, re-entry or refunds/revocation are supported. Ride recording checks today's arrival, party size and the live open catalog, propagates request IDs, and fails closed if catalog verification fails.
 
-For manual gate testing after arrival slots have passed, `scripts/smoke-phase3.py --scenario manual --prepare-only` explicitly seeds a current-day visit date before normal verified local payment confirmation, then stops before scanning. This is a local test-data operation using the migration owner; it is not an exposed booking bypass or a normal visitor workflow. The demo identity is phase3-demo-visitor. Copy the ticket's Local demo gate scan data, switch to demo-admin, validate and register arrival. A second scan must return a duplicate error.
+For manual gate testing after arrival slots have passed, `scripts/smoke-phase3.py --scenario manual --prepare-only` explicitly seeds a current-day visit date before normal verified local payment confirmation, then stops before scanning. This is a local test-data operation using the migration owner; it is not an exposed booking bypass or a normal visitor workflow. The demo identity is phase3-demo-visitor. Sign in as `gate-test@wonderland.local`, copy the ticket scan content and use the separate administrator app to validate and register arrival. A second scan must return a duplicate error.
 
 Arrival/ride timestamps are PostgreSQL timestamptz instants; daily operational totals convert to Asia/Colombo. Prices use integer cents. Booking and ride history preserve snapshots, while operational totals aggregate by stable IDs. Outbox publishing/reporting are implemented in Phase 4.
 

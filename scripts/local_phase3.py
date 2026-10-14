@@ -65,3 +65,6 @@ def ensure_config(path):
     )
     path.write_text(contents)
     os.chmod(path, 0o600)
+    from scripts.local_accounts import ensure_accounts
+
+    ensure_accounts(path)

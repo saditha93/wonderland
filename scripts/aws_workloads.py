@@ -218,6 +218,8 @@ def render(target, core, persistent, values, master, tls):
     for d in docs:
         if d["kind"] != "Namespace":
             d.setdefault("metadata", {})["namespace"] = "wonderland"
+        if d["kind"] == "Service" and d["metadata"]["name"] == "frontend":
+            d["spec"]["ports"] = [p for p in d["spec"]["ports"] if p["name"] == "http"]
         if d["kind"] != "Deployment":
             continue
         pod = d["spec"]["template"]["spec"]
@@ -252,6 +254,7 @@ def render(target, core, persistent, values, master, tls):
             if probe in container:
                 container[probe]["httpGet"]["scheme"] = "HTTPS"
         if domain == "frontend":
+            container["ports"] = [p for p in container["ports"] if p["name"] == "http"]
             pod["volumes"].append(
                 {"name": "nginx-config", "configMap": {"name": "nginx-cloud"}}
             )
@@ -268,7 +271,7 @@ def render(target, core, persistent, values, master, tls):
         container["env"] = [
             e
             for e in container["env"]
-            if e["name"] not in {"APP_AUTH_SECRET", "APP_LOCAL_WEBHOOK_SECRET"}
+            if e["name"] not in {"APP_AUTH_SECRET", "APP_LOCAL_WEBHOOK_SECRET", "APP_LOCAL_ACCOUNTS_JSON"}
         ]
         if domain == "booking-service":
             container["env"] += [
@@ -321,6 +324,7 @@ def render(target, core, persistent, values, master, tls):
     nginx = (
         (ROOT / "frontend/nginx.conf")
         .read_text()
+        .split("# Local administrator app", 1)[0]
         .replace(
             "listen 8080;",
             "listen 8443 ssl;\n    ssl_certificate /run/tls/tls.crt;\n    ssl_certificate_key /run/tls/tls.key;\n    ssl_protocols TLSv1.2 TLSv1.3;\n    proxy_ssl_verify on;\n    proxy_ssl_trusted_certificate /run/internal-ca/ca.crt;\n    proxy_ssl_server_name on;",

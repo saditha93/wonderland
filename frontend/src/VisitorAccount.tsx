@@ -84,7 +84,7 @@ export function VisitorAccount({
       </h1>
       {!token && (
         <div className="notice">
-          Sign in or connect your local developer identity to continue.
+          Sign in to view your account.
         </div>
       )}
       {message && (

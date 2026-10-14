@@ -1,3 +1,4 @@
+import { api } from "./api";
 import { useState } from "react";
 import { signUp, confirmSignUp, signIn, confirmSignIn } from "aws-amplify/auth";
 import {
@@ -9,8 +10,10 @@ import {
 type Mode = "login" | "register" | "confirm" | "challenge";
 export function AuthPanel({
   onSession,
+  portal = "visitor",
 }: {
   onSession: (token: string) => Promise<void>;
+  portal?: "visitor" | "admin";
 }) {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
@@ -26,11 +29,18 @@ export function AuthPanel({
   }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!cognitoEnabled || authConfigurationError) return;
+    if (authConfigurationError) return;
     setBusy(true);
     setMessage("");
     try {
-      if (mode === "register") {
+      if (!cognitoEnabled) {
+        const result = await api<{ access_token: string }>("/api/booking/auth/local-login", "", {
+          method: "POST",
+          body: JSON.stringify({ email, password, portal }),
+        });
+        await onSession(result.access_token);
+        setMessage("Signed in.");
+      } else if (mode === "register") {
         const result = await signUp({
           username: email,
           password,
@@ -84,7 +94,7 @@ export function AuthPanel({
   }
   return (
     <section className="section narrow">
-      <p className="eyebrow">Your Wonderland account</p>
+      <p className="eyebrow">{portal === "admin" ? "Wonderland administration" : "Your Wonderland account"}</p>
       <h1 className="page-title">
         {mode === "register"
           ? "Create your account"
@@ -92,15 +102,8 @@ export function AuthPanel({
             ? "Confirm your email"
             : mode === "challenge"
               ? "Complete sign-in"
-              : "Welcome back"}
+              : portal === "admin" ? "Administrator sign in" : "Welcome back"}
       </h1>
-      {!cognitoEnabled && (
-        <div className="notice">
-          Managed registration and login are prepared for Cognito. Local
-          development currently uses the signed developer identity control
-          below; no AWS account is connected.
-        </div>
-      )}
       {authConfigurationError && (
         <div role="alert" className="error">
           {authConfigurationError}
@@ -167,7 +170,7 @@ export function AuthPanel({
         )}
         <button
           className="primary"
-          disabled={busy || !cognitoEnabled || !!authConfigurationError}
+          disabled={busy || !!authConfigurationError}
         >
           {busy
             ? "Please wait…"
@@ -179,6 +182,7 @@ export function AuthPanel({
                   ? "Continue"
                   : "Sign in"}
         </button>
+        {cognitoEnabled && portal === "visitor" && (
         <button
           type="button"
           className="text-button"
@@ -193,6 +197,7 @@ export function AuthPanel({
             ? "Already registered? Sign in"
             : "New here? Create an account"}
         </button>
+        )}
       </form>
     </section>
   );

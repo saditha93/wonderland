@@ -8,8 +8,12 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "dev:admin": "vite --mode admin",
+    "build": "tsc --noEmit && vite build && vite build --mode admin",
+    "build:visitor": "tsc --noEmit && vite build",
+    "build:admin": "tsc --noEmit && vite build --mode admin",
+    "preview": "vite preview",
+    "preview:admin": "vite preview --mode admin --port 4174"
   },
   "dependencies": {
     "aws-amplify": "6.22.1",

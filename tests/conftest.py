@@ -19,6 +19,13 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / "secrets/local.env")
 
 
+@pytest.fixture(autouse=True)
+def isolate_local_password_accounts(monkeypatch):
+    # Individual login tests provide ephemeral accounts; never use private
+    # developer passwords or leak local account config into cloud-mode tests.
+    monkeypatch.delenv("APP_LOCAL_ACCOUNTS_JSON", raising=False)
+
+
 def load_service(name):
     package_name = "testapp_" + uuid4().hex
     directory = ROOT / "services" / name / "app"

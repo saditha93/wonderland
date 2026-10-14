@@ -165,7 +165,7 @@ def test_cloud_render_uses_cognito_tls_rds_irsa_and_stripe_test_config(material)
         c = doc["spec"]["template"]["spec"]["containers"][0]
         assert c["readinessProbe"]["httpGet"]["scheme"] == "HTTPS"
         assert not any(
-            e["name"] in {"APP_AUTH_SECRET", "APP_LOCAL_WEBHOOK_SECRET"}
+            e["name"] in {"APP_AUTH_SECRET", "APP_LOCAL_WEBHOOK_SECRET", "APP_LOCAL_ACCOUNTS_JSON"}
             for e in c.get("env", [])
         )
         if doc["metadata"]["name"] == "analytics-worker":
@@ -207,6 +207,8 @@ def test_cloud_render_uses_cognito_tls_rds_irsa_and_stripe_test_config(material)
         if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "nginx-cloud"
     )["data"]["default.conf"]
     assert "proxy_ssl_verify on" in nginx and "proxy_pass http://" not in nginx
+    assert "listen 8081" not in nginx
+    assert "/usr/share/nginx/admin" not in nginx
     ingress = next(d for d in docs if d["kind"] == "Ingress")
     assert (
         ingress["metadata"]["annotations"]["alb.ingress.kubernetes.io/backend-protocol"]

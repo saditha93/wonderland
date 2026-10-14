@@ -155,6 +155,11 @@ spec:
             secretKeyRef:
               name: auth-secret
               key: signing-secret
+        - name: APP_LOCAL_ACCOUNTS_JSON
+          valueFrom:
+            secretKeyRef:
+              name: local-login
+              key: accounts
         - name: APP_TICKET_PRIVATE_KEY_B64
           valueFrom:
             secretKeyRef:

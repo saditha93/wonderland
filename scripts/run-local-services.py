@@ -39,6 +39,7 @@ try:
                 env.pop(key, None)
         if name != "booking-service":
             for key in (
+                "APP_LOCAL_ACCOUNTS_JSON",
                 "APP_TICKET_SECRET",
                 "APP_TICKET_PRIVATE_KEY_PATH",
                 "APP_TICKET_PRIVATE_KEY_B64",

@@ -1,6 +1,6 @@
 import { AnalyticsPanel } from "./AnalyticsPanel";
 import { useEffect, useRef, useState } from "react";
-import { api, money, type Attraction, type Tier } from "./api";
+import { api, money, type Attraction, type Tier, type Ticket } from "./api";
 
 type Tab =
   "overview" | "attractions" | "pricing" | "gate" | "rides" | "analytics";
@@ -170,12 +170,13 @@ export function AdminPanel({
         setTierId("");
         setT(emptyTier);
       }
-    }, "Ticket tier saved. Existing booking snapshots are preserved.");
+    }, "Ticket prices saved. Earlier bookings keep their original price.");
   }
   return (
     <section className="section">
       <p className="eyebrow">Park operations</p>
-      <h1 className="page-title">Administrator dashboard</h1>
+      <h1 className="page-title">Park administration</h1>
+      <p className="muted">Check in a booking, record a ride, then open Reports to see the results.</p>
       <nav className="admin-tabs" aria-label="Administrator sections">
         {(
           [
@@ -196,11 +197,7 @@ export function AdminPanel({
               setError("");
             }}
           >
-            {id === "gate"
-              ? "Gate check-in"
-              : id === "rides"
-                ? "Ride usage"
-                : id}
+            {{ overview: "Dashboard", attractions: "Attractions", pricing: "Tickets & prices", gate: "Check-in", rides: "Rides", analytics: "Reports" }[id]}
           </button>
         ))}
         <button
@@ -549,15 +546,21 @@ export function AdminPanel({
             onSubmit={(e) => {
               e.preventDefault();
               void action(async () => {
+                let ticketToken = scan.trim();
+                if (/^WL-[A-F0-9]{32}$/.test(ticketToken)) {
+                  const ticket = await api<Ticket>(`/api/booking/admin/bookings/${ticketToken}/ticket`, token);
+                  ticketToken = ticket.ticket_token;
+                }
                 const p = await api<Preview>(
                   "/api/gate/admin/tickets/validate",
                   token,
                   {
                     method: "POST",
-                    body: JSON.stringify({ ticket_token: scan }),
+                    body: JSON.stringify({ ticket_token: ticketToken }),
                   },
                 );
                 if (alive.current) {
+                  setScan(ticketToken);
                   setPreview(p);
                   setGuests(p.guest_count);
                 }
@@ -565,9 +568,10 @@ export function AdminPanel({
             }}
           >
             <label>
-              Scanned QR ticket content
+              Booking reference or QR scan
               <textarea
                 value={scan}
+                placeholder="Paste the WL- booking reference"
                 onChange={(e) => {
                   setScan(e.target.value);
                   setPreview(null);
@@ -578,7 +582,7 @@ export function AdminPanel({
               />
             </label>
             <button className="secondary" disabled={busy}>
-              Validate ticket
+              Check ticket
             </button>
             {preview && (
               <div className="notice">
@@ -617,6 +621,8 @@ export function AdminPanel({
                     }),
                   });
                   if (alive.current) {
+                    setRideRef(preview?.reference ?? "");
+                    rideId.current = crypto.randomUUID();
                     setScan("");
                     setPreview(null);
                   }
@@ -665,16 +671,20 @@ export function AdminPanel({
           }}
         >
           <label>
-            Checked-in booking reference
-            <input
+            Checked-in booking
+            <select
               value={rideRef}
               onChange={(e) => {
                 setRideRef(e.target.value.trim());
                 rideId.current = crypto.randomUUID();
               }}
-              pattern="WL-[A-F0-9]{32}"
               required
-            />
+            >
+              <option value="">Choose today's arrival</option>
+              {activity?.arrivals.map((arrival) => <option key={arrival.booking_reference} value={arrival.booking_reference}>
+                {arrival.booking_reference} · {arrival.guest_count} guests
+              </option>)}
+            </select>
           </label>
           <label>
             Attraction

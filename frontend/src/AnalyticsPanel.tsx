@@ -31,25 +31,11 @@ type Analytics = {
     quietest_rank: number;
   }[];
   outside_hours_arrivals: { day: string; arriving_guests: number }[];
-  pipeline: {
-    status: string;
-    events: number;
-    oldest_pending_at: string | null;
-    last_completed_at: string | null;
-  }[];
-  unpublished_events: number;
-  processing_enabled: boolean;
-  remote_queue?: {
-    status: string;
-    visible?: number;
-    in_flight?: number;
-    dead_letters?: number;
-  } | null;
+
 };
 export function AnalyticsPanel({ token }: { token: string }) {
   const metabaseUrl =
-    import.meta.env.VITE_METABASE_URL ||
-    (import.meta.env.DEV ? "http://localhost:3000" : "");
+    import.meta.env.VITE_METABASE_URL || "";
   const [data, setData] = useState<Analytics | null>(null);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -73,11 +59,11 @@ export function AnalyticsPanel({ token }: { token: string }) {
     };
   }, [token, refresh]);
   return (
-    <section aria-label="Stored event analytics">
-      <h2>Visitor and sales analytics</h2>
+    <section aria-label="Park reports">
+      <h2>Visitor and sales reports</h2>
       <p className="muted">
-        Reports update after events are processed. Dates and hours use
-        Asia/Colombo. Provisional park hours: 09:00–18:00.
+        Reports update shortly after each payment, check-in or ride.
+        Dates use Sri Lanka time. Hourly reports cover 09:00–18:00.
       </p>
       <div className="button-row">
         <button
@@ -105,23 +91,9 @@ export function AnalyticsPanel({ token }: { token: string }) {
       )}
       {data && (
         <>
-          {data.remote_queue && (
-            <p className="notice">
-              SQS status: {data.remote_queue.status}.{" "}
-              {data.remote_queue.status === "approximate" &&
-                `Approximately ${data.remote_queue.visible} waiting, ${data.remote_queue.in_flight} in flight, ${data.remote_queue.dead_letters} in the dead-letter queue.`}
-            </p>
-          )}
-          <div className="notice">
-            {!data.processing_enabled && "Processing is disabled. "}Events
-            awaiting publication: {data.unpublished_events}.{" "}
-            {data.pipeline.map((p) => `${p.events} ${p.status}`).join(" · ") ||
-              "No events yet"}
-            . {loading && "Refreshing…"}
-          </div>
           <h3>Daily visitor arrivals</h3>
           {data.daily_arrivals.length === 0 && (
-            <p>No arrivals processed yet.</p>
+            <p>No visitors have checked in yet.</p>
           )}
           <div className="table-wrap">
             <table>

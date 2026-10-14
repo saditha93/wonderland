@@ -117,6 +117,7 @@ def update_price(tier_id: UUID, body: PriceUpdate, engine: Engine = Depends(data
 def book(
     body: BookingCommand,
     response: Response,
+    request: Request,
     idempotency_key: Annotated[str, Header(pattern=r"^[A-Za-z0-9_-]{8,80}$")],
     identity: Identity = Depends(visitor),
     engine: Engine = Depends(database),
@@ -147,7 +148,11 @@ def book(
             days=365
         ):
             raise HTTPException(422, "Visit date must be today through 365 days ahead")
-        if body.visit_date == now.date() and body.time_slot <= now.strftime("%H:%M"):
+        if (
+            not request.app.state.settings.demo_mode
+            and body.visit_date == now.date()
+            and body.time_slot <= now.strftime("%H:%M")
+        ):
             raise HTTPException(422, "Choose a future time slot")
         tier = (
             conn.execute(
@@ -432,16 +437,32 @@ def ticket(
 ):
     with engine.connect() as conn:
         booking = owned(conn, reference, identity)
+    return signed_ticket(booking, request.app.state.settings)
+
+
+@router.get("/admin/bookings/{reference}/ticket", dependencies=[Depends(administrator)])
+def staff_ticket(reference: Reference, request: Request, engine: Engine = Depends(database)):
+    """Resolve a presented reference to its signed ticket for gate staff."""
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT * FROM booking.bookings WHERE reference=:reference"),
+            {"reference": reference},
+        ).mappings().first()
+    if not row:
+        raise HTTPException(404, "Booking not found")
+    return signed_ticket(dict(row), request.app.state.settings)
+
+
+def signed_ticket(booking, settings):
     if booking["status"] != "confirmed":
         raise HTTPException(409, "Tickets are available only after verified payment")
-    settings = request.app.state.settings
     from wonderland_common.tickets import owner_tag, signing_key
 
     private_key = signing_key(settings)
     extra = {
         "visit_date": booking["visit_date"].isoformat(),
         "guest_count": booking["guest_count"],
-        "owner_tag": owner_tag(identity.subject, settings),
+        "owner_tag": owner_tag(booking["owner_id"], settings),
     }
     expires = datetime.combine(
         booking["visit_date"] + timedelta(days=1), time.min, PARK_TIMEZONE
@@ -451,7 +472,7 @@ def ticket(
             "iss": "wonderland-tickets",
             "aud": "wonderland-gate",
             "kind": "ticket",
-            "ref": reference,
+            "ref": booking["reference"],
             "iat": datetime.now(timezone.utc),
             "exp": expires,
             **extra,

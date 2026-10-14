@@ -6,6 +6,9 @@ from .payments import CircuitBreaker
 
 app.state.payment_breaker = CircuitBreaker()
 app.include_router(router)
+from wonderland_common.local_login import configure_login
+
+configure_login(app)
 settings = app.state.settings
 logger = app.state.logger
 from wonderland_common.web import SAFE_REQUEST_ID

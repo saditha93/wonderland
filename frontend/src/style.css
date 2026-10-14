@@ -479,29 +479,7 @@ select:focus {
   line-height: 1.8;
   font-size: 0.9rem;
 }
-.developer-panel {
-  margin-top: 60px;
-  padding: 22px;
-  border: 1px dashed #bac9b3;
-  border-radius: 16px;
-  font-size: 0.8rem;
-  color: #637664;
-}
-.developer-panel summary {
-  cursor: pointer;
-  font-weight: 700;
-}
-.developer-panel p {
-  line-height: 1.9;
-  margin: 18px 0;
-  max-width: 850px;
-}
-.developer-panel form {
-  max-width: 700px;
-}
-.developer-panel code {
-  overflow-wrap: anywhere;
-}
+
 footer {
   text-align: center;
   border-top: 1px solid #dfe6d8;
@@ -611,3 +589,7 @@ textarea {
 code {
   overflow-wrap: anywhere;
 }
+
+.admin-portal-label { font-size: 0.85rem; font-weight: 600; color: #173d35; }
+
+.demo-note { font-size: 0.85rem; color: #526c5e; margin: 16px 0; }
