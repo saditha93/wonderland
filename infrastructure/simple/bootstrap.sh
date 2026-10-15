@@ -28,10 +28,15 @@ SYSCTL
 sysctl --system >/dev/null
 mkdir -p /opt/wonderland/k3s-download
 cd /opt/wonderland/k3s-download
-curl -fL --retry 5 -o k3s-arm64 "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s-arm64"
-curl -fL --retry 5 -o checksums.txt "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/sha256sum-arm64.txt"
-grep ' k3s-arm64$' checksums.txt | sha256sum -c -
-install -m 755 k3s-arm64 /usr/local/bin/k3s
+case "$(uname -m)" in
+  x86_64) K3S_BINARY=k3s; K3S_ARCH=amd64 ;;
+  aarch64) K3S_BINARY=k3s-arm64; K3S_ARCH=arm64 ;;
+  *) echo 'Unsupported server architecture' >&2; exit 1 ;;
+esac
+curl -fL --retry 5 -o "$K3S_BINARY" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/${K3S_BINARY}"
+curl -fL --retry 5 -o checksums.txt "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/sha256sum-${K3S_ARCH}.txt"
+grep " ${K3S_BINARY}$" checksums.txt | sha256sum -c -
+install -m 755 "$K3S_BINARY" /usr/local/bin/k3s
 ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl
 cat > /etc/systemd/system/k3s.service <<'UNIT'
 [Unit]

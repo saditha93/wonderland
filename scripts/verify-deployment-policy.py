@@ -24,7 +24,7 @@ for name,document in docs.items():
 base={'aws:RequestedRegion':'us-east-1','aws:ResourceTag/Project':'wonderland',
       'aws:ResourceTag/Stack':'wonderland-demo','ec2:ResourceTag/Project':'wonderland',
       'ec2:ResourceTag/Stack':'wonderland-demo','aws:RequestTag/Project':'wonderland',
-      'aws:RequestTag/Stack':'wonderland-demo','ec2:InstanceType':'t4g.medium'}
+      'aws:RequestTag/Stack':'wonderland-demo','ec2:InstanceType':'m7i-flex.large'}
 role=f'arn:aws:iam::{account}:role/wonderland-demo-ec2'
 instance=f'arn:aws:ec2:us-east-1:{account}:instance/i-00000000000000000'
 boundary=f'arn:aws:iam::{account}:policy/WonderlandRuntimeBoundary'

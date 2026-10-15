@@ -33,7 +33,7 @@ def target():
     value = json.loads((PRIVATE / 'target.json').read_text())
     if value['region'] != 'us-east-1' or value['name'] != 'wonderland-demo' or not re.fullmatch(r'\d{12}', value['account_id']):
         raise GuardError('Unexpected demo target')
-    if value['instance_type'] not in {'t4g.medium', 't4g.large'}:
+    if value['instance_type'] != 'm7i-flex.large' or value.get('architecture') != 'amd64':
         raise GuardError('Unreviewed instance size')
     if not re.fullmatch(r'[a-z0-9-]{1,40}', value['release']):
         raise GuardError('Invalid immutable release identifier')
@@ -83,6 +83,12 @@ def plan(s,t):
         raise GuardError('Remove/review the interrupted cleanup override before a deployment plan')
     free_plan(s)
     ec2 = s.client('ec2')
+    selected=ec2.describe_instance_types(InstanceTypes=[t['instance_type']])['InstanceTypes'][0]
+    if not selected.get('FreeTierEligible') or selected['MemoryInfo']['SizeInMiB'] < 8192:
+        raise GuardError('Selected size must be Free-plan eligible and have at least 8 GiB for this complete demo')
+    image=ec2.describe_images(ImageIds=[t['ami_id']])['Images']
+    if len(image)!=1 or image[0]['State']!='available' or image[0]['Architecture']!='x86_64' or image[0]['OwnerId']!='099720109477':
+        raise GuardError('Expected an available official Ubuntu x86-64 image')
     offers = ec2.describe_instance_type_offerings(LocationType='availability-zone',Filters=[{'Name':'instance-type','Values':[t['instance_type']]}])['InstanceTypeOfferings']
     zones = {z['ZoneName'] for z in ec2.describe_availability_zones(Filters=[{'Name':'state','Values':['available']}])['AvailabilityZones']}
     possible = sorted(o['Location'] for o in offers if o['Location'] in zones)
@@ -109,7 +115,7 @@ def plan(s,t):
     review = {'plan_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'source_sha256':source_hash(),'target':t,'changes':changes,'created_at':int(time.time())}
     save(PRIVATE/'review.json',review)
     print('\nSaved reviewed plan:',review['plan_sha256'])
-    print('Compute quote: $0.0336/hour for t4g.medium; storage, IPv4 and AWS services are additional. Credits/Free plan are not a zero-cost guarantee.')
+    print('Observed compute quote: $0.09576/hour for eligible m7i-flex.large (8 GiB); storage, IPv4 and AWS services are additional. Credits/Free plan are not a zero-cost guarantee.')
     print('Compute automatically stops six hours after boot. Storage and IPv4 remain allocated.')
     print('Apply exactly this plan: ./cloud.sh deploy --approve '+review['plan_sha256'])
 
@@ -177,3 +183,5 @@ if __name__=='__main__':
         raise SystemExit('AWS refused the operation: '+exc.response['Error']['Code']+'. No plan upgrade or broad permission fallback was attempted.') from None
     except (GuardError,FileNotFoundError,ValueError) as exc:
         raise SystemExit(str(exc)) from None
+    except subprocess.CalledProcessError:
+        raise SystemExit('Cloud command failed. AWS changes may be partial; inspect the private operation log and use cleanup-check before assuming resources are gone.') from None

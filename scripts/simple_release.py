@@ -103,7 +103,7 @@ def images(s,t,d):
                 if exc.response['Error']['Code']!='ImageNotFoundException': raise
             dockerfile='frontend/Dockerfile.kubernetes' if name=='frontend' else ('infrastructure/local/Dockerfile.migrate' if name=='migrate' else f'services/{name}/Dockerfile')
             image=repo+':'+t['release']
-            run(['docker','build','--platform','linux/arm64','-f',dockerfile,'-t',image,'frontend' if name=='frontend' else '.'],env=env)
+            run(['docker','build','--platform','linux/'+t['architecture'],'-f',dockerfile,'-t',image,'frontend' if name=='frontend' else '.'],env=env)
             run(['docker','push',image],env=env)
     finally:
         run(['docker','logout',auth['proxyEndpoint']],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)

@@ -41,7 +41,7 @@ def policies(account, region='us-east-1', name='wonderland-demo'):
     ]], [ec2(k) for k in ['vpc','subnet','route-table','internet-gateway','security-group',
                           'network-interface','elastic-ip','instance']], ec2_tags)
     launch_tags = json.loads(json.dumps(request_tags))
-    launch_tags['StringEquals']['ec2:InstanceType'] = ['t4g.medium','t4g.large']
+    launch_tags['StringEquals']['ec2:InstanceType'] = ['m7i-flex.large']
     add('LaunchTaggedBoundedInstances', 'ec2:RunInstances', ec2('instance'), launch_tags)
     add('LaunchEncryptedVolumes', 'ec2:RunInstances', ec2('volume'), {
         'StringEquals': request_tags['StringEquals'], 'Bool': {'ec2:Encrypted': 'true'}})
@@ -167,13 +167,31 @@ def policies(account, region='us-east-1', name='wonderland-demo'):
     return result
 
 
+def dependencies(account):
+    """Dependent existing-resource permissions, separate from create request tags."""
+    policies(account)  # Reuse the strict account/region/name validation.
+    region='us-east-1'
+    tagged={'StringEquals':{'aws:RequestedRegion':region,'ec2:ResourceTag/Project':'wonderland','ec2:ResourceTag/Stack':'wonderland-demo'}}
+    return {'Version':'2012-10-17','Statement':[
+        {'Sid':'UseOwnedVpcForNetworkCreation','Effect':'Allow','Action':['ec2:CreateSubnet','ec2:CreateRouteTable','ec2:CreateSecurityGroup'],
+         'Resource':f'arn:aws:ec2:{region}:{account}:vpc/*','Condition':tagged},
+        {'Sid':'UseOwnedSubnetAndGroupForInterface','Effect':'Allow','Action':'ec2:CreateNetworkInterface',
+         'Resource':[f'arn:aws:ec2:{region}:{account}:subnet/*',f'arn:aws:ec2:{region}:{account}:security-group/*'],'Condition':tagged},
+        {'Sid':'ConfigureOwnedVisitorMfa','Effect':'Allow','Action':'cognito-idp:SetUserPoolMfaConfig',
+         'Resource':f'arn:aws:cognito-idp:{region}:{account}:userpool/*',
+         'Condition':{'StringEquals':{'aws:RequestedRegion':region,'aws:ResourceTag/Project':'wonderland','aws:ResourceTag/Stack':'wonderland-demo'}}},
+    ]}
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--account',required=True)
     parser.add_argument('--output',type=Path,default=Path('secrets/iam-review'))
+    parser.add_argument('--dependencies',action='store_true')
     args=parser.parse_args()
     args.output.mkdir(parents=True,exist_ok=True,mode=0o700)
-    for name,document in policies(args.account).items():
+    documents={'WonderlandDemoDependencies':dependencies(args.account)} if args.dependencies else policies(args.account)
+    for name,document in documents.items():
         path=args.output/(name+'.json')
         path.write_text(json.dumps(document,indent=2)+'\n')
         path.chmod(0o600)

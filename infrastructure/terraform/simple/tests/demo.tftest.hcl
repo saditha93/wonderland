@@ -1,4 +1,5 @@
 mock_provider "aws" {}
+mock_provider "aws" { alias = "api_stage" }
 variables {
   account_id        = "111111111111"
   ami_id            = "ami-offline"
@@ -10,8 +11,8 @@ variables {
 run "bounded_demo" {
   command = plan
   assert {
-    condition     = aws_instance.demo.instance_type == "t4g.medium" && aws_instance.demo.metadata_options[0].http_tokens == "required" && aws_instance.demo.root_block_device[0].encrypted
-    error_message = "Require bounded ARM compute, encrypted disk and IMDSv2."
+    condition     = aws_instance.demo.instance_type == "m7i-flex.large" && aws_instance.demo.metadata_options[0].http_tokens == "required" && aws_instance.demo.root_block_device[0].encrypted
+    error_message = "Require the reviewed Free-plan-eligible compute size, encrypted disk and IMDSv2."
   }
   assert {
     condition     = toset([for p in aws_security_group.demo.ingress : p.from_port]) == toset([80, 443])

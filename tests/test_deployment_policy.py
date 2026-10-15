@@ -30,7 +30,7 @@ def test_deployer_cannot_grant_itself_access_or_remove_the_role_boundary():
 def test_instance_launch_requires_tags_allowed_size_and_encrypted_volume():
     rows=policies('111111111111')['WonderlandDemoCompute']['Statement']
     instance=next(row for row in rows if row['Sid']=='LaunchTaggedBoundedInstances')
-    assert instance['Condition']['StringEquals']['ec2:InstanceType']==['t4g.medium','t4g.large']
+    assert instance['Condition']['StringEquals']['ec2:InstanceType']==['m7i-flex.large']
     assert instance['Condition']['StringEquals']['aws:RequestTag/Stack']=='wonderland-demo'
     volume=next(row for row in rows if row['Sid']=='LaunchEncryptedVolumes')
     assert volume['Condition']['Bool']['ec2:Encrypted']=='true'

@@ -1,0 +1,17 @@
+{
+  "observed_at": "2026-10-15T23:07:00.300617+00:00",
+  "account_id": "459154641936",
+  "region": "us-east-1",
+  "instance_type": "m7i-flex.large",
+  "infrastructure_created": true,
+  "bootstrap_completed": true,
+  "ssm_online": true,
+  "k3s_service_active": true,
+  "confirmed_visitor_signup_and_login": true,
+  "installed_compute_policy_version": "v2",
+  "installed_instance_whitelist": [
+    "m7i-flex.large"
+  ],
+  "application_release_verified": false,
+  "teardown_verified": false
+}

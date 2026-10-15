@@ -22,10 +22,10 @@ variable "ami_id" { type = string }
 variable "availability_zone" { type = string }
 variable "instance_type" {
   type    = string
-  default = "t4g.medium"
+  default = "m7i-flex.large"
   validation {
-    condition     = contains(["t4g.medium", "t4g.large"], var.instance_type)
-    error_message = "Only the reviewed ARM demo sizes are allowed."
+    condition     = var.instance_type == "m7i-flex.large"
+    error_message = "Only the reviewed Free-plan-eligible demo size is allowed."
   }
 }
 variable "bootstrap_script" { type = string }
@@ -115,9 +115,8 @@ resource "aws_instance" "demo" {
   user_data                   = var.bootstrap_script
   user_data_replace_on_change = true
   volume_tags                 = { Project = "wonderland", Stack = local.name, ManagedBy = "terraform" }
-  network_interface {
+  primary_network_interface {
     network_interface_id = aws_network_interface.demo.id
-    device_index         = 0
   }
   root_block_device {
     encrypted             = true
@@ -130,7 +129,6 @@ resource "aws_instance" "demo" {
     http_put_response_hop_limit = 2
     instance_metadata_tags      = "disabled"
   }
-  credit_specification { cpu_credits = "standard" }
   depends_on = [aws_iam_role_policy.runtime, aws_route_table_association.demo]
   lifecycle { prevent_destroy = true }
 }
