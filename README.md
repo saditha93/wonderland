@@ -2,6 +2,8 @@
 
 A theme park booking demo with a separate visitor app and administrator app.
 
+For the selected no-domain AWS deployment, use the [small AWS demonstration guide](docs/simple-aws-demo.md). Cloud source and offline checks are prepared; live deployment is pending IAM permission approval.
+
 ## Run
 
 On this Mac, the dependencies are already installed. Open one terminal:

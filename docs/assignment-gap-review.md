@@ -1,47 +1,31 @@
 # Assignment readiness review — 15 October 2026
 
-Reviewed against the supplied four-page assignment PDF, particularly pages 2–4, and current source/configuration. The supplied PDF matches the private course-materials copy (SHA-256 `8d91c2588dc4c25db389f895a08841632f4ec810a11073b978c8a84b9c722f37`).
+The authoritative current audit is [assignment coverage and completion gates](assignment-coverage.md), reviewed against all four pages of the supplied assignment PDF (SHA-256 `8d91c2588dc4c25db389f895a08841632f4ec810a11073b978c8a84b9c722f37`).
 
-## Implementation update after review
+The core business features are implemented and locally verified. All seven rubric areas, totaling 100%, have mapped implementation paths. **The assignment is not yet fully demonstrated on AWS.** Source preparation, local tests and a read-only cloud plan do not establish live completion.
 
-The admin hosting/CORS and cloud demo-setting gaps below are now fixed in source. Both frontend builds, 19 focused cloud tests and all four Terraform validation/mock plans passed. Hosted URL/CORS checks were added to the live verifier. This remains offline evidence; no AWS account call or paid resource creation has occurred. See [first deployment setup](aws-first-deployment.md) for the missing target details. The table below retains the original audit findings.
+## Resolved source gaps
 
-## Verdict
+- Separate visitor/admin Amplify targets and publishing; exact two-origin API Gateway CORS.
+- Cloud frontend demo mode explicitly disabled; real cloud date/slot rules retained.
+- Smaller no-domain Terraform/K3s deployment, encrypted PostgreSQL storage/verified TLS and private Metabase/SSM access prepared.
+- Simple cloud plan/deploy/release/verify/status/start/stop/monitoring commands; automatic six-hour compute stop.
+- Cloud Metabase provisioning uses a separate read-only BI role and verified PostgreSQL TLS.
+- Deployment permission documents validated and scoped to the reviewed account/project; no AdministratorAccess fallback.
 
-The local MVP has the main required business features. It is ready to proceed toward infrastructure work **with separate admin hosting and CORS now fixed in source**. The assignment is not yet fully demonstrated: managed registration, external test payments, actual cloud deployment and assessment evidence remain pending.
+## Evidence and outstanding work
 
-This is a source/document review. It does not claim a fresh test run or a cloud deployment. Previously recorded evidence includes 149 passing Python tests, both frontend builds, 14 local infrastructure stages and seven Metabase SQL questions verified against stored data. See [validation](validation.md).
-
-## Gaps and when to resolve them
-
-| Item | Current evidence and gap | Next action |
+| Area | Current evidence | Completion gap |
 |---|---|---|
-| Separate admin cloud URL — fix before deployment | `scripts/cloud.py` hosting packages only `frontend/dist`; `frontend/dist-admin` is not published. `infrastructure/terraform/persistent/main.tf` defines one Amplify app/branch. `infrastructure/terraform/edge/main.tf` allows only the visitor origin. | Add a separate admin hosting target, publish its build, expose its URL and allow both explicit origins. Include admin access and visitor-role denial in cloud smoke checks. |
-| Cloud demo setting — fix before deployment | The hosting environment enables Cognito but does not explicitly override inherited `VITE_DEMO_MODE`. Backend cloud date validation remains enforced. | Explicitly disable the frontend demo setting in cloud builds. |
-| Visitor registration — verify with managed auth | Local mode offers preconfigured password accounts. The signup form in `frontend/src/AuthPanel.tsx` is shown only in Cognito mode. SDK signup/confirmation/login and offline JWT checks exist; actual managed signup is unverified. | Exercise a new account through signup, email confirmation, login, own booking/history and denied admin/cross-user requests after Cognito provisioning. |
-| Payment integration — verify before final demonstration | Stripe adapter, signed webhook and idempotency checks exist. Local simulator/offline tests do not prove an actual provider checkout. | Use Stripe test mode for checkout, failed payment and delivered signed webhook; verify stored amount and duplicate handling. No real-money transaction is needed. |
-| Cloud infrastructure — verify during infrastructure phase | Terraform/Kubernetes configuration and local fault/scale evidence exist. Actual EKS, AWS API Gateway, RDS, SQS/IRSA, Amplify, Cognito, TLS, encryption, alerts and cleanup remain unverified. No private cloud target has been selected. | Review target account/role/region, domain, budget and retention choices before approved provisioning; then record real health, security and lifecycle evidence. |
-| Metabase — reconnect and demonstrate | Native dashboard and seven SQL questions use actual native database facts. Native and local Kubernetes databases are separate environments. Chart appearance remains manually unreviewed. | Connect Metabase to the deployed environment's read-only reporting data; demonstrate arrivals, tier sales/revenue, popular rides and peak/quiet hours, with source reconciliation and screenshots. |
-| GitHub integration — verify remotely | A GitHub remote and workflow definition exist. Remote repository access and a successful remote workflow run have not been verified in this audit. | Confirm the submitted repository link works and retain a successful GitHub Actions run. |
-| Report/viva — manual closeout | Report, diagrams and guides are prepared. Personal review, live screenshots, cloud evidence, working submission links and timed full-stack IaC rehearsal remain pending. | Update the report with actual results, review understanding/acknowledgements and rehearse deployment plus cleanup for the viva. |
+| Business features | Catalog, four editable tiers, booking/date/slot/guest checks, signed tickets, ownership, gate/ride histories and analytics verified locally | Integrated cloud business rehearsal |
+| Authentication | Cognito SDK/signup/confirmation and JWT checks implemented | Real hosted signup/email confirmation and both roles; cross-user/admin denial |
+| Payments | Stripe adapter/signature/idempotency tests; sandbox key authentication verified | Actual sandbox Checkout and delivered signed webhook; failure/duplicate handling |
+| Cloud deployment | Five Terraform roots validated/mock-tested; real selected plan: 45 creations, zero deletions; non-root account and ACTIVE/FREE plan checked | Permission attachment pending; no demo server deployed; validate actual Free-plan service acceptance, bootstrap, verified API Gateway-to-IP TLS and hosted portals |
+| Monitoring | Seven stored SQL questions verified locally; cloud provisioning/checks scripted | Cloud arrival/purchase/ride records and all seven queries, chart review and reconciliation |
+| Non-functional requirements | Local concurrency, HPA, self-healing and recovery evidence; security/failure/cost patterns implemented | Cloud bounded load/scale, service failure and outbox recovery, deployed security inspection and cost/stop inventory |
+| GitHub | Remote SSH HEAD read succeeds; workflow defined | Reviewed source publication, successful remote CI and examiner access |
+| Report/viva/submission | Draft report, diagrams, guides and handover available | Actual-topology update, screenshots, links, personal review/acknowledgements, timed live IaC rehearsal and submission |
 
-## Required local functionality already covered
+The selected design uses K3s Kubernetes and self-managed PostgreSQL on one EC2 host. It does not establish EKS, RDS, IRSA, multi-node availability or database high availability. Those belong to the retained optional advanced design. Task 8 explicitly allows Terraform; EKS/GKE are examples in Task 6. The report must explain the selected trade-offs rather than describe unused optional services as deployed.
 
-- Attraction descriptions, category, thrill and suitability; protected admin create/update/retire.
-- Four database-stored editable booking tiers, guest/date/slot validation and immutable booked-price snapshots.
-- Local payment simulation, signed QR/reference, owned booking/visit/ride history and profile access.
-- Protected gate check-in, full-party guest counts, duplicate rejection and timestamped ride usage.
-- Durable events, reporting projections and stored-data analytics for arrivals, purchases, rides and busy/quiet periods.
-- Containerized services, local Kubernetes persistence, scaling, self-healing and failure-recovery evidence.
-
-These local checks do not establish managed cloud functionality or production availability. Interactive visitor/admin/mobile appearance still needs manual review.
-
-## Recommended order
-
-1. Fix admin publishing, both allowed origins and the cloud demo setting.
-2. Select and review the private cloud target, estimated cost and retained resources.
-3. Provision and test the managed authentication, application, database, queue and HTTPS paths.
-4. Exercise real Stripe test checkout/webhook and reconnect Metabase to that environment.
-5. Verify GitHub Actions, capture manual evidence and finish the report/live IaC rehearsal and cleanup audit.
-
-Do not expand the MVP merely for this audit: refunds, cancellation, partial-party arrival, seasonal prices and MFA are not explicit mandatory features in this assignment. Document existing assumptions instead. The assignment's page 3 names CloudFormation for AWS while page 4 allows CloudFormation or Terraform; lecturer confirmation of Terraform on AWS remains advisable.
+No mandatory area should be removed to simplify commands. Refunds, cancellation, partial-party admission, seasonal pricing and MFA are not explicit mandatory features. See the current checklist for exact acceptance tests, limits and all rubric weights.

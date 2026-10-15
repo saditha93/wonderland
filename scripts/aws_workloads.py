@@ -47,7 +47,7 @@ def secret(name, data):
     }
 
 
-def tls_material():
+def tls_material(extra_names=()):
     now = datetime.now(timezone.utc)
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = x509.Name(
@@ -68,7 +68,7 @@ def tls_material():
         "ca": ca.public_bytes(serialization.Encoding.PEM).decode(),
         "services": {},
     }
-    for name in [*SERVICES, "frontend"]:
+    for name in [*SERVICES, "frontend", *extra_names]:
         leafkey = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         leaf = (
             x509.CertificateBuilder()
