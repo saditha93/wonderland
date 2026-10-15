@@ -42,7 +42,7 @@ Use the AWS key ID and matching secret from a non-root identity. Leave session t
 
 Use only Stripe `sk_test_` keys. Leave the webhook signing secret blank until the endpoint is registered, then supply its `whsec_` value. Cloud payment deployment requires both. Existing `secrets/stripe.env` remains a fallback when neither Stripe field is filled in the root `.env`; incomplete pairs are rejected rather than mixed across files. Payment action review hashes change when either Stripe value changes. No credential contents are printed. Frontend builds exclude AWS and Stripe environment credentials.
 
-Read-only browser inspection on 15 October 2026 confirmed the Free plan, $139.96 credit balance and 131 days remaining at the time of inspection, with N. Virginia selected. No cloud resources or account settings were changed. Credentials are still needed for command-line access.
+Read-only browser inspection on 15 October 2026 confirmed the Free plan, $139.96 credit balance and 131 days remaining at the time of inspection, with N. Virginia selected. No cloud resources or account settings were changed. Command-line credentials were subsequently verified as the non-root wonderland user; Stripe test authentication also passed. ReadOnlyAccess was confirmed attached, and EC2/Free Tier reads passed. The plan is ACTIVE/FREE. Deployment grants are [prepared and validated](../infrastructure/iam/README.md), pending explicit attachment confirmation. No compute resources have been created.
 
 ## Configure authentication
 
