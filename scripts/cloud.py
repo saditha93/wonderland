@@ -116,6 +116,9 @@ def source_digest():
             "requirements.lock",
             "frontend/package.json",
             "frontend/package-lock.json",
+            "frontend/vite.config.ts",
+            "frontend/index.html",
+            "frontend/admin/index.html",
             "frontend/Dockerfile.kubernetes",
             "frontend/nginx.conf",
             "scripts/cloud_migrate.py",
@@ -141,7 +144,7 @@ def review_spec(target, action):
         "persistent_destroy_allowed": False,
     }
     if action == "update-payment":
-        spec["private_input_sha256"] = file_sha(ROOT / "secrets/stripe.env")
+        spec["private_input_sha256"] = digest(stripe_values())
     return spec
 
 
@@ -158,9 +161,9 @@ def account_session(args, target):
         raise GuardError(
             "AWS account access is not authorized; no AWS session/client was created"
         )
-    session = boto3.Session(
-        profile_name=target["profile"], region_name=target["region"]
-    )
+    credentials = aws_environment(target)
+    session = boto3.Session(region_name=target["region"],
+                            **(credentials or {"profile_name": target["profile"]}))
     client = session.client(
         "sts",
         config=Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 1}),
@@ -176,6 +179,47 @@ def account_session(args, target):
     ):
         raise GuardError("Assume the configured operator role first")
     return session
+
+
+def aws_environment(target):
+    """Read only cloud credentials, without importing unrelated app settings."""
+    values = dotenv_values(ROOT / ".env", interpolate=False)
+    keys = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"]
+    selected = dict(values if any(values.get(k) for k in keys) else os.environ)
+    if not any(selected.get(k) for k in keys):
+        return {}
+    if not all(selected.get(k) for k in keys[:2]):
+        raise GuardError("Provide both AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY")
+    region = selected.get("AWS_REGION") or selected.get("AWS_DEFAULT_REGION")
+    if region and region != target["region"]:
+        raise GuardError("AWS environment region must match the reviewed target")
+    for key in keys:
+        os.environ.pop(key, None)
+        if selected.get(key):
+            os.environ[key] = selected[key]
+    os.environ.pop("AWS_PROFILE", None)
+    os.environ.pop("AWS_DEFAULT_PROFILE", None)
+    return {"aws_access_key_id": selected[keys[0]],
+            "aws_secret_access_key": selected[keys[1]],
+            "aws_session_token": selected.get(keys[2]) or None}
+
+
+def cloud_profile(target):
+    """Environment credentials also serve Terraform, Helm and the token plugin."""
+    if os.environ.get("AWS_ACCESS_KEY_ID") and os.environ.get("AWS_SECRET_ACCESS_KEY"):
+        return {}
+    return {"AWS_PROFILE": target["profile"]}
+
+
+def stripe_values():
+    keys = ["APP_STRIPE_SECRET_KEY", "APP_STRIPE_WEBHOOK_SECRET"]
+    primary = dotenv_values(ROOT / ".env", interpolate=False)
+    values = primary if any(primary.get(k) for k in keys) else dotenv_values(
+        ROOT / "secrets/stripe.env", interpolate=False)
+    if not (values.get(keys[0]) or "").startswith("sk_test_") or not (
+        values.get(keys[1]) or "").startswith("whsec_"):
+        raise GuardError("Configure Stripe test and webhook signing secrets in .env")
+    return {key: values[key] for key in keys}
 
 
 def command(argv, **kwargs):
@@ -208,7 +252,7 @@ def backend(target, stage):
         "region": target["region"],
         "encrypt": True,
         "use_lockfile": True,
-        "profile": target["profile"],
+        **({"profile": target["profile"]} if cloud_profile(target) else {}),
         "allowed_account_ids": [target["account_id"]],
     }
 
@@ -251,6 +295,7 @@ def tfvars(target, stage):
             vpc_id=core["vpc_id"],
             private_subnets=core["private_subnets"],
             frontend_origin=persistent["frontend_origin"],
+            admin_origin=persistent["admin_origin"],
             tls_server_name=target["tls_server_name"],
             **edge,
         )
@@ -258,7 +303,7 @@ def tfvars(target, stage):
 
 
 def initialize(target, stage):
-    os.environ["AWS_PROFILE"] = target["profile"]
+    os.environ.update(cloud_profile(target))
     os.environ["AWS_REGION"] = target["region"]
     args = ["init", "-input=false", "-no-color"]
     if (
@@ -377,7 +422,7 @@ def kube(target, *args, **kwargs):
         ],
         env={
             **os.environ,
-            "AWS_PROFILE": target["profile"],
+            **cloud_profile(target),
             "AWS_REGION": target["region"],
         },
         **kwargs,
@@ -426,8 +471,7 @@ def connect_cluster(session, target):
                             target["name"],
                             "--region",
                             target["region"],
-                            "--profile",
-                            target["profile"],
+                            *(["--profile", target["profile"]] if cloud_profile(target) else []),
                         ],
                         "interactiveMode": "Never",
                     }
@@ -520,13 +564,7 @@ def runtime_values(session, target, core):
         )
         values = dict(dotenv_values(path))
         values["LOCAL_METABASE_ROLE_PASSWORD"] = __import__("secrets").token_urlsafe(36)
-        stripe = dotenv_values(ROOT / "secrets/stripe.env")
-        if not (stripe.get("APP_STRIPE_SECRET_KEY") or "").startswith(
-            "sk_test_"
-        ) or not stripe.get("APP_STRIPE_WEBHOOK_SECRET"):
-            raise ValueError(
-                "Configure private Stripe test-only keys first; no production keys allowed"
-            )
+        stripe = stripe_values()
         values.update(
             {
                 k: stripe[k]
@@ -675,7 +713,7 @@ def controller(session, target):
             "--timeout",
             "300s",
         ],
-        env={**os.environ, "AWS_PROFILE": target["profile"]},
+        env={**os.environ, **cloud_profile(target)},
     )
     command(
         [
@@ -704,7 +742,7 @@ def controller(session, target):
             "-",
         ],
         input=yaml.safe_dump_all(log_collector(target, core)),
-        env={**os.environ, "AWS_PROFILE": target["profile"]},
+        env={**os.environ, **cloud_profile(target)},
     )
 
 
@@ -714,13 +752,7 @@ def update_payment(session, target):
     values = json.loads(
         sm.get_secret_value(SecretId=core["runtime_secret_arn"])["SecretString"]
     )
-    keys = dotenv_values(ROOT / "secrets/stripe.env")
-    if not (keys.get("APP_STRIPE_SECRET_KEY") or "").startswith("sk_test_") or not (
-        keys.get("APP_STRIPE_WEBHOOK_SECRET") or ""
-    ).startswith("whsec_"):
-        raise ValueError(
-            "Only Stripe test credentials and a webhook signing secret are allowed"
-        )
+    keys = stripe_values()
     values.update(
         {k: keys[k] for k in ["APP_STRIPE_SECRET_KEY", "APP_STRIPE_WEBHOOK_SECRET"]}
     )
@@ -780,22 +812,41 @@ def hosting(session, target):
     persistent = outputs("persistent")
     api = outputs("edge")["api_url"]
     env = {
-        **os.environ,
+        **{k: v for k, v in os.environ.items()
+           if not k.startswith(("AWS_", "APP_STRIPE_"))},
         "VITE_AUTH_MODE": "cognito",
         "VITE_COGNITO_USER_POOL_ID": persistent["pool_id"],
         "VITE_COGNITO_USER_POOL_CLIENT_ID": persistent["client_id"],
         "VITE_API_BASE_URL": api,
         "VITE_METABASE_URL": "",
+        "VITE_DEMO_MODE": "false",
     }
     command(["npm", "--prefix", "frontend", "run", "build"], env=env)
-    archive = ROOT / "secrets/frontend-deploy.zip"
+    portals = [
+        ("visitor", "dist", "amplify_app_id", "frontend_origin"),
+        ("admin", "dist-admin", "admin_amplify_app_id", "admin_origin"),
+    ]
+    for _, directory, app_key, origin_key in portals:
+        if not (ROOT / "frontend" / directory / "index.html").is_file():
+            raise GuardError("Both visitor and admin builds must contain index.html")
+        if not persistent.get(app_key) or not persistent.get(origin_key):
+            raise GuardError("Apply the persistent stage with both hosting targets first")
+    for portal, directory, app_key, origin_key in portals:
+        deploy_portal(session, portal, ROOT / "frontend" / directory,
+                      persistent[app_key], persistent[origin_key])
+
+
+def deploy_portal(session, portal, directory, app_id, origin):
+    archive = ROOT / "secrets" / f"{portal}-deploy.zip"
+    archive.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
-        for p in (ROOT / "frontend/dist").rglob("*"):
+        for p in directory.rglob("*"):
             if p.is_file():
-                z.write(p, str(p.relative_to(ROOT / "frontend/dist")))
+                z.write(p, str(p.relative_to(directory)))
+    archive.chmod(0o600)
     amplify = session.client("amplify")
     job = amplify.create_deployment(
-        appId=persistent["amplify_app_id"], branchName="demo"
+        appId=app_id, branchName="demo"
     )
     import httpx
 
@@ -803,18 +854,18 @@ def hosting(session, target):
         r = httpx.put(job["zipUploadUrl"], content=f.read(), timeout=120)
     if r.status_code >= 400:
         raise ValueError("Amplify artifact upload failed; signed URL suppressed")
-    started = amplify.start_deployment(
-        appId=persistent["amplify_app_id"], branchName="demo", jobId=job["jobId"]
+    amplify.start_deployment(
+        appId=app_id, branchName="demo", jobId=job["jobId"]
     )
     for _ in range(60):
         status = amplify.get_job(
-            appId=persistent["amplify_app_id"], branchName="demo", jobId=job["jobId"]
+            appId=app_id, branchName="demo", jobId=job["jobId"]
         )["job"]["summary"]["status"]
         if status == "SUCCEED":
-            print("Amplify deployment succeeded:", persistent["frontend_origin"])
+            print(f"Amplify {portal} deployment succeeded:", origin)
             return
         if status in {"FAILED", "CANCELLED"}:
-            raise ValueError("Amplify deployment failed")
+            raise ValueError(f"Amplify {portal} deployment failed")
         time.sleep(5)
     raise ValueError(
         "Amplify deployment did not finish in 300 seconds; no success claimed"
@@ -827,6 +878,28 @@ def verify(session, target):
     url = outputs("edge")["api_url"]
     import httpx
 
+    persistent = outputs("persistent")
+    for key in ["frontend_origin", "admin_origin"]:
+        origin = persistent[key]
+        if httpx.get(origin, timeout=15).status_code != 200:
+            raise GuardError("Hosted portal unavailable: " + key)
+        response = httpx.options(
+            url + "/api/booking/bookings",
+            headers={"Origin": origin, "Access-Control-Request-Method": "POST",
+                     "Access-Control-Request-Headers": "authorization,content-type"},
+            timeout=15,
+        )
+        if response.status_code not in {200, 204} or response.headers.get(
+            "access-control-allow-origin"
+        ) != origin:
+            raise GuardError("Hosted portal CORS failed: " + key)
+    denied = httpx.options(
+        url + "/api/booking/bookings",
+        headers={"Origin": "https://unapproved.invalid",
+                 "Access-Control-Request-Method": "POST"}, timeout=15,
+    )
+    if denied.headers.get("access-control-allow-origin"):
+        raise GuardError("API allowed an unapproved browser origin")
     for name in ["attractions", "booking", "gate", "analytics"]:
         r = httpx.get(url + "/api/" + name + "/health/ready", timeout=15)
         if r.status_code != 200:
@@ -1103,7 +1176,7 @@ def main():
     elif args.action == "plan":
         plan(args, target)
     elif args.action in {"apply", "destroy"}:
-        os.environ["AWS_PROFILE"] = target["profile"]
+        os.environ.update(cloud_profile(target))
         os.environ["AWS_REGION"] = target["region"]
         if args.action == "destroy" and args.stage == "demo":
             if tf("edge", "state", "list", capture_output=True).stdout.strip():
@@ -1186,7 +1259,7 @@ def main():
         p.write_text('terraform {\n backend "s3" {}\n}\n')
         config = ROOT / "secrets/bootstrap.backend.json"
         private_json(config, backend(target, "bootstrap"))
-        os.environ["AWS_PROFILE"] = target["profile"]
+        os.environ.update(cloud_profile(target))
         tf(
             "bootstrap",
             "init",

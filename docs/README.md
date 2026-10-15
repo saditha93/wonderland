@@ -7,10 +7,12 @@ For the simple app walkthrough, use the [MVP demo guide](demo-guide.md). You do 
 | Simple infrastructure commands | [Local infrastructure](infrastructure-demo.md) |
 | Report and viva | [Project report](project-report.md), [speaking guide](viva-demo.md) |
 | Detailed local tests and troubleshooting | [Advanced local testing](advanced-local-testing.md), [development notes](development.md) |
+| Current assignment readiness | [Gap review before infrastructure](assignment-gap-review.md) |
 | Requirements and course alignment | [Requirements matrix](requirements-matrix.md), [lecture alignment](lecture-alignment.md), [viva checklist](viva-checklist.md) |
 | Architecture | [Architecture](architecture.md), [decisions](architecture-decisions.md), [design patterns](design-patterns.md) |
 | Local Kubernetes | [Commands](local-kubernetes.md), [Phase 5 evidence](phase-5-outcome.md) |
 | Metabase | [Simple assignment demonstration](metabase-demo.md), [Phase 4 technical evidence](phase-4-outcome.md) |
+| First AWS deployment | [Account setup and next steps](aws-first-deployment.md) |
 | AWS preparation | [Cloud runbook](cloud-runbook.md), [Phase 6 evidence](phase-6-outcome.md), [Cognito boundary](cognito-integration.md) |
 | Other phase evidence | [Phase 1](validation-phase-1.md), [Phase 2](phase-2-outcome.md), [Phase 3](phase-3-outcome.md), [separate admin app](separate-admin-outcome.md) |
 | Report and costs | [Report outline](report-outline.md), [cost management](cost-management.md), [risks](requirements-risks.md) |

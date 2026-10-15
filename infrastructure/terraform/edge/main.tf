@@ -22,6 +22,10 @@ variable "frontend_origin" {
   type = string
 }
 
+variable "admin_origin" {
+  type = string
+}
+
 resource "aws_security_group" "link" {
   name   = "${var.name}-vpc-link"
   vpc_id = var.vpc_id
@@ -53,7 +57,7 @@ resource "aws_apigatewayv2_api" "demo" {
   name          = var.name
   protocol_type = "HTTP"
   cors_configuration {
-    allow_origins  = [var.frontend_origin]
+    allow_origins  = [var.frontend_origin, var.admin_origin]
     allow_methods  = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers  = ["authorization", "content-type", "idempotency-key", "x-request-id", "stripe-signature"]
     expose_headers = ["x-request-id"]

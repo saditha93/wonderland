@@ -86,6 +86,32 @@ resource "aws_amplify_branch" "demo" {
   stage             = "DEVELOPMENT"
 }
 
+resource "aws_amplify_app" "admin" {
+  name                     = "${var.name}-admin"
+  platform                 = "WEB"
+  enable_branch_auto_build = false
+  custom_rule {
+    source = "/<*>"
+    target = "/index.html"
+    status = "200"
+  }
+}
+
+resource "aws_amplify_branch" "admin" {
+  app_id            = aws_amplify_app.admin.id
+  branch_name       = "demo"
+  enable_auto_build = false
+  stage             = "DEVELOPMENT"
+}
+
+output "admin_amplify_app_id" {
+  value = aws_amplify_app.admin.id
+}
+
+output "admin_origin" {
+  value = "https://${aws_amplify_branch.admin.branch_name}.${aws_amplify_app.admin.default_domain}"
+}
+
 output "repositories" {
   value = { for k, v in aws_ecr_repository.app : k => v.repository_url }
 }

@@ -379,3 +379,172 @@ def test_log_collection_cannot_match_vendor_migration_or_other_namespace_logs():
         "readOnly"
     ]
     assert pod["containers"][0]["securityContext"]["capabilities"]["drop"] == ["ALL"]
+
+
+def hosting_fixture(tmp_path, monkeypatch):
+    monkeypatch.setattr(cloud, "ROOT", tmp_path)
+    persistent = {
+        "pool_id": "us-east-1_offline", "client_id": "offlineclient",
+        "amplify_app_id": "visitor-app", "admin_amplify_app_id": "admin-app",
+        "frontend_origin": "https://visitor.example.com",
+        "admin_origin": "https://admin.example.com",
+    }
+    monkeypatch.setattr(cloud, "outputs", lambda stage: persistent if stage == "persistent"
+                        else {"api_url": "https://api.example.com"})
+    for directory, title in [("dist", "Visitor"), ("dist-admin", "Admin")]:
+        build = tmp_path / "frontend" / directory
+        build.mkdir(parents=True)
+        (build / "index.html").write_text(title)
+        (build / "assets").mkdir()
+        (build / "assets/app.js").write_text(title + " script")
+    commands, created, uploads = [], [], []
+    monkeypatch.setenv("VITE_DEMO_MODE", "true")
+    monkeypatch.setattr(cloud, "command", lambda argv, **kw: commands.append((argv, kw)))
+    def create(**kw):
+        created.append(kw["appId"])
+        return {"jobId": "job", "zipUploadUrl": "https://upload.invalid/private"}
+    amplify = SimpleNamespace(
+        create_deployment=create,
+        start_deployment=lambda **kw: None,
+        get_job=lambda **kw: {"job": {"summary": {"status": "SUCCEED"}}},
+    )
+    def upload(url, content, **kw):
+        import io
+        import zipfile
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            uploads.append({name: archive.read(name) for name in archive.namelist()})
+        return SimpleNamespace(status_code=200)
+    monkeypatch.setattr(cloud.httpx, "put", upload)
+    return persistent, commands, created, uploads, amplify
+
+
+def test_hosting_publishes_both_distinct_builds_with_demo_disabled(tmp_path, monkeypatch):
+    _, commands, created, uploads, amplify = hosting_fixture(tmp_path, monkeypatch)
+    cloud.hosting(SimpleNamespace(client=lambda name: amplify), target())
+    assert created == ["visitor-app", "admin-app"]
+    assert [upload["index.html"] for upload in uploads] == [b"Visitor", b"Admin"]
+    assert all("assets/app.js" in upload for upload in uploads)
+    assert commands[0][1]["env"]["VITE_DEMO_MODE"] == "false"
+    assert commands[0][1]["env"]["VITE_AUTH_MODE"] == "cognito"
+
+
+def test_hosting_missing_admin_build_refuses_before_upload(tmp_path, monkeypatch):
+    _, _, created, _, amplify = hosting_fixture(tmp_path, monkeypatch)
+    (tmp_path / "frontend/dist-admin/index.html").unlink()
+    with pytest.raises(cloud.GuardError, match="Both visitor and admin"):
+        cloud.hosting(SimpleNamespace(client=lambda name: amplify), target())
+    assert created == []
+
+
+def test_admin_hosting_failure_is_reported(tmp_path, monkeypatch):
+    _, _, _, _, amplify = hosting_fixture(tmp_path, monkeypatch)
+    amplify.get_job = lambda **kw: {"job": {"summary": {
+        "status": "FAILED" if kw["appId"] == "admin-app" else "SUCCEED"
+    }}}
+    with pytest.raises(ValueError, match="admin deployment failed"):
+        cloud.hosting(SimpleNamespace(client=lambda name: amplify), target())
+
+
+@pytest.mark.parametrize("bad_origin", [None, "admin", "unapproved"])
+def test_cloud_verify_checks_both_origins_and_rejects_unapproved(monkeypatch, bad_origin):
+    portals = {"frontend_origin": "https://visitor.example.com",
+               "admin_origin": "https://admin.example.com"}
+    monkeypatch.setattr(cloud, "connect_cluster", lambda *a: None)
+    monkeypatch.setattr(cloud, "outputs", lambda stage:
+                        portals if stage == "persistent" else
+                        {"api_url": "https://api.example.com", "dead_queue_url": "offline"})
+    monkeypatch.setattr(cloud.httpx, "get", lambda url, **kw:
+                        SimpleNamespace(status_code=401 if url.endswith(
+                            ("/bookings", "/visits", "/admin/analytics")) else 200))
+    requested = []
+    def options(url, headers, **kw):
+        origin = headers["Origin"]
+        requested.append(origin)
+        allowed = origin in portals.values()
+        if bad_origin == "admin" and origin == portals["admin_origin"]:
+            allowed = False
+        if bad_origin == "unapproved":
+            allowed = True
+        return SimpleNamespace(status_code=204,
+                               headers={"access-control-allow-origin": origin} if allowed else {})
+    monkeypatch.setattr(cloud.httpx, "options", options)
+    session = SimpleNamespace(client=lambda name: SimpleNamespace(
+        get_queue_attributes=lambda **kw: {"Attributes": {"ApproximateNumberOfMessages": "0"}}))
+    if bad_origin:
+        with pytest.raises(cloud.GuardError, match="CORS failed|unapproved browser"):
+            cloud.verify(session, target())
+    else:
+        cloud.verify(session, target())
+        assert requested == [*portals.values(), "https://unapproved.invalid"]
+
+
+def test_edge_variables_include_both_hosted_origins(tmp_path, monkeypatch):
+    monkeypatch.setattr(cloud, "ROOT", tmp_path)
+    (tmp_path / "secrets").mkdir()
+    (tmp_path / "secrets/edge-discovery.json").write_text(json.dumps({
+        "listener_arn": "offline-listener", "alb_security_group_id": "offline-sg"
+    }))
+    monkeypatch.setattr(cloud, "outputs", lambda stage: {
+        "demo": {"vpc_id": "offline-vpc", "private_subnets": ["a", "b"]},
+        "persistent": {"frontend_origin": "https://visitor.example.com",
+                       "admin_origin": "https://admin.example.com"},
+    }[stage])
+    values = cloud.tfvars({**target(), "tls_server_name": "api.example.com"}, "edge")
+    assert values["frontend_origin"] == "https://visitor.example.com"
+    assert values["admin_origin"] == "https://admin.example.com"
+
+
+def test_root_env_credentials_replace_stale_shell_token(tmp_path, monkeypatch):
+    monkeypatch.setattr(cloud, "ROOT", tmp_path)
+    for key in ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN',
+                'AWS_PROFILE', 'AWS_DEFAULT_PROFILE', 'AWS_REGION', 'AWS_DEFAULT_REGION']:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv('AWS_SESSION_TOKEN', 'stale-offline-token')
+    monkeypatch.setenv('AWS_PROFILE', 'unused-profile')
+    (tmp_path / '.env').write_text('AWS_ACCESS_KEY_ID=offline-id\nAWS_SECRET_ACCESS_KEY=offline-secret\nAWS_REGION=us-east-1\nAPP_AUTH_MODE=disabled\n')
+    credentials = cloud.aws_environment(target())
+    assert credentials['aws_access_key_id'] == 'offline-id'
+    assert credentials['aws_session_token'] is None
+    assert 'AWS_SESSION_TOKEN' not in cloud.os.environ
+    assert 'AWS_PROFILE' not in cloud.os.environ
+    assert cloud.cloud_profile(target()) == {}
+    assert 'profile' not in cloud.backend({**target(), 'state_bucket': 'offline'}, 'demo')
+
+
+@pytest.mark.parametrize('content', [
+    'AWS_ACCESS_KEY_ID=offline-id\n',
+    'AWS_ACCESS_KEY_ID=offline-id\nAWS_SECRET_ACCESS_KEY=offline-secret\nAWS_REGION=eu-west-1\n',
+])
+def test_invalid_env_credentials_fail_before_session_creation(tmp_path, monkeypatch, content):
+    monkeypatch.setattr(cloud, 'ROOT', tmp_path)
+    (tmp_path / '.env').write_text(content)
+    calls = []
+    monkeypatch.setattr(cloud.boto3, 'Session', lambda **kw: calls.append(kw))
+    with pytest.raises(cloud.GuardError):
+        cloud.account_session(SimpleNamespace(allow_account_access=True), target())
+    assert calls == []
+
+
+def test_stripe_root_env_selection_and_review_binding(tmp_path, monkeypatch):
+    monkeypatch.setattr(cloud, 'ROOT', tmp_path)
+    monkeypatch.setattr(cloud, 'source_digest', lambda: 'offline-source')
+    p = tmp_path / '.env'
+    p.write_text('APP_STRIPE_SECRET_KEY=sk_test_offline\nAPP_STRIPE_WEBHOOK_SECRET=whsec_offline\n')
+    assert cloud.stripe_values()['APP_STRIPE_SECRET_KEY'] == 'sk_test_offline'
+    before = cloud.review_spec(target(), 'update-payment')['private_input_sha256']
+    p.write_text('APP_STRIPE_SECRET_KEY=sk_test_offline\nAPP_STRIPE_WEBHOOK_SECRET=whsec_changed\n')
+    assert before != cloud.review_spec(target(), 'update-payment')['private_input_sha256']
+    p.write_text('APP_STRIPE_SECRET_KEY=sk_live_offline\nAPP_STRIPE_WEBHOOK_SECRET=whsec_offline\n')
+    with pytest.raises(cloud.GuardError, match='Stripe test'):
+        cloud.stripe_values()
+
+
+def test_stripe_legacy_file_fallback_does_not_mix_partial_root_keys(tmp_path, monkeypatch):
+    monkeypatch.setattr(cloud, 'ROOT', tmp_path)
+    (tmp_path / 'secrets').mkdir()
+    (tmp_path / 'secrets/stripe.env').write_text('APP_STRIPE_SECRET_KEY=sk_test_legacy\nAPP_STRIPE_WEBHOOK_SECRET=whsec_legacy\n')
+    (tmp_path / '.env').write_text('APP_STRIPE_SECRET_KEY=\nAPP_STRIPE_WEBHOOK_SECRET=\n')
+    assert cloud.stripe_values()['APP_STRIPE_SECRET_KEY'] == 'sk_test_legacy'
+    (tmp_path / '.env').write_text('APP_STRIPE_SECRET_KEY=sk_test_partial\n')
+    with pytest.raises(cloud.GuardError):
+        cloud.stripe_values()

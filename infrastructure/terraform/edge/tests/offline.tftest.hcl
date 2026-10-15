@@ -11,6 +11,7 @@ run "offline_security_plan" {
     alb_security_group_id = "sg-00000000000000000"
     tls_server_name       = "api.example.com"
     frontend_origin       = "https://demo.example.com"
+    admin_origin          = "https://admin.example.com"
   }
   assert {
     condition     = aws_apigatewayv2_integration.alb.connection_type == "VPC_LINK"
@@ -21,7 +22,7 @@ run "offline_security_plan" {
     error_message = "Gateway must verify ALB TLS identity"
   }
   assert {
-    condition     = aws_apigatewayv2_api.demo.cors_configuration[0].allow_origins == toset(["https://demo.example.com"])
-    error_message = "CORS must use one approved origin"
+    condition     = aws_apigatewayv2_api.demo.cors_configuration[0].allow_origins == toset(["https://demo.example.com", "https://admin.example.com"])
+    error_message = "CORS must allow exactly the visitor and admin origins"
   }
 }
