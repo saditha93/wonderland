@@ -34,6 +34,16 @@ The local launcher allows today's bookings even after the chosen slot, so you ca
 
 This runs the Python tests and builds both apps. It does not create demo bookings or contact AWS.
 
+## Assignment monitoring dashboard
+
+Keep the app running, then open a second terminal:
+
+```bash
+./start.sh monitoring
+```
+
+This starts Metabase, verifies its seven saved queries and prints the dashboard URL/private login. See the [short assignment dashboard guide](docs/metabase-demo.md).
+
 ## Local infrastructure and handover
 
 ```bash

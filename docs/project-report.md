@@ -43,7 +43,7 @@ flowchart LR
   M[Optional Metabase: read-only views] --> DB
 ```
 
-This diagram describes local Kubernetes. Native development uses Vite's local proxies instead of nginx. Native and cluster databases/credentials are separate. Metabase was previously verified against the native database and is optional to the short MVP walkthrough; it does not automatically query cluster records.
+This diagram describes local Kubernetes. Native development uses Vite's local proxies instead of nginx. Native and cluster databases/credentials are separate. Metabase is verified against the native database and is started with `./start.sh monitoring`; it does not automatically query cluster records.
 
 The prepared AWS target substitutes EKS, private RDS, Cognito, Amplify, SQS/IRSA, API Gateway/private ALB and CloudWatch for the corresponding local infrastructure. The definitions and guarded lifecycle scripts are implemented and offline-tested. Their existence is not evidence that those managed services have been provisioned or integrated. Additional architecture diagrams and trade-offs are in [architecture](architecture.md) and [decisions](architecture-decisions.md).
 
@@ -72,7 +72,7 @@ The five required metrics are calculated from stored facts, not fabricated chart
 | Health checks [2, pp36–37] | Liveness separates process state from database/schema readiness | Shared DB failure affects several ready states |
 | Transactional outbox/idempotency | Commit business state and durable work together; deduplicate repeated events | At-least-once delivery is not exactly-once transport |
 
-Metabase uses a restricted BI role with access to reporting aggregate views. The native development metadata store uses H2 and must not be presented as a production metadata deployment. The optional cloud metadata design uses separate PostgreSQL ownership, with real deployment pending.
+Metabase uses a restricted BI role with access to reporting aggregate views. The local monitoring launcher verifies all seven saved SQL questions, and source/report reconciliation has passed. The native development metadata store uses H2 and must not be presented as a production metadata deployment. The optional cloud metadata design uses separate PostgreSQL ownership, with real deployment pending.
 
 ## 6. Security boundaries
 

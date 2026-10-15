@@ -137,10 +137,14 @@ def start(check=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", nargs="?", choices=["start", "test", "infra", "infra-test", "infra-stop", "package"], default="start")
+    parser.add_argument("action", nargs="?", choices=["start", "test", "monitoring", "infra", "infra-test", "infra-stop", "package"], default="start")
     parser.add_argument("--check", action="store_true", help="Start, check readiness and stop without displaying passwords")
     args = parser.parse_args()
-    if args.action.startswith("infra"):
+    if args.action == "monitoring":
+        from monitoring import start as monitoring
+
+        monitoring()
+    elif args.action.startswith("infra"):
         from local_infrastructure import main as infrastructure
 
         infrastructure(args.action)
