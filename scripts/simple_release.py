@@ -90,6 +90,9 @@ def runtime(s,t,d):
 def images(s,t,d):
     auth=s.client('ecr').get_authorization_token()['authorizationData'][0]
     username,password=base64.b64decode(auth['authorizationToken']).decode().split(':',1)
+    if auth['proxyEndpoint'] != f"https://{t['account_id']}.dkr.ecr.{t['region']}.amazonaws.com":
+        raise GuardError('Unexpected container registry endpoint')
+    shared=s.client('ecr').get_account_setting(name='BLOB_MOUNTING')['value']=='ENABLED'
     dockerconfig=PRIVATE/'docker'; dockerconfig.mkdir(exist_ok=True,mode=0o700)
     env={**os.environ,'DOCKER_CONFIG':str(dockerconfig)}
     run(['docker','info'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
@@ -103,8 +106,19 @@ def images(s,t,d):
                 if exc.response['Error']['Code']!='ImageNotFoundException': raise
             dockerfile='frontend/Dockerfile.kubernetes' if name=='frontend' else ('infrastructure/local/Dockerfile.migrate' if name=='migrate' else f'services/{name}/Dockerfile')
             image=repo+':'+t['release']
-            run(['docker','build','--platform','linux/'+t['architecture'],'-f',dockerfile,'-t',image,'frontend' if name=='frontend' else '.'],env=env)
-            run(['docker','push',image],env=env)
+            run(['docker','buildx','build','--platform','linux/'+t['architecture'],
+                 '--provenance=false','--load','-f',dockerfile,'-t',image,
+                 'frontend' if name=='frontend' else '.'],env=env)
+            from scripts.simple_ecr import publish
+            archive=PRIVATE/'image-upload.tar'
+            try:
+                run(['docker','image','save','-o',str(archive),image],env=env)
+                archive.chmod(0o600)
+                publish(s.client('ecr'),archive,t['name']+'/'+name,t['release'],image,t['architecture'],
+                    registry=auth['proxyEndpoint'] if shared else None,
+                    auth=(username,password),mount_source=t['name']+'/analytics-worker')
+            finally:
+                archive.unlink(missing_ok=True)
     finally:
         run(['docker','logout',auth['proxyEndpoint']],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
 
@@ -161,8 +175,8 @@ with zipfile.ZipFile(io.BytesIO(body)) as z:
         'for n in $(seq 1 180); do test -f /opt/wonderland/bootstrap-ready && break; sleep 5; done',
         'test -f /opt/wonderland/bootstrap-ready',
         'python3 -c '+shlex.quote(downloader),
-        'python3 -m venv --system-site-packages /opt/wonderland/runtime',
-        '/opt/wonderland/runtime/bin/pip install --disable-pip-version-check pyyaml==6.0.3 cryptography==50.0.2 sqlalchemy==2.1.4',
+        'python3 -m venv --clear /opt/wonderland/runtime',
+        '/opt/wonderland/runtime/bin/pip install --disable-pip-version-check boto3==1.43.113 pyyaml==6.0.3 cryptography==50.0.2 sqlalchemy==2.1.4',
         '/opt/wonderland/runtime/bin/python /opt/wonderland/source/infrastructure/simple/node.py install --config /opt/wonderland/source/node-config.json']
     remote(s,d,commands)
 

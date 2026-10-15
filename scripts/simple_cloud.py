@@ -68,7 +68,10 @@ def tf(*args, capture=False):
 
 def source_hash():
     digest = hashlib.sha256()
-    for directory in ('infrastructure/simple','infrastructure/terraform/simple','scripts','frontend','services','wonderland_common'):
+    for name in ('requirements.lock','requirements.in','pyproject.toml','.dockerignore','cloud.sh'):
+        digest.update(name.encode())
+        digest.update((ROOT/name).read_bytes())
+    for directory in ('infrastructure','scripts','frontend','services','wonderland_common','analytics'):
         for path in sorted((ROOT/directory).rglob('*')):
             if not path.is_file() or any(part in {'.terraform','__pycache__','node_modules','dist','dist-admin'} for part in path.parts):
                 continue

@@ -2,7 +2,7 @@
 
 A theme park booking demo with a separate visitor app and administrator app.
 
-For the selected no-domain AWS deployment, use the [small AWS demonstration guide](docs/simple-aws-demo.md). Cloud source and offline checks are prepared; live deployment is pending IAM permission approval.
+For the selected no-domain AWS deployment, use the [small AWS demonstration guide](docs/simple-aws-demo.md). AWS infrastructure is provisioned and Cognito signup/login passed; application installation and live verification are in progress. See the dated [cloud progress evidence](docs/evidence/simple-cloud-live-progress.json).
 
 ## Run
 

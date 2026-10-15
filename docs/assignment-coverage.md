@@ -55,7 +55,7 @@ Capture a small source-to-dashboard reconciliation after the real sandbox paymen
 | Scalability | Stateless replicas, bounded database pools, catalog CPU HPA, SQS buffering, idempotency/concurrent transaction tests; recorded local HPA 2→3→2 and load evidence | Repeat bounded scaling and concurrent booking/check-in checks in AWS. Test ride-event bursts and drain/reconciliation. A catalog-only HPA does not prove booking/gate capacity or node autoscaling. Do not claim unmeasured production peak capacity |
 | Security | Cognito token verification; admin/owner checks; Stripe signature and amount validation; restricted DB roles; RSA tickets; protected logs; encrypted EBS/S3/SQS; verified API/service/DB TLS; bounded IAM server role | Inspect deployed encryption; verify trusted TLS and direct-origin denial; test invalid/expired tokens, visitor admin denial and cross-user ownership. Confirm AWS/payment keys are absent from browser bundles and logs. Node role is shared within one trust domain, not per-pod IRSA |
 | Fault tolerance | Independent signed-ticket verification at gate, outbox/deduplication, retries, circuit breakers, probes and pod replacement; actual local worker/database recovery tests | Interrupt one service at a time: gate outage must not prevent booking; booking API outage must not prevent valid signed-ticket gate admission; analytics outage must not block business writes and must catch up afterward. Catalog failure must degrade ride lookup safely. Database or whole-host failure affects this single-node design; do not claim multi-node/DB high availability |
-| Cost efficiency | Small ARM server; bounded catalog HPA; managed hosting/identity/queue; six-hour server stop timer; explicit stop/start commands; Free-plan checks | Show runtime/credit usage and stop behavior. Inventory disk, fixed IPv4, hosting/storage/log/secret usage that remains after stop. Pod HPA alone does not reduce an EC2 bill. No paid-plan upgrade or purchased domain is authorized |
+| Cost efficiency | Eligible 8 GiB x86 server; bounded catalog HPA; managed hosting/identity/queue; six-hour server stop timer; explicit stop/start commands; Free-plan checks | Show runtime/credit usage and stop behavior. Inventory disk, fixed IPv4, hosting/storage/log/secret usage that remains after stop. Pod HPA alone does not reduce an EC2 bill. No paid-plan upgrade or purchased domain is authorized |
 
 ## Infrastructure interpretation
 
@@ -69,11 +69,11 @@ Capture a small source-to-dashboard reconciliation after the real sandbox paymen
 
 Do not label the AWS assignment demonstration complete until each gate has observed evidence:
 
-- [ ] Reviewed permissions installed; actual Free-plan provisioning accepted without upgrade.
+- [x] Reviewed permissions installed; actual Free-plan provisioning accepted without upgrade (16 October 2026).
 - [ ] IaC and scripted release create the complete selected cloud infrastructure/workloads/hosting; actual HTTPS gateway works.
 - [ ] Hosted visitor signup/email confirmation and visitor/admin login pass; owner and role isolation pass.
 - [ ] Real Stripe sandbox checkout/webhook confirms the stored purchase exactly once; failed payment remains unpaid.
-- [ ] Signed ticket, same-day gate admission, duplicate rejection, ride recording and owned histories pass during valid park hours.
+- [ ] Signed ticket, same-day gate admission, duplicate rejection, ride recording and owned histories pass for a valid visit date.
 - [ ] All seven cloud Metabase cards query; arrivals, purchases/revenue, rides and hourly activity reconcile with source records.
 - [ ] Cloud bounded scaling, concurrent operations, pod self-heal and service/outbox recovery are demonstrated; limitations documented.
 - [ ] Reviewed source is on the submitted real GitHub repository; an observed successful CI run and examiner-accessible links exist.
@@ -81,4 +81,4 @@ Do not label the AWS assignment demonstration complete until each gate has obser
 - [ ] Timed viva rehearsal includes live IaC/release, full business flow, failure/scale evidence and stop/residual-cost explanation.
 - [ ] Student verifies current Moodle deadline/submission status and submits the report plus code/artifact links. The supplied PDF lists 11 October 2026 for submission and 8 November 2026 for viva; no extension is assumed here.
 
-Current evidence: [small-cloud preflight](evidence/simple-cloud-preflight.json), [recorded local validation](validation.md), [local infrastructure results](evidence/local-infrastructure.json). Commands: [small AWS demonstration guide](simple-aws-demo.md). Detailed requirement IDs: [traceability matrix](requirements-matrix.md).
+Current evidence: [live cloud progress](evidence/simple-cloud-live-progress.json), [small-cloud preflight](evidence/simple-cloud-preflight.json), [recorded local validation](validation.md), [local infrastructure results](evidence/local-infrastructure.json). Commands: [small AWS demonstration guide](simple-aws-demo.md). Detailed requirement IDs: [traceability matrix](requirements-matrix.md).

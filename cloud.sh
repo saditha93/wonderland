@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 umask 077
 export PATH="$PWD/tmp/tools:$PATH"
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
 # Preserve the selected local Docker engine when release uses private registry credentials.
 if [[ -z "${DOCKER_HOST:-}" ]] && command -v docker >/dev/null 2>&1; then
   demo_docker_host="$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"

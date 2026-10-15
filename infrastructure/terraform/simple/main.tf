@@ -219,11 +219,6 @@ resource "aws_amplify_app" "portal" {
   name                     = "${local.name}-${each.key}"
   platform                 = "WEB"
   enable_branch_auto_build = false
-  custom_rule {
-    source = "/<*>"
-    target = "/index.html"
-    status = "200"
-  }
 }
 resource "aws_amplify_branch" "portal" {
   for_each          = aws_amplify_app.portal

@@ -13,5 +13,10 @@
     "m7i-flex.large"
   ],
   "application_release_verified": false,
-  "teardown_verified": false
+  "teardown_verified": false,
+  "local_test_count": 176,
+  "local_frontend_builds_passed": true,
+  "amplify_visitor_published": true,
+  "amplify_admin_published": true,
+  "visitor_javascript_content_type_verified": true
 }

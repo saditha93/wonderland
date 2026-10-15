@@ -1,6 +1,6 @@
 # Small AWS demonstration
 
-Current status (16 October 2026): Terraform has created the AWS infrastructure, including the approved Free-plan-eligible `m7i-flex.large` server. Cognito email signup, verification and login passed. Application release and live payment/reporting checks are in progress; the demo is not yet verified ready. The four scoped deployment policies and separate runtime boundary are installed.
+Current status (16 October 2026): Terraform has created the AWS infrastructure, including the approved Free-plan-eligible `m7i-flex.large` server. Cognito email signup, verification and login passed. Both Amplify sites are published and the visitor UI renders. Application workload release and live payment/reporting checks are in progress; the demo is not yet verified ready. The four scoped deployment policies and separate runtime boundary are installed.
 
 The selected topology is one x86 EC2 server running K3s Kubernetes, PostgreSQL, the four application services and Metabase. Separate Amplify websites host the visitor and admin apps; Cognito provides their identities. API Gateway forwards to the server over verified HTTPS. SQS carries reporting events. ECR holds immutable x86 images and Secrets Manager holds runtime credentials. No domain purchase is required.
 
@@ -77,3 +77,13 @@ The user has requested teardown after the live tests. Keep the terminal open unt
 ```
 
 Destroy takes a fresh private database backup when deployed runtime data exists, removes the matching Stripe test webhook, destroys Terraform resources, and checks AWS inventory. Backups and state remain in the ignored private `secrets/simple-cloud/` directory on this Mac. IAM deployment policies remain installed and do not themselves incur usage charges. Stopping an instance is not complete teardown.
+
+### Publishing permission after a fresh rebuild
+
+Amplify assigns new app IDs when the infrastructure is recreated after destruction. Publishing permissions are deliberately restricted to the two reviewed app IDs. If AWS denies `CreateDeployment` for a newly created app, prepare the replacement grant:
+
+```bash
+.venv/bin/python scripts/prepare-demo-amplify-permission.py
+```
+
+This validates and packages the exact two-app change without altering IAM. Review and approve the printed bundle, then install it using the administrator CloudShell procedure in `infrastructure/iam/`. Do not add AdministratorAccess.

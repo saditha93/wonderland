@@ -12,3 +12,5 @@ tmp
 *.tfstate*
 
 secrets
+**/.terraform
+frontend/dist-admin
