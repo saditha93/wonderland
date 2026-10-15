@@ -1,4 +1,4 @@
-"""One terminal for the local Wonderland MVP. No cloud/container commands."""
+"""Simple local MVP/infrastructure commands. No AWS account operations."""
 
 import argparse
 import fcntl
@@ -137,10 +137,18 @@ def start(check=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", nargs="?", choices=["start", "test"], default="start")
+    parser.add_argument("action", nargs="?", choices=["start", "test", "infra", "infra-test", "infra-stop", "package"], default="start")
     parser.add_argument("--check", action="store_true", help="Start, check readiness and stop without displaying passwords")
     args = parser.parse_args()
-    if args.action == "test":
+    if args.action.startswith("infra"):
+        from local_infrastructure import main as infrastructure
+
+        infrastructure(args.action)
+    elif args.action == "package":
+        from handover import create_package
+
+        create_package()
+    elif args.action == "test":
         start_database()
         run(PYTHON, "-m", "pytest", "-q")
         run("npm", "--prefix", "frontend", "run", "build")
@@ -152,5 +160,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except KeyboardInterrupt:
+        print("\nStopped. Saved data is preserved.")
     except (RuntimeError, subprocess.CalledProcessError) as exc:
         raise SystemExit(str(exc)) from None

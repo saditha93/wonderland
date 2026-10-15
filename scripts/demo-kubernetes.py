@@ -211,6 +211,15 @@ def recovery():
 
 def autoscale():
     # Real bounded HTTP load against the catalog; no synthetic CPU-burn endpoint.
+    def metrics_available():
+        try:
+            k.kubectl("top", "pods", "-l", "app=attractions-service,color=blue", capture_output=True)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    # A replacement pod may be ready before metrics-server has sampled it.
+    wait_for(metrics_available, 120)
     k.kubectl("top", "pods", "-l", "app=attractions-service,color=blue")
     wait_for(
         lambda: get("deployment/attractions-service-blue")["spec"]["replicas"] == 2, 240
@@ -245,7 +254,7 @@ def autoscale():
             time.sleep(5)
         counts = [f.result() for f in futures]
     print(
-        f"Catalog load: {sum(c[0] for c in counts)} successful, {sum(c[1] for c in counts)} failed requests; max HPA desired/current replicas {maximum}"
+        f"Catalog load: {sum(c[0] for c in counts)} successful, {sum(c[1] for c in counts)} failed requests; max HPA desired/current replicas during load {maximum}"
     )
     wait_for(
         lambda: (
@@ -255,9 +264,11 @@ def autoscale():
         90,
     )
     observed = get("hpa/attractions-blue")["status"]
-    assert observed.get("currentReplicas", 0) >= 3
+    # HPA's currentReplicas can lag the Deployment's actual ready count by a
+    # controller sample. Require both real ready pods and an HPA scale request.
+    assert max(observed.get("currentReplicas", 0), observed.get("desiredReplicas", 0)) >= 3
     print(
-        "PASS CPU HPA scaled catalog from 2 to 3 ready replicas using actual HTTP traffic"
+        "PASS CPU HPA requested scale-up; catalog reached 3 ready replicas from baseline 2 using actual HTTP traffic"
     )
     wait_for(
         lambda: get("deployment/attractions-service-blue")["spec"]["replicas"] == 2, 240

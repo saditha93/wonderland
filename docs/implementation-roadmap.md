@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-User reviewed earlier phases and authorized Phase 6. Terraform/lifecycle implementation is validated offline and ready for review; stop before Phase 7 account access/deployment. Actual Cognito account verification remains pending. Actual Stripe test-account delivery remains unverified. Local application images now build/run in Minikube; remote CI and separate Compose runtime remain unverified. Later commands involving not-yet-created files are plans, not runnable instructions.
+The local MVP now uses one launcher for app startup/testing, local infrastructure rehearsal and source packaging. The user requested local completion of phases 7–9 on 15 October 2026. Phase 7's original AWS rehearsal remains pending; Minikube/offline Terraform are explicitly a local rehearsal, not live AWS evidence. Phase 8 report/viva materials and the user-requested Phase 9 handover are maintained below. Remote CI, managed auth/hosting and external payment delivery still need actual account verification.
 
 ## Phase 0 — Read sources, trace requirements, agree design
 - Files: `docs/*.md`.
@@ -82,3 +82,23 @@ User reviewed earlier phases and authorized Phase 6. Terraform/lifecycle impleme
 - Tests: Evidence audit and timed viva.
 - Evidence: Report, GitHub CI and viva presentation.
 - Remaining risks: Remote push only with approval; no fabricated results.
+
+## Phase 7 local rehearsal — development substitute for cloud rehearsal
+- Command: `./start.sh infra-test`.
+- Scope: offline Terraform validation/mocks; actual local image build/deploy; visitor/admin/password/reference flow; self-healing; blue-green rollback; worker backlog recovery; DB readiness/persistence; real HTTP HPA scale-up/down; final reconciliation.
+- Evidence: `docs/evidence/local-infrastructure.json` records **14 passing stages** on 15 October 2026, including 46,964 successful requests/zero failures and HPA 2→3→2. Two failed prior attempts are archived alongside it. Only `status: passed` is completion evidence.
+- Local app access: `./start.sh infra`; stop with `./start.sh infra-stop`.
+- Remaining original Phase 7 work: live account/region/cost/plan review, AWS integration, hosted Cognito/Amplify, Stripe delivery and audited cleanup. No AWS operation is authorized by a local command.
+
+## Phase 8 local report and viva preparation
+- Artifacts: `docs/project-report.md`, `docs/viva-demo.md`, `docs/demo-guide.md`, `docs/infrastructure-demo.md`.
+- Verification: `./start.sh test`; actual infrastructure evidence linked from the report.
+- CI: existing workflow extended to produce the source-only handover artifact after checks. Git remote is configured; no remote workflow execution is claimed.
+- Remaining: student's personal review, screenshots, explanation rehearsal, submission details, remote CI evidence and academic submission.
+
+## Phase 9 — Clean local handover (added for the user's request)
+- Command: `./start.sh package`.
+- Output: `tmp/handover/wonderland-mvp.zip` plus SHA-256 checksum; source file hashes are inside `HANDOVER-MANIFEST.json`.
+- Includes: MVP code, report, guides and optional assignment infrastructure.
+- Excludes: private credentials/course PDFs, databases, installed dependencies, generated builds, Terraform states/plans and symlinks.
+- Acceptance: ZIP integrity/privacy tests pass and a fresh checkout follows the documented one-time dependency setup. No data deletion, cloud deployment or remote publishing occurs.

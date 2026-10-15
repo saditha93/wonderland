@@ -195,3 +195,24 @@ def test_cluster_guard_rejects_cloud_endpoint(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     with pytest.raises(SystemExit, match="non-local"):
         module.guard()
+
+
+def test_stop_is_idempotent_without_live_kubeconfig(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import sys
+
+    spec = importlib.util.spec_from_file_location("local_stop", ROOT / "scripts/local-kubernetes.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    profile = tmp_path / ".minikube/profiles/wonderland/config.json"
+    profile.parent.mkdir(parents=True)
+    profile.write_text('{"Name":"wonderland","Driver":"docker"}')
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(sys, "argv", ["local-kubernetes.py", "stop"])
+    calls = []
+    def run(args, **kwargs):
+        calls.append(args)
+        return SimpleNamespace(stdout='{"name":"wonderland","status":"Stopped","runtime":"docker"}\n')
+    monkeypatch.setattr(module, "run", run)
+    module.main()
+    assert calls == [["colima", "list", "--json"]]

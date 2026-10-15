@@ -1,5 +1,5 @@
 # Original report working outline
-This is a plan, not a completed submission or measured results. Assignment p3 Task 1 and p4 rubric; module outline LO2–LO5.
+The implemented local report is now [project-report.md](project-report.md). This outline remains a planning reference; the report needs personal review and actual cloud evidence before a completed academic submission. Assignment p3 Task 1 and p4 rubric; module outline LO2–LO5.
 
 1. Introduction, case requirements, source hierarchy and traceability.
 2. Service selection: compute/control/cost, EKS versus ECS, PostgreSQL versus DynamoDB.

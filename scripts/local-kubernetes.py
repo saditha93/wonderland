@@ -47,7 +47,7 @@ def guard():
         raise SystemExit("Start the named local cluster first")
     config = yaml.safe_load(CONFIG.read_text())
     context = next(
-        (c["context"] for c in config["contexts"] if c["name"] == PROFILE), None
+        (c["context"] for c in config.get("contexts") or [] if c["name"] == PROFILE), None
     )
     if not context:
         raise SystemExit("Dedicated local context is missing")
@@ -120,6 +120,26 @@ def main():
         "action", choices=["start", "build", "deploy", "verify", "forward", "stop"]
     )
     args = parser.parse_args()
+    if args.action == "stop":
+        # Minikube clears kubeconfig entries and Colima removes its Docker
+        # context on shutdown. Stopping again must not require either to live.
+        path = Path.home() / ".minikube/profiles" / PROFILE / "config.json"
+        if not path.exists():
+            print("Named local cluster is already stopped/not created")
+            return
+        profile = json.loads(path.read_text())
+        if profile.get("Driver") != "docker" or profile.get("Name") != PROFILE:
+            raise SystemExit("Refusing to stop an unrecognized local profile")
+        profiles = [json.loads(line) for line in run(["colima", "list", "--json"], capture_output=True).stdout.splitlines() if line.strip()]
+        vm = next((p for p in profiles if p.get("name") == PROFILE), None)
+        if not vm or vm.get("status") == "Stopped":
+            print("Named local VM/cluster already stopped; persistent data retained")
+            return
+        if vm.get("runtime") != "docker":
+            raise SystemExit("Refusing a non-Docker local VM")
+        run(["minikube", "-p", PROFILE, "stop"])
+        print("Named cluster stopped; persistent demo volume retained.")
+        return
     if args.action == "start":
         CONFIG.parent.mkdir(exist_ok=True, mode=0o700)
         run(
@@ -165,6 +185,7 @@ def main():
                     dockerfile,
                     "-t",
                     f"wonderland/{name}:0.5.0",
+                    *(["--build-arg", "VITE_DEMO_MODE=true"] if name == "frontend" else []),
                     context,
                 ]
             )
@@ -225,17 +246,15 @@ def main():
             "analytics-worker",
             "frontend",
         ]:
+            # Local tags are rebuilt in place. Reapplying an unchanged tag does
+            # not replace pods or reload updated Secrets by itself.
+            kubectl("rollout", "restart", "deployment/" + name)
             kubectl("rollout", "status", "deployment/" + name, "--timeout=180s")
     elif args.action == "verify":
         kubectl("get", "pods,services,hpa,pvc")
         kubectl("top", "pods")
     elif args.action == "forward":
         kubectl("port-forward", "--address=127.0.0.1", "service/frontend", "5180:8080", "5181:8081")
-    elif args.action == "stop":
-        run(["minikube", "-p", PROFILE, "stop"])
-        print(
-            "Named cluster stopped; persistent demo volume retained. Colima VM can be stopped separately."
-        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,121 @@
+{
+  "started_at": "2026-10-15T05:09:15.545238+05:30",
+  "scope": "local Minikube + offline Terraform mocks; no AWS account calls",
+  "status": "failed",
+  "steps": [
+    {
+      "name": "Validate Terraform offline and execute mocked plans",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [
+        "All four Terraform roots validated and mocked plans passed. No live AWS plan/apply was run."
+      ],
+      "seconds": 14.52
+    },
+    {
+      "name": "Start local VM",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [],
+      "seconds": 0.95
+    },
+    {
+      "name": "Start local Kubernetes",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [],
+      "seconds": 12.71
+    },
+    {
+      "name": "Build and load application images",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [],
+      "seconds": 55.2
+    },
+    {
+      "name": "Deploy database, migrations and apps",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [],
+      "seconds": 22.76
+    },
+    {
+      "name": "Verify workloads, storage and metrics",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [],
+      "seconds": 0.24
+    },
+    {
+      "name": "End-to-end booking, admin and analytics",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [
+        "PASS separate admin portal, password sign-in and protected booking-reference lookup",
+        "PASS Kubernetes gateway, service discovery, simulated payment, RSA ticket, arrival, ride retry and stored analytics",
+        "PASS Kubernetes reporting/source reconciliation"
+      ],
+      "seconds": 1.95
+    },
+    {
+      "name": "Pod self-healing",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [
+        "PASS self-heal: replacement pod ready; 20/20 catalog requests succeeded during replacement"
+      ],
+      "seconds": 3.96
+    },
+    {
+      "name": "Blue-green switch and rollback",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [
+        "PASS green selector switch: release metadata 0.5.1 served; catalog remains available",
+        "PASS rollback to blue 0.5.0; green scaled to zero. Domain code is identical in both demo releases."
+      ],
+      "seconds": 7.72
+    },
+    {
+      "name": "Worker failure and queue recovery",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [
+        "PASS separate admin portal, password sign-in and protected booking-reference lookup",
+        "PASS Kubernetes booking, gate and rides while analytics is offline",
+        "PASS separate admin portal, password sign-in and protected booking-reference lookup",
+        "PASS Kubernetes gateway, service discovery, simulated payment, RSA ticket, arrival, ride retry and stored analytics",
+        "PASS Kubernetes reporting/source reconciliation",
+        "PASS isolated worker outage: booking/gate/rides succeeded; 3 events durably awaiting publication",
+        "PASS restarted worker drains backlog without duplicate arrival/ride or purchase counts"
+      ],
+      "seconds": 11.1
+    },
+    {
+      "name": "Database failure, readiness and persistence",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [
+        "PASS DB outage: API liveness 200, readiness 503; unready endpoints removed; frontend process remains healthy",
+        "PASS readiness recovery and persistent booking count after PostgreSQL restart"
+      ],
+      "seconds": 13.73
+    },
+    {
+      "name": "Real HTTP load and HPA scale-up/down",
+      "status": "failed",
+      "exit_code": 1,
+      "observations": [],
+      "seconds": 0.73
+    },
+    {
+      "name": "Restore baseline after failed/interrupted test",
+      "status": "passed",
+      "exit_code": 0,
+      "observations": [],
+      "seconds": 21.32
+    }
+  ],
+  "finished_at": "2026-10-15T05:26:17.764405+05:30"
+}

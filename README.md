@@ -34,6 +34,19 @@ The local launcher allows today's bookings even after the chosen slot, so you ca
 
 This runs the Python tests and builds both apps. It does not create demo bookings or contact AWS.
 
+## Local infrastructure and handover
+
+```bash
+./start.sh infra-test   # Build/deploy locally and run recovery/scaling tests
+./start.sh infra        # Open the Kubernetes visitor/admin apps
+./start.sh infra-stop   # Stop the cluster/VM; keep data
+./start.sh package      # Create the clean source ZIP
+```
+
+Run infrastructure commands one at a time. `infra-test` starts its own gateway; close an existing `infra` terminal first. See the [short infrastructure guide](docs/infrastructure-demo.md).
+
+The [project report](docs/project-report.md) and [viva speaking guide](docs/viva-demo.md) are ready for your review. Local tests do not complete the original AWS deployment phase or verify remote GitHub CI.
+
 ## One-time setup on a fresh checkout
 
 Use Python 3.12, uv, Node.js 22.12+ and PostgreSQL 17. On this Mac PostgreSQL binaries are under `/opt/homebrew/opt/postgresql@17/bin`.

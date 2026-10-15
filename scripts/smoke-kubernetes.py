@@ -69,6 +69,15 @@ def main():
         assert client.get("/").status_code == 200
         visitor = headers()
         admin = headers("admin")
+        admin_base = "http://127.0.0.1:5181"
+        assert client.get(admin_base + "/").status_code == 200
+        credentials = json.loads(k.ENVFILE.with_suffix(".accounts.json").read_text())
+        account = next(a for a in credentials if a["email"] == "admin@wonderland.local")
+        session = checked(client.post(admin_base + "/api/booking/auth/local-login", json={
+            "email": account["email"], "password": account["password"], "portal": "admin",
+        }))
+        staff = {"Authorization": "Bearer " + session["access_token"]}
+        assert checked(client.get(admin_base + "/api/booking/identity", headers=staff))["role"] == "admin"
         if not args.skip_analytics:
             assert (
                 client.get(
@@ -121,6 +130,11 @@ def main():
         ticket = checked(
             client.get(f"/api/booking/bookings/{ref}/ticket", headers=visitor)
         )
+        staff_ticket = checked(client.get(admin_base + f"/api/booking/admin/bookings/{ref}/ticket", headers=staff))
+        assert staff_ticket["booking"]["reference"] == ref
+        assert client.get(admin_base + f"/api/booking/admin/bookings/{ref}/ticket", headers=visitor).status_code == 403
+        ticket = staff_ticket
+        print("PASS separate admin portal, password sign-in and protected booking-reference lookup")
         scan = {"ticket_token": ticket["ticket_token"], "guest_count": 4}
         arrival = client.post("/api/gate/admin/check-ins", headers=admin, json=scan)
         assert arrival.status_code in (201, 409)

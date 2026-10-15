@@ -52,4 +52,11 @@ jobs:
           python scripts/smoke-local.py
       - if: always()
         run: docker compose --env-file secrets/compose.env down --volumes
+      - name: Prepare source-only handover
+        run: python scripts/handover.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wonderland-source-handover
+          path: tmp/handover/
+          retention-days: 7
 # No AWS credentials, cloud resources, payment calls or deployment actions.

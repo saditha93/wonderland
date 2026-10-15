@@ -1,4 +1,6 @@
 # Viva checklist — 8 November 2026
+
+For the short current rehearsal, use [viva-demo.md](viva-demo.md). Run local infrastructure with `./start.sh infra-test`; the original cloud assessment items below still require real managed-service evidence.
 No completion boxes are checked for features not implemented. Assignment p4 rubric governs this checklist. Confirm exact time slot and allowed provisioning wait with lecturer. Assignment requires stack execution during viva; pre-created infrastructure alone is insufficient evidence.
 
 | Weight | Demonstration checklist | Evidence to retain |
