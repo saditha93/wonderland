@@ -86,9 +86,13 @@ def policies(account, region='us-east-1', name='wonderland-demo'):
         arn('amplify','apps/*/branches/demo'), request_tags)
     add('ManageTaggedWebsites', ['amplify:UpdateApp','amplify:DeleteApp','amplify:TagResource'],
         arn('amplify','apps/*'), resource_tags)
-    add('PublishTaggedDemoBranches', ['amplify:UpdateBranch','amplify:DeleteBranch',
-        'amplify:CreateDeployment','amplify:StartDeployment','amplify:TagResource'],
-        [arn('amplify','apps/*/branches/demo'),arn('amplify','apps/*/branches/demo/*')], resource_tags)
+    add('PublishTaggedDemoBranches', ['amplify:UpdateBranch','amplify:DeleteBranch','amplify:TagResource'],
+        arn('amplify','apps/*/branches/demo'), resource_tags)
+    # Amplify deployment/job child authorization does not include app tags.
+    # Limit publishing to this account, region and demo branches; app/branch
+    # creation and management above still require Wonderland ownership tags.
+    add('PublishDemoDeployments', ['amplify:CreateDeployment','amplify:StartDeployment'],
+        [arn('amplify','apps/*/branches/demo/deployments/*'),arn('amplify','apps/*/branches/demo/jobs/*')], regional)
     add('CreateTaggedHTTPAPI', 'apigateway:POST', f'arn:aws:apigateway:{region}::/apis', request_tags)
     add('ManageTaggedHTTPAPI', ['apigateway:POST','apigateway:PUT','apigateway:PATCH','apigateway:DELETE'],
         [f'arn:aws:apigateway:{region}::/apis/*', f'arn:aws:apigateway:{region}::/tags/*'], resource_tags)

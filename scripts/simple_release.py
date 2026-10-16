@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 import httpx
 from dotenv import dotenv_values, set_key
@@ -87,7 +88,7 @@ def runtime(s,t,d):
     return value
 
 
-def images(s,t,d):
+def local_images(s,t,d):
     auth=s.client('ecr').get_authorization_token()['authorizationData'][0]
     username,password=base64.b64decode(auth['authorizationToken']).decode().split(':',1)
     if auth['proxyEndpoint'] != f"https://{t['account_id']}.dkr.ecr.{t['region']}.amazonaws.com":
@@ -97,30 +98,93 @@ def images(s,t,d):
     env={**os.environ,'DOCKER_CONFIG':str(dockerconfig)}
     run(['docker','info'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
     run(['docker','login','--username',username,'--password-stdin',auth['proxyEndpoint']],input=password,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
-    try:
-        for name,repo in d['repositories'].items():
-            try:
-                s.client('ecr').describe_images(repositoryName=t['name']+'/'+name,imageIds=[{'imageTag':t['release']}])
-                print('Reusing immutable image:',name); continue
-            except ClientError as exc:
-                if exc.response['Error']['Code']!='ImageNotFoundException': raise
-            dockerfile='frontend/Dockerfile.kubernetes' if name=='frontend' else ('infrastructure/local/Dockerfile.migrate' if name=='migrate' else f'services/{name}/Dockerfile')
-            image=repo+':'+t['release']
-            run(['docker','buildx','build','--platform','linux/'+t['architecture'],
-                 '--provenance=false','--load','-f',dockerfile,'-t',image,
-                 'frontend' if name=='frontend' else '.'],env=env)
-            from scripts.simple_ecr import publish
-            archive=PRIVATE/'image-upload.tar'
-            try:
-                run(['docker','image','save','-o',str(archive),image],env=env)
-                archive.chmod(0o600)
-                publish(s.client('ecr'),archive,t['name']+'/'+name,t['release'],image,t['architecture'],
+    from scripts.simple_ecr import publish
+    client=s.client('ecr')
+    def publish_archive(archive,name,image):
+        try:
+            publish(client,archive,t['name']+'/'+name,t['release'],image,t['architecture'],
                     registry=auth['proxyEndpoint'] if shared else None,
                     auth=(username,password),mount_source=t['name']+'/analytics-worker')
-            finally:
-                archive.unlink(missing_ok=True)
+        finally: archive.unlink(missing_ok=True)
+    try:
+        # Login/build operations stay serial; only independent ECR repositories
+        # upload concurrently. Every future completes before Docker logout.
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            pending=[]
+            for name,repo in d['repositories'].items():
+                try:
+                    client.describe_images(repositoryName=t['name']+'/'+name,imageIds=[{'imageTag':t['release']}])
+                    print('Reusing immutable image:',name); continue
+                except ClientError as exc:
+                    if exc.response['Error']['Code']!='ImageNotFoundException': raise
+                dockerfile='frontend/Dockerfile.kubernetes' if name=='frontend' else ('infrastructure/local/Dockerfile.migrate' if name=='migrate' else f'services/{name}/Dockerfile')
+                image=repo+':'+t['release']
+                run(['docker','buildx','build','--platform','linux/'+t['architecture'],
+                     '--provenance=false','--load','-f',dockerfile,'-t',image,
+                     'frontend' if name=='frontend' else '.'],env=env)
+                archive=PRIVATE/('image-upload-'+name+'.tar')
+                try:
+                    run(['docker','image','save','-o',str(archive),image],env=env)
+                    archive.chmod(0o600)
+                except BaseException:
+                    archive.unlink(missing_ok=True); raise
+                pending.append(pool.submit(publish_archive,archive,name,image))
+            for future in pending: future.result()
     finally:
         run(['docker','logout',auth['proxyEndpoint']],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+
+
+def images(s,t,d):
+    """Build in AWS to avoid large image uploads over the local connection."""
+    client=s.client('ecr');missing=[]
+    for name in d['repositories']:
+        try: client.describe_images(repositoryName=t['name']+'/'+name,imageIds=[{'imageTag':t['release']}])
+        except ClientError as exc:
+            if exc.response['Error']['Code']!='ImageNotFoundException': raise
+            missing.append(name)
+    if not missing: return
+    path=PRIVATE/'build-source.zip'
+    with zipfile.ZipFile(path,'w',zipfile.ZIP_DEFLATED) as z:
+        for name in ['requirements.lock','.dockerignore','infrastructure/local/Dockerfile.migrate','scripts/db_migrate.py','scripts/cloud_migrate.py','scripts/simple_builder.py']:
+            z.write(ROOT/name,name)
+        for folder in ['services','wonderland_common','frontend']:
+            for f in sorted((ROOT/folder).rglob('*')):
+                relative=f.relative_to(ROOT)
+                if not f.is_file() or any(x in {'node_modules','dist','dist-admin','__pycache__','.git'} for x in relative.parts): continue
+                if f.name.startswith('.env') or f.suffix in {'.pyc','.pem'} and f.name!='rds-global-bundle.pem': continue
+                z.write(f,str(relative))
+        z.writestr('build-config.json',json.dumps({'target':t,'deployment':d,'missing':missing}))
+    path.chmod(0o600)
+    digest=hashlib.sha256(path.read_bytes()).hexdigest();key='releases/'+t['release']+'/build-'+digest+'.zip'
+    s.client('s3').upload_file(str(path),d['artifact_bucket'],key,ExtraArgs={'ServerSideEncryption':'AES256'})
+    sm=s.client('secretsmanager');value=json.loads((PRIVATE/'runtime.json').read_text())
+    auth=client.get_authorization_token()['authorizationData'][0]
+    if auth['proxyEndpoint']!=f"https://{t['account_id']}.dkr.ecr.{t['region']}.amazonaws.com": raise GuardError('Unexpected build registry')
+    value['build_registry_auth']={k:auth[k] for k in ['authorizationToken','proxyEndpoint']}
+    sm.put_secret_value(SecretId=d['runtime_secret_arn'],SecretString=json.dumps(value))
+    downloader=f"""import boto3,hashlib,io,zipfile,pathlib
+body=boto3.client('s3',region_name='us-east-1').get_object(Bucket={d['artifact_bucket']!r},Key={key!r})['Body'].read()
+assert hashlib.sha256(body).hexdigest()=={digest!r}
+root=pathlib.Path('/opt/wonderland/build-source')
+with zipfile.ZipFile(io.BytesIO(body)) as z:
+ for name in z.namelist():
+  assert not pathlib.PurePosixPath(name).is_absolute() and '..' not in pathlib.PurePosixPath(name).parts
+ z.extractall(root)
+"""
+    try:
+        remote(s,d,['set -eu','umask 077',
+            'test -f /opt/wonderland/bootstrap-ready',
+            'export DEBIAN_FRONTEND=noninteractive',
+            'apt-get update -qq && apt-get install -y -qq docker.io',
+            'systemctl start docker',
+            'python3 -c '+shlex.quote(downloader),
+            'python3 /opt/wonderland/build-source/scripts/simple_builder.py /opt/wonderland/build-source/build-config.json'],timeout=2400)
+        for name in missing:
+            client.describe_images(repositoryName=t['name']+'/'+name,imageIds=[{'imageTag':t['release']}])
+        print('All six immutable images verified in ECR after private on-node build.')
+    finally:
+        value.pop('build_registry_auth',None)
+        sm.put_secret_value(SecretId=d['runtime_secret_arn'],SecretString=json.dumps(value))
 
 
 def remote(s,d,commands,timeout=1800,echo=True):
@@ -182,13 +246,33 @@ with zipfile.ZipFile(io.BytesIO(body)) as z:
 
 
 def hosting(s,t,d):
-    env={k:v for k,v in os.environ.items() if not k.startswith(('AWS_','APP_','VITE_'))}
-    env.update(VITE_AUTH_MODE='cognito',VITE_COGNITO_USER_POOL_ID=d['pool_id'],
-               VITE_COGNITO_USER_POOL_CLIENT_ID=d['client_id'],VITE_API_BASE_URL=d['api_url'],
-               VITE_METABASE_URL='',VITE_DEMO_MODE='false')
-    run(['npm','--prefix','frontend','run','build'],env=env)
+    amplify=s.client('amplify');jobs={}
     for name,portal in d['portals'].items():
-        deploy_portal(s,name,ROOT/'frontend'/('dist-admin' if name=='admin' else 'dist'),portal['app_id'],portal['origin'])
+        response=amplify.create_deployment(appId=portal['app_id'],branchName='demo')
+        jobs[name]={k:response[k] for k in ['jobId','zipUploadUrl']}
+        save(PRIVATE/'server-hosting-jobs.json',jobs)
+    sm=s.client('secretsmanager');value=json.loads((PRIVATE/'runtime.json').read_text())
+    value['build_hosting_jobs']=jobs
+    sm.put_secret_value(SecretId=d['runtime_secret_arn'],SecretString=json.dumps(value))
+    body=(ROOT/'scripts/simple_hosting.py').read_bytes();digest=hashlib.sha256(body).hexdigest()
+    key='releases/'+t['release']+'/hosting-'+digest+'.py'
+    s.client('s3').put_object(Bucket=d['artifact_bucket'],Key=key,Body=body,ServerSideEncryption='AES256')
+    downloader=f"import boto3,hashlib,pathlib;b=boto3.client('s3',region_name='us-east-1').get_object(Bucket={d['artifact_bucket']!r},Key={key!r})['Body'].read();assert hashlib.sha256(b).hexdigest()=={digest!r};pathlib.Path('/opt/wonderland/server-hosting.py').write_bytes(b)"
+    try:
+        remote(s,d,['set -eu','umask 077','python3 -c '+shlex.quote(downloader),
+                    'python3 /opt/wonderland/server-hosting.py'],timeout=600)
+    finally:
+        value.pop('build_hosting_jobs',None)
+        sm.put_secret_value(SecretId=d['runtime_secret_arn'],SecretString=json.dumps(value))
+    for name,portal in d['portals'].items():
+        job=jobs[name];amplify.start_deployment(appId=portal['app_id'],branchName='demo',jobId=job['jobId'])
+        for _ in range(60):
+            status=amplify.get_job(appId=portal['app_id'],branchName='demo',jobId=job['jobId'])['job']['summary']['status']
+            if status=='SUCCEED':break
+            if status in {'FAILED','CANCELLED'}:raise GuardError('Amplify '+name+' publishing failed')
+            time.sleep(5)
+        else:raise GuardError('Amplify publishing timed out')
+        print('Server-built Amplify portal ready:',portal['origin'])
 
 
 def identities(s,t,d):

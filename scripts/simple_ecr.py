@@ -4,6 +4,7 @@ import hashlib
 import json
 import tarfile
 import httpx
+from concurrent.futures import ThreadPoolExecutor
 
 from scripts.cloud import GuardError
 
@@ -53,15 +54,21 @@ def publish(client, archive, repository, tag, expected_image, architecture,
 
         config_descriptor = {'mediaType':'application/vnd.docker.container.image.v1+json',
                              'digest':upload(config), 'size':len(config)}
-        layers = []
-        for path in entry['Layers']:
-            data = source.extractfile(path).read()
-            if path.startswith('blobs/sha256/') and hashlib.sha256(data).hexdigest() != path.rsplit('/', 1)[1]:
-                raise GuardError('Local Docker archive blob checksum differs')
+        def layer(data):
             if not data.startswith(b'\x1f\x8b'):
                 data = gzip.compress(data, mtime=0)
-            layers.append({'mediaType':'application/vnd.docker.image.rootfs.diff.tar.gzip',
-                           'digest':upload(data), 'size':len(data)})
+            return {'mediaType':'application/vnd.docker.image.rootfs.diff.tar.gzip',
+                    'digest':upload(data), 'size':len(data)}
+        # Extract sequentially: TarFile shares a seek position. Independent
+        # layer uploads can overlap, but manifest order must match the archive.
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            pending=[]
+            for path in entry['Layers']:
+                data = source.extractfile(path).read()
+                if path.startswith('blobs/sha256/') and hashlib.sha256(data).hexdigest() != path.rsplit('/', 1)[1]:
+                    raise GuardError('Local Docker archive blob checksum differs')
+                pending.append(pool.submit(layer,data))
+            layers=[future.result() for future in pending]
         manifest = json.dumps({'schemaVersion':2,
             'mediaType':'application/vnd.docker.distribution.manifest.v2+json',
             'config':config_descriptor, 'layers':layers}, separators=(',', ':'))
