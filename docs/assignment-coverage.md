@@ -70,15 +70,17 @@ Capture a small source-to-dashboard reconciliation after the real sandbox paymen
 Do not label the AWS assignment demonstration complete until each gate has observed evidence:
 
 - [x] Reviewed permissions installed; actual Free-plan provisioning accepted without upgrade (16 October 2026).
-- [ ] IaC and scripted release create the complete selected cloud infrastructure/workloads/hosting; actual HTTPS gateway works.
+- [x] IaC and scripted release create the complete selected cloud infrastructure/workloads/hosting; actual HTTPS gateway works (release `r20261016-tf-lifecycle7`).
 - [ ] Hosted visitor signup/email confirmation and visitor/admin login pass; owner and role isolation pass.
-- [ ] Real Stripe sandbox checkout/webhook confirms the stored purchase exactly once; failed payment remains unpaid.
-- [ ] Signed ticket, same-day gate admission, duplicate rejection, ride recording and owned histories pass for a valid visit date.
-- [ ] All seven cloud Metabase cards query; arrivals, purchases/revenue, rides and hourly activity reconcile with source records.
-- [ ] Cloud bounded scaling, concurrent operations, pod self-heal and service/outbox recovery are demonstrated; limitations documented.
+- [x] Real Stripe sandbox checkout/webhook confirms the stored purchase exactly once; a declined-card checkout remains unpaid.
+- [x] Signed ticket, same-day gate admission, duplicate rejection, ride recording and owned histories passed using an explicitly documented after-hours date fixture. Repeat the normal operating-hours purchase/gate flow with the user.
+- [x] All seven cloud Metabase cards query; arrivals, purchases/revenue, rides and hourly activity reconcile with source records. Chart appearance still needs user review.
+- [x] Cloud bounded scaling, concurrent operations, pod self-heal and booking/gate/worker recovery demonstrated. Burst errors and the expected lack of scaling below threshold are documented.
 - [ ] Reviewed source is on the submitted real GitHub repository; an observed successful CI run and examiner-accessible links exist.
 - [ ] Report/diagrams describe the actual topology and observed results; screenshots, references and required help acknowledgements are included.
 - [ ] Timed viva rehearsal includes live IaC/release, full business flow, failure/scale evidence and stop/residual-cost explanation.
 - [ ] Student verifies current Moodle deadline/submission status and submits the report plus code/artifact links. The supplied PDF lists 11 October 2026 for submission and 8 November 2026 for viva; no extension is assumed here.
 
 Current evidence: [live cloud progress](evidence/simple-cloud-live-progress.json), [small-cloud preflight](evidence/simple-cloud-preflight.json), [recorded local validation](validation.md), [local infrastructure results](evidence/local-infrastructure.json). Commands: [small AWS demonstration guide](simple-aws-demo.md). Detailed requirement IDs: [traceability matrix](requirements-matrix.md).
+
+Latest observed results: [AWS rehearsal and repeatable guide](aws-rehearsal.md), [sanitized acceptance evidence](evidence/aws-rehearsal.json). Real email confirmation, Cognito visitor/admin SDK login, role/owner isolation and hosted HTML passed; a user walkthrough of the hosted sign-in and dashboard appearance remains. This evidence does not complete publication, submission or the manual gates above.

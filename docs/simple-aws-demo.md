@@ -51,7 +51,7 @@ This uses the separate read-only `wonderland_bi` database login, verified Postgr
 1. Open the actual visitor and admin URLs printed by `status`; sign in using the private demo accounts.
 2. Show attractions, four ticket tiers and the role-protected admin portal. A visitor must receive 403 from admin APIs.
 3. Book an available future visit, complete Stripe **test** Checkout and confirm the signed webhook changes the booking to paid. Show the reference and signed QR ticket. Redirecting back alone must not mark it paid.
-4. For a same-day gate/ride demonstration, book a valid same-day visit with an available slot. Gate admission checks the visit date; booking checks slot availability. the local after-hours simulator is not enabled on AWS.
+4. For a same-day gate/ride demonstration, book a valid same-day visit with an available slot. Gate admission checks the visit date; booking checks slot availability. The local after-hours simulator is not enabled on AWS.
 5. Demonstrate duplicate check-in rejection, a permitted ride and the administrator's visit history.
 6. Open the private Metabase dashboard. Refresh all seven cards and reconcile paid revenue, attendance and ride totals with source records.
 7. Show Kubernetes readiness, the catalog HPA and the automatic stop timer through SSM. Capture evidence after actual checks; offline tests are not live deployment proof.
@@ -74,4 +74,6 @@ Destroy takes a fresh private database backup when deployed runtime data exists,
 
 ### Permissions after a fresh rebuild
 
-The administrator Terraform root manages publishing grants for project-tagged `demo` branches, including their deployment child resources, and versioned artifact deletion. See the [Terraform lifecycle guide](terraform-lifecycle.md). The revised grant still needs live publishing verification; do not treat local validation as a successful cloud release.
+The administrator Terraform root manages publishing grants for project-tagged `demo` branches, including their deployment child resources, and versioned artifact deletion. See the [Terraform lifecycle guide](terraform-lifecycle.md). The stable grant was verified through both real Amplify publications in the completed rehearsal.
+
+Latest detailed test results and the normal-hours demonstration sequence: [AWS rehearsal guide](aws-rehearsal.md).

@@ -2,7 +2,7 @@
 
 A theme park booking demo with a separate visitor app and administrator app.
 
-The AWS deployment was removed after testing on 16 October 2026; the cleanup audit found no active demo resources. Images, visitor/admin websites, APIs, PostgreSQL and Metabase build or run in AWS. Your laptop holds the controller, private Terraform state and backups. Local Docker and Node.js are not required for the cloud commands.
+The complete AWS build and core business/recovery tests have been rehearsed; see the [observed results and run guide](docs/aws-rehearsal.md). Images, visitor/admin websites, APIs, PostgreSQL and Metabase build or run in AWS. Your laptop holds the controller, private Terraform state and backups. Local Docker and Node.js are not required for the cloud commands.
 
 ## AWS commands
 

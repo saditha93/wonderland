@@ -1,21 +1,12 @@
-# Restart after the Codex limit resets
+# Restart and demonstrate Wonderland
 
-AWS cleanup completed on 16 October 2026. The final inventory found no active Wonderland demo resources across EC2/network/EBS/public IP, S3, ECR, Amplify, Cognito, API Gateway, SQS, CloudWatch and Secrets Manager. Terraform state was reconciled and the matching Stripe test webhook removed. ECR shared layers remained disabled. Deployment IAM policy definitions and user attachments remain installed.
+The completed `r20261016-tf-lifecycle7` AWS rehearsal is recorded in [the results and command guide](aws-rehearsal.md). Infrastructure creation, server-side image/site builds, email confirmation/login, successful and declined Stripe sandbox payments, signed webhook retries, gate concurrency, booking/gate isolation, worker recovery, pod replacement, reporting reconciliation and seven Metabase SQL cards were observed. All 194 regression tests passed.
 
-Local code, `.env`, target configuration, private Terraform state, logs and earlier database backups remain. Do not upload `secrets/` or `.env`. The user manually terminated EC2 before teardown, so this latest deployment has no fresh database backup; do not describe the earlier backup as current.
+A fresh backup from this deployment was downloaded and verified before Terraform teardown. The earlier run's manually terminated server had no fresh backup; that limitation does not apply to this rehearsal. Backups are private under `secrets/simple-cloud/backups/`. Restore has not been rehearsed, and `up` creates a fresh seeded demo rather than automatically restoring an old database.
 
-## Observed results
+Cleanup status is recorded in [acceptance evidence](evidence/aws-rehearsal.json). Deployment IAM policy definitions and user attachments, local source, `.env`, target configuration, private Terraform state, logs and backups are retained. No administrator permission reinstall is needed unless policies change. Temporary cloud runtime secrets, server roles and Stripe webhook are recreated by deployment.
 
-- 193 Python tests and both Terraform mock tests passed; the later cleanup confirmation fix passed all 12 lifecycle tests.
-- Reviewed IAM correction and actual 45-resource Terraform provisioning passed.
-- All six images and both Amplify websites built/published on the AWS server; local Docker/Node are unnecessary for cloud deployment.
-- Kubernetes workloads and database migration became ready; public API, CORS, protected routes, visitor/admin login and confirmed real visitor signup passed.
-- Seven stored Metabase SQL cards executed successfully against the cloud database.
-- Concurrent booking creation with one idempotency key returned one booking. Stripe sandbox Checkout creation passed after removing a deprecated SDK parameter.
-- Payment was not completed. Signed webhook confirmation, paid gate/ride business flow, reporting reconciliation after those events and recovery/scale demonstrations remain pending.
-- Teardown removed the remaining stack. A stale IP association after external EC2 termination required a refreshed second deletion plan; final cleanup inventory was empty.
-
-## Next session
+## Next deployment
 
 ```bash
 cd /Users/sadithaudayanga/Projects/wonderland
@@ -23,15 +14,31 @@ cd /Users/sadithaudayanga/Projects/wonderland
 ./cloud.sh up
 ```
 
-Review the new plan and cost, then type `UP` only when ready to spend AWS credits. The selected configuration uses the reviewed 8 GiB `m7i-flex.large` in us-east-1. Installed IAM corrections are retained; there is no need to reinstall unchanged policies. Use a fresh immutable release name before releasing changed source. New hosted URLs and a new Stripe test webhook are generated for the rebuilt stack. Cognito accounts must also be recreated.
+Review the actual account, resource plan and cost, then type `UP`. Keep Terminal open until the entire release/verification finishes. The selected server remains the approved 8 GiB `m7i-flex.large` in us-east-1. Images and websites build on AWS; local Docker and Node are unnecessary. Changed deployment source needs a fresh immutable release identifier in the private target configuration.
 
-Continue the unfinished cloud tests. Do not push GitHub without user approval. See [Terraform lifecycle guide](terraform-lifecycle.md).
+```bash
+./cloud.sh status
+./cloud.sh verify
+./cloud.sh monitoring
+```
 
-When finished:
+Use the actual URLs printed by `status`. Private demo logins are in `secrets/simple-cloud/accounts.json`; Metabase login is in `secrets/metabase-ec2.json`. While `monitoring` runs, open http://127.0.0.1:3001. This is a private tunnel to AWS Metabase.
+
+New deployments generate new hosted URLs, Cognito accounts and a Stripe sandbox webhook. Real email signup needs another verification code. Do not publish `.env` or `secrets/`.
+
+## Remaining demonstration work
+
+Review the hosted sign-in screens and Metabase chart appearance with the user. Repeat a normal same-day booking/gate demonstration during operating hours: the previous after-hours test used one explicitly documented visit-date fixture. Burst load caused unsuccessful requests; the separate 18 requests/second test returned 2,724 successes with no errors and correctly stayed below the scaling threshold. These are demo results, not a capacity or high-availability claim.
+
+GitHub publication/remote CI, final report/screenshots/student details and submission remain manual completion gates. Do not push without authorization.
+
+## Finish without leaving hosted resources
+
+Close the monitoring tunnel with Ctrl+C, then run:
 
 ```bash
 ./cloud.sh down
 ./cloud.sh cleanup-check
 ```
 
-Type `DOWN` after reviewing the deletion plan. A missing confirmation now fails explicitly rather than appearing successful. Keep the terminal open and check the final inventory; stopped EC2 alone does not remove storage/IP costs. Cleanup preserves deployment permissions and local configuration for another run.
+Review the deletion plan and type `DOWN`. Keep Terminal open until Terraform and the inventory audit finish. Do not manually terminate EC2 first; `down` takes a fresh database backup before destruction. Missing confirmation now fails explicitly. If cleanup fails, save the error and retry `down` with a refreshed plan. Stopping EC2 alone leaves storage/IP costs.
