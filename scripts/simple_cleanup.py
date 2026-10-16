@@ -11,7 +11,7 @@ import httpx
 from dotenv import dotenv_values, set_key
 from botocore.exceptions import ClientError
 from scripts.cloud import GuardError
-from scripts.simple_cloud import ROOT,PRIVATE,TFROOT,save,tf
+from scripts.simple_cloud import ROOT,PRIVATE,TFROOT,save,tf,source_hash
 from scripts.simple_release import remote
 
 
@@ -24,6 +24,11 @@ def backup(s,t,d):
     finally: probe.close()
     result=remote(s,d,['/opt/wonderland/runtime/bin/python /opt/wonderland/source/infrastructure/simple/node.py backup --config /opt/wonderland/source/node-config.json'],timeout=300,echo=False)
     meta=json.loads(result['StandardOutputContent'].strip())
+    if meta.get('database_absent') is True:
+        record={'no_database_provisioned':True,'instance_id':d['instance_id'],'created_at':int(time.time())}
+        save(PRIVATE/'backup.json',record)
+        print('Server check confirmed no database was provisioned; private runtime configuration is preserved.')
+        return record
     logfile=PRIVATE/'backup-tunnel.log'
     with logfile.open('w') as stream:
         logfile.chmod(0o600)
@@ -64,21 +69,104 @@ def cleanup_override():
         'aws_cognito_user_pool':{'visitors':{'deletion_protection':'INACTIVE'}}}}
 
 
-def destroy(s,t,d,approved):
+def state_signature():
+    path=PRIVATE/'terraform.tfstate'
+    return hashlib.sha256(path.read_bytes() if path.exists() else b'').hexdigest()
+
+
+def require_destroy_only(document,allowed=None):
+    addresses=set()
+    for row in document.get('resource_changes',[]):
+        actions=row['change']['actions']
+        if actions not in (['delete'],['no-op'],['read']):
+            raise GuardError('Unexpected non-destruction action; refusing cleanup')
+        if actions==['delete']: addresses.add(row['address'])
+    if allowed is not None and not addresses.issubset(set(allowed)):
+        raise GuardError('Destroy plan includes resources outside the approved scope')
+    return sorted(addresses)
+
+
+def plan_down(s,t):
+    override=TFROOT/'cleanup_override.tf.json'
+    if override.exists(): raise GuardError('An interrupted cleanup override exists; inspect it before planning')
+    fingerprint=source_hash()
+    save(override,cleanup_override())
+    try:
+        path=PRIVATE/'reviewed-destroy.tfplan'
+        tf('plan','-destroy','-input=false','-no-color','-var-file='+str(PRIVATE/'terraform.tfvars.json'),'-out='+str(path))
+        path.chmod(0o600)
+        addresses=require_destroy_only(json.loads(tf('show','-json',str(path),capture=True).stdout))
+        review={'target':t,'source_sha256':fingerprint,'state_sha256':state_signature(),
+                'plan_sha256':hashlib.sha256(path.read_bytes()).hexdigest(),
+                'resources':addresses,'created_at':int(time.time()),
+                'preparation':'Disable only demo deletion protections/force-delete flags; backup before destruction'}
+        digest=hashlib.sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+        save(PRIVATE/'down-review.json',{'review':review,'approval_sha256':digest})
+        print('AWS target:',t['account_id'],t['region'])
+        print('Terraform resources to delete:',len(addresses))
+        print('Private database backup precedes destruction. Source, state, target and deletion scope are bound to approval.')
+        print('Apply this teardown: ./cloud.sh down --approve '+digest)
+        return digest
+    finally: override.unlink(missing_ok=True)
+
+
+def down(s,t,approved):
+    value=json.loads((PRIVATE/'down-review.json').read_text());review=value['review']
+    digest=hashlib.sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    path=PRIVATE/'reviewed-destroy.tfplan'
+    if approved!=digest or value['approval_sha256']!=digest or hashlib.sha256(path.read_bytes()).hexdigest()!=review['plan_sha256']:
+        raise GuardError('Supply the exact teardown approval printed by plan-down')
+    if review['target']!=t or review['source_sha256']!=source_hash() or review['state_sha256']!=state_signature() or time.time()-review['created_at']>3600:
+        raise GuardError('Teardown source/state/target changed or review expired; run plan-down again')
+    d=json.loads((PRIVATE/'deployment.json').read_text()) if (PRIVATE/'deployment.json').exists() else None
+    destroy(s,t,d,'destroy-wonderland-demo',review['resources'])
+
+
+def refresh_state():
+    path=PRIVATE/'cleanup-refresh.tfplan'
+    tf('plan','-refresh-only','-input=false','-no-color','-var-file='+str(PRIVATE/'terraform.tfvars.json'),'-out='+str(path))
+    path.chmod(0o600)
+    document=json.loads(tf('show','-json',str(path),capture=True).stdout)
+    if any(r['change']['actions'] not in (['no-op'],['read']) for r in document.get('resource_changes',[])):
+        raise GuardError('Refresh must not change AWS resources')
+    tf('apply','-input=false','-no-color',str(path))
+
+
+def backup_if_present(s,t,d):
+    if not d or not (PRIVATE/'runtime.json').exists(): return
+    try:
+        reservations=s.client('ec2').describe_instances(InstanceIds=[d['instance_id']])['Reservations']
+    except ClientError as exc:
+        if exc.response['Error']['Code']!='InvalidInstanceID.NotFound': raise
+        reservations=[]
+    instances=[x for r in reservations for x in r['Instances'] if x['State']['Name'] not in {'terminated','shutting-down'}]
+    if not instances:
+        print('Server is already absent. A new database backup cannot be made; any existing private backup is retained.')
+        save(PRIVATE/'backup-unavailable.json',{'instance_id':d['instance_id'],'reason':'Server already removed before teardown','checked_at':int(time.time())})
+        return
+    if instances[0]['State']['Name']!='running':
+        raise GuardError('Start the existing server before down so its database can be backed up')
+    backup(s,t,d)
+
+
+def destroy(s,t,d,approved,allowed=None):
     if approved!='destroy-wonderland-demo':
         raise GuardError('Destruction removes the demo database and cloud resources. Use ./cloud.sh destroy --approve destroy-wonderland-demo after preserving evidence')
     # Always take a fresh off-server private backup before a complete release is removed.
-    if d and (PRIVATE/'runtime.json').exists(): backup(s,t,d)
+    backup_if_present(s,t,d)
     override=TFROOT/'cleanup_override.tf.json'
     if override.exists(): raise GuardError('A cleanup override already exists; inspect the interrupted cleanup before continuing')
     save(override,cleanup_override())
     try:
+        # Reconcile externally terminated instances and stale EIP associations
+        # before cleanup targets are selected. This changes only local TF state.
+        refresh_state()
         variables='-var-file='+str(PRIVATE/'terraform.tfvars.json')
         # Disable the provider's deletion protections/force-delete flags using an
         # actual Terraform update, without recreating any application resource.
         state=json.loads(tf('show','-json',capture=True).stdout)
         resources=state.get('values',{}).get('root_module',{}).get('resources',[])
-        targets=[r['address'] for r in resources if r['type'] in {'aws_cognito_user_pool','aws_s3_bucket','aws_ecr_repository'}]
+        targets=[r['address'] for r in resources if r['type'] in {'aws_cognito_user_pool','aws_s3_bucket','aws_ecr_repository','aws_secretsmanager_secret'}]
         if targets:
             preparation=PRIVATE/'cleanup-preparation.tfplan'
             tf('plan','-input=false','-no-color',variables,*['-target='+x for x in targets],'-out='+str(preparation))
@@ -91,8 +179,7 @@ def destroy(s,t,d,approved):
         tf('plan','-destroy','-input=false','-no-color',variables,'-out='+str(plan))
         plan.chmod(0o600)
         document=json.loads(tf('show','-json',str(plan),capture=True).stdout)
-        if any(c['change']['actions'] not in (['delete'],['no-op'],['read']) for c in document.get('resource_changes',[])):
-            raise GuardError('Unexpected non-destruction action; refusing cleanup')
+        require_destroy_only(document,allowed)
         tf('apply','-input=false','-no-color',str(plan))
     finally: override.unlink(missing_ok=True)
     if (PRIVATE/'stripe-endpoint.json').exists():
@@ -101,11 +188,12 @@ def destroy(s,t,d,approved):
         key=values.get('APP_STRIPE_SECRET_KEY') or ''
         if not key.startswith('sk_test_'): raise GuardError('Only sandbox webhook cleanup is allowed')
         with httpx.Client(base_url='https://api.stripe.com/v1',auth=(key,''),timeout=30) as client:
-            response=client.get('/webhook_endpoints/'+endpoint['id']); response.raise_for_status()
-            obj=response.json()
-            if obj.get('livemode') is not False or obj['url']!=endpoint['url']:
-                raise GuardError('Sandbox webhook target differs; cleanup refused')
-            client.delete('/webhook_endpoints/'+endpoint['id']).raise_for_status()
+            response=client.get('/webhook_endpoints/'+endpoint['id'])
+            if response.status_code!=404:
+                response.raise_for_status();obj=response.json()
+                if obj.get('livemode') is not False or obj['url']!=endpoint['url']:
+                    raise GuardError('Sandbox webhook target differs; cleanup refused')
+                client.delete('/webhook_endpoints/'+endpoint['id']).raise_for_status()
         set_key(ROOT/'.env','APP_STRIPE_WEBHOOK_SECRET','')
         (ROOT/'.env').chmod(0o600)
     audit(s,t)

@@ -10,6 +10,8 @@ import subprocess
 import sys
 import time
 import zipfile
+import fcntl
+from contextlib import contextmanager
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -21,6 +23,18 @@ from scripts.deployment_policy import policies
 PRIVATE = ROOT / 'secrets/simple-cloud'
 TFROOT = ROOT / 'infrastructure/terraform/simple'
 TF = str(ROOT / 'tmp/tools/terraform')
+
+
+@contextmanager
+def operation_lock():
+    PRIVATE.mkdir(parents=True,exist_ok=True,mode=0o700)
+    with (PRIVATE/'operation.lock').open('a') as lock:
+        os.chmod(lock.name,0o600)
+        try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise GuardError('Another cloud operation is running. Let it finish before up/down/release.') from None
+        try: yield
+        finally: fcntl.flock(lock,fcntl.LOCK_UN)
 
 
 def save(path, value):
@@ -73,6 +87,7 @@ def source_hash():
         digest.update((ROOT/name).read_bytes())
     for directory in ('infrastructure','scripts','frontend','services','wonderland_common','analytics'):
         for path in sorted((ROOT/directory).rglob('*')):
+            if path.name=='cleanup_override.tf.json': continue
             if not path.is_file() or any(part in {'.terraform','__pycache__','node_modules','dist','dist-admin'} for part in path.parts):
                 continue
             if path.suffix in {'.pyc','.tfstate'}: continue
@@ -124,7 +139,37 @@ def plan(s,t):
 
 
 def deployment():
+    if not (PRIVATE/'deployment.json').exists():
+        raise GuardError('No active deployment is recorded. Use ./cloud.sh up to review a new deployment, or cleanup-check to check AWS.')
     return json.loads((PRIVATE/'deployment.json').read_text())
+
+
+def confirm_cli(action,digest):
+    if not sys.stdin.isatty():
+        print(f'Review complete. Apply with: ./cloud.sh {action} --approve {digest}')
+        return False
+    return input(f'After reviewing the plan, type {action.upper()} to continue: ').strip()==action.upper()
+
+
+def deployment_permissions(s,t):
+    result=s.client('iam').simulate_principal_policy(
+        PolicySourceArn=f"arn:aws:iam::{t['account_id']}:user/wonderland",
+        ActionNames=['s3:DeleteObjectVersion'],
+        ResourceArns=[f"arn:aws:s3:::wonderland-demo-{t['account_id']}-artifacts/releases/preflight"])
+    if any(x['EvalDecision']!='allowed' for x in result['EvaluationResults']):
+        raise GuardError('One-time Terraform permissions setup is required: S3 version cleanup is not allowed. No infrastructure was created. See docs/terraform-lifecycle.md.')
+
+
+def up(s,t,approved,infra_only=False):
+    deployment_permissions(s,t)
+    if not approved:
+        plan(s,t)
+        approved=json.loads((PRIVATE/'review.json').read_text())['plan_sha256']
+        if not confirm_cli('up',approved): return
+    deploy(s,t,approved)
+    if not infra_only:
+        from scripts.simple_release import release
+        release(s,t,deployment())
 
 
 def deploy(s,t,approved):
@@ -159,15 +204,22 @@ def power(s,t,action):
     print(action.capitalize()+' requested; database and address are preserved.')
 
 
-def main():
-    os.umask(0o077)
-    p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('action',choices=['plan','deploy','release','verify','status','start','stop','monitoring','backup','destroy','cleanup-check'])
-    p.add_argument('--approve')
-    args=p.parse_args(); t=target(); s=session(t)
-    if args.action=='plan': plan(s,t)
-    elif args.action=='deploy': deploy(s,t,args.approve)
-    elif args.action=='status': status(s,t)
+def dispatch(args,s,t):
+    if args.action=='up': up(s,t,args.approve,args.infra_only)
+    elif args.action in {'plan-down','down'}:
+        from scripts.simple_cleanup import plan_down,down
+        if args.action=='plan-down': plan_down(s,t)
+        elif args.approve: down(s,t,args.approve)
+        else:
+            digest=plan_down(s,t)
+            if confirm_cli('down',digest): down(s,t,digest)
+    elif args.action=='plan': plan(s,t)
+    elif args.action=='deploy':
+        deployment_permissions(s,t)
+        deploy(s,t,args.approve)
+    elif args.action=='status':
+        if (PRIVATE/'deployment.json').exists(): status(s,t)
+        else: print('No active deployment is recorded. Use cleanup-check to verify AWS, or up to review a deployment.')
     elif args.action in {'start','stop'}: power(s,t,args.action)
     elif args.action in {'backup','destroy','cleanup-check'}:
         from scripts.simple_cleanup import backup,destroy,audit
@@ -177,8 +229,20 @@ def main():
             value=json.loads(tf('output','-json',capture=True).stdout).get('deployment',{}).get('value')
             destroy(s,t,value,args.approve)
     else:
-        from scripts.simple_release import release, verify, monitoring
+        from scripts.simple_release import release,verify,monitoring
         {'release':release,'verify':verify,'monitoring':monitoring}[args.action](s,t,deployment())
+
+
+def main():
+    os.umask(0o077)
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('action',choices=['up','plan-down','down','plan','deploy','release','verify','status','start','stop','monitoring','backup','destroy','cleanup-check'])
+    p.add_argument('--approve')
+    p.add_argument('--infra-only',action='store_true',help='For up: provision infrastructure without application release')
+    args=p.parse_args(); t=target(); s=session(t)
+    if args.action in {'status','cleanup-check','monitoring'}: dispatch(args,s,t)
+    else:
+        with operation_lock(): dispatch(args,s,t)
 
 if __name__=='__main__':
     try: main()

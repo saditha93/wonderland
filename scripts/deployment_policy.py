@@ -72,7 +72,7 @@ def policies(account, region='us-east-1', name='wonderland-demo'):
         's3:DeleteBucketPolicy','s3:PutBucketTagging','s3:PutLifecycleConfiguration',
         's3:ListBucket','s3:GetBucketLocation'], bucket)
     add('ProjectStateAndArtifacts', ['s3:GetObject','s3:PutObject','s3:DeleteObject',
-        's3:GetObjectVersion','s3:AbortMultipartUpload'], bucket + '/*')
+        's3:GetObjectVersion','s3:DeleteObjectVersion','s3:AbortMultipartUpload'], bucket + '/*')
     add('CreateTaggedVisitorPool', 'cognito-idp:CreateUserPool', '*', request_tags)
     add('ManageTaggedVisitorPool', ['cognito-idp:' + a for a in [
         'UpdateUserPool','DeleteUserPool','CreateUserPoolClient','UpdateUserPoolClient',
@@ -88,7 +88,7 @@ def policies(account, region='us-east-1', name='wonderland-demo'):
         arn('amplify','apps/*'), resource_tags)
     add('PublishTaggedDemoBranches', ['amplify:UpdateBranch','amplify:DeleteBranch',
         'amplify:CreateDeployment','amplify:StartDeployment','amplify:TagResource'],
-        arn('amplify','apps/*/branches/demo'), resource_tags)
+        [arn('amplify','apps/*/branches/demo'),arn('amplify','apps/*/branches/demo/*')], resource_tags)
     add('CreateTaggedHTTPAPI', 'apigateway:POST', f'arn:aws:apigateway:{region}::/apis', request_tags)
     add('ManageTaggedHTTPAPI', ['apigateway:POST','apigateway:PUT','apigateway:PATCH','apigateway:DELETE'],
         [f'arn:aws:apigateway:{region}::/apis/*', f'arn:aws:apigateway:{region}::/tags/*'], resource_tags)

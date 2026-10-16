@@ -1,6 +1,6 @@
 # Small AWS demonstration
 
-Current status (16 October 2026): Terraform has created the AWS infrastructure, including the approved Free-plan-eligible `m7i-flex.large` server. Cognito email signup, verification and login passed. Both Amplify sites are published and the visitor UI renders. Application workload release and live payment/reporting checks are in progress; the demo is not yet verified ready. The four scoped deployment policies and separate runtime boundary are installed.
+Current status (16 October 2026): **The AWS demo has been destroyed at the user’s request.** The final AWS inventory found no active project resources. A private database backup and configuration remain on this Mac; the Stripe test webhook was removed and ECR shared layers were restored to disabled. Infrastructure provisioning, K3s readiness, both Amplify publications, Cognito signup/login, six image publications and database migration were observed. Complete cloud business/payment/reporting verification was not finished. See [restart notes](restart-after-codex-reset.md) before deploying again.
 
 The selected topology is one x86 EC2 server running K3s Kubernetes, PostgreSQL, the four application services and Metabase. Separate Amplify websites host the visitor and admin apps; Cognito provides their identities. API Gateway forwards to the server over verified HTTPS. SQS carries reporting events. ECR holds immutable x86 images and Secrets Manager holds runtime credentials. No domain purchase is required.
 
@@ -10,18 +10,13 @@ This is a single-server assignment demonstration. The database and Kubernetes sh
 
 Use this project directory. AWS and Stripe **test** keys belong in the ignored root `.env`; do not paste them into chat. The private target is `secrets/simple-cloud/target.json`. The deployment identity is explicitly restricted to the reviewed non-root `wonderland` IAM user/account and us-east-1.
 
-```bash
-./cloud.sh plan
-```
-
-Review the resources and cost. The command prints the exact deployment command containing the saved plan digest:
+Complete the one-time administrator Terraform setup in the [Terraform lifecycle guide](terraform-lifecycle.md), then run:
 
 ```bash
-./cloud.sh deploy --approve <the-digest-printed-by-plan>
-./cloud.sh release
+./cloud.sh up
 ```
 
-Plans expire after one hour and are rejected when source/target changes. Deletions/replacements are refused. Do not run the placeholder digest literally. Run `plan` again after changing deployment source.
+Review the actual plan and cost, then type `UP` to provision and release. Without an interactive terminal the command prints an exact digest approval command. Plans expire after one hour and source/target changes invalidate them. Use a new immutable release name after source changes.
 
 `release` requires a running Docker engine with Linux amd64 build support and the official AWS Session Manager plugin. Both are prepared on this Mac; `cloud.sh` includes the project's private tools directory in PATH. It publishes six immutable container images, uploads a source-only node bundle, stores runtime values privately, registers a Stripe sandbox webhook if its secret is blank, installs the database and services through SSM, publishes both frontends and creates two suppressed-email demo Cognito accounts. Credentials are saved to `secrets/simple-cloud/accounts.json`; they are never embedded in frontend builds or SSM command parameters. A release name can only be reused with the same source.
 
@@ -71,19 +66,12 @@ Public IP certificates are short lived and require renewal while the server runs
 The user has requested teardown after the live tests. Keep the terminal open until the command finishes and the inventory audit reports no remaining billable project resources.
 
 ```bash
-./cloud.sh backup
-./cloud.sh destroy --approve destroy-wonderland-demo
+./cloud.sh down
 ./cloud.sh cleanup-check
 ```
 
 Destroy takes a fresh private database backup when deployed runtime data exists, removes the matching Stripe test webhook, destroys Terraform resources, and checks AWS inventory. Backups and state remain in the ignored private `secrets/simple-cloud/` directory on this Mac. IAM deployment policies remain installed and do not themselves incur usage charges. Stopping an instance is not complete teardown.
 
-### Publishing permission after a fresh rebuild
+### Permissions after a fresh rebuild
 
-Amplify assigns new app IDs when the infrastructure is recreated after destruction. Publishing permissions are deliberately restricted to the two reviewed app IDs. If AWS denies `CreateDeployment` for a newly created app, prepare the replacement grant:
-
-```bash
-.venv/bin/python scripts/prepare-demo-amplify-permission.py
-```
-
-This validates and packages the exact two-app change without altering IAM. Review and approve the printed bundle, then install it using the administrator CloudShell procedure in `infrastructure/iam/`. Do not add AdministratorAccess.
+The administrator Terraform root manages publishing grants for project-tagged `demo` branches, including their deployment child resources, and versioned artifact deletion. See the [Terraform lifecycle guide](terraform-lifecycle.md). The revised grant still needs live publishing verification; do not treat local validation as a successful cloud release.

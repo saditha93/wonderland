@@ -130,6 +130,8 @@ def main():
     config=json.loads(args.config.read_text()); t=config['target']; d=config['deployment']
     s=boto3.Session(region_name=t['region'])
     if args.action=='backup':
+        if not kube('get','statefulset','postgres','--ignore-not-found','-o','name').stdout.strip():
+            print(json.dumps({'database_absent':True}));return
         sql=kube('exec','postgres-0','--','pg_dumpall','-U','wonderland_owner','--clean','--if-exists').stdout
         if 'PostgreSQL database cluster dump' not in sql: raise ValueError('Unexpected backup output')
         data=gzip.compress(sql.encode(),mtime=0)

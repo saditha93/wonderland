@@ -49,6 +49,15 @@ def test_runtime_boundary_excludes_state_and_cloud_administration():
             assert 'secret:wonderland-demo/' in row['Resource']
 
 
+def test_versioned_artifacts_can_be_cleaned_without_public_bucket_access():
+    doc=policies('111111111111')['WonderlandDemoServices']
+    row=next(row for action,row in grants(doc) if action=='s3:DeleteObjectVersion')
+    assert row['Resource']=='arn:aws:s3:::wonderland-demo-111111111111-*/*'
+    publish=next(row for row in doc['Statement'] if row['Sid']=='PublishTaggedDemoBranches')
+    assert 'arn:aws:amplify:us-east-1:111111111111:apps/*/branches/demo/*' in publish['Resource']
+    assert publish['Condition']['StringEquals']['aws:ResourceTag/Project']=='wonderland'
+
+
 @pytest.mark.parametrize('account,region,name',[
     ('invalid','us-east-1','wonderland-demo'),
     ('111111111111','eu-west-1','wonderland-demo'),

@@ -13,10 +13,22 @@
     "m7i-flex.large"
   ],
   "application_release_verified": false,
-  "teardown_verified": false,
+  "teardown_verified": true,
   "local_test_count": 176,
   "local_frontend_builds_passed": true,
   "amplify_visitor_published": true,
   "amplify_admin_published": true,
-  "visitor_javascript_content_type_verified": true
+  "visitor_javascript_content_type_verified": true,
+  "status": "destroyed_at_user_request_before_codex_limit",
+  "cleanup_checked_at": "2026-10-16T16:08:22.863288+00:00",
+  "remaining_active_resources": [],
+  "registry_shared_layers_restored_to_disabled": true,
+  "private_database_backup_verified": true,
+  "stripe_test_webhook_removed": true,
+  "pending": [
+    "Repair and validate one-command cleanup permissions before another deployment",
+    "Review eligible T3 small topology and memory budget; T2 micro is not marked eligible",
+    "Cloud business/payment/Metabase/failure/scale tests",
+    "Approved GitHub publication and remote CI"
+  ]
 }

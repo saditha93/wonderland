@@ -2,7 +2,7 @@
 
 A theme park booking demo with a separate visitor app and administrator app.
 
-For the selected no-domain AWS deployment, use the [small AWS demonstration guide](docs/simple-aws-demo.md). AWS infrastructure is provisioned and Cognito signup/login passed; application installation and live verification are in progress. See the dated [cloud progress evidence](docs/evidence/simple-cloud-live-progress.json).
+The AWS demo is **destroyed**, with no active project resources found in the final inventory. The local MVP still works. Before another AWS deployment, read the [restart notes](docs/restart-after-codex-reset.md); you selected the complete 8 GiB AWS setup. Use the new [Terraform up/down guide](docs/terraform-lifecycle.md) for the one-time permission setup and everyday commands.
 
 ## Run
 
