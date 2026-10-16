@@ -51,6 +51,8 @@ def configure_proxy(d,runtime):
     ca=ROOT/'internal-ca.pem'; ca.write_text(runtime['tls']['ca']); ca.chmod(0o600)
     token=runtime['origin_token']
     if not all(ch.isalnum() or ch in '-_' for ch in token): raise ValueError('Unexpected origin token')
+    for public in ['/var/www/acme','/var/www/acme/.well-known','/var/www/acme/.well-known/acme-challenge']:
+        path=Path(public);path.mkdir(parents=True,exist_ok=True);path.chmod(0o755)
     cert='/etc/letsencrypt/live/wonderland-ip'
     if not Path(cert+'/fullchain.pem').exists():
         command([str(ROOT/'certbot/bin/certbot'),'certonly','--non-interactive','--agree-tos',

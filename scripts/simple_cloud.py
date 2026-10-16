@@ -212,7 +212,9 @@ def dispatch(args,s,t):
         elif args.approve: down(s,t,args.approve)
         else:
             digest=plan_down(s,t)
-            if confirm_cli('down',digest): down(s,t,digest)
+            if not confirm_cli('down',digest):
+                raise GuardError('Cleanup was NOT executed. AWS resources may still incur costs. Run ./cloud.sh down in a terminal and type DOWN, or use the printed --approve command.')
+            down(s,t,digest)
     elif args.action=='plan': plan(s,t)
     elif args.action=='deploy':
         deployment_permissions(s,t)

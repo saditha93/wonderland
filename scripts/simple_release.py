@@ -166,6 +166,9 @@ def images(s,t,d):
 body=boto3.client('s3',region_name='us-east-1').get_object(Bucket={d['artifact_bucket']!r},Key={key!r})['Body'].read()
 assert hashlib.sha256(body).hexdigest()=={digest!r}
 root=pathlib.Path('/opt/wonderland/build-source')
+assert not root.is_symlink()
+import shutil
+if root.exists(): shutil.rmtree(root)
 with zipfile.ZipFile(io.BytesIO(body)) as z:
  for name in z.namelist():
   assert not pathlib.PurePosixPath(name).is_absolute() and '..' not in pathlib.PurePosixPath(name).parts
@@ -173,6 +176,7 @@ with zipfile.ZipFile(io.BytesIO(body)) as z:
 """
     try:
         remote(s,d,['set -eu','umask 077',
+            'for n in $(seq 1 180); do test -f /opt/wonderland/bootstrap-ready && break; sleep 5; done',
             'test -f /opt/wonderland/bootstrap-ready',
             'export DEBIAN_FRONTEND=noninteractive',
             'apt-get update -qq && apt-get install -y -qq docker.io',

@@ -1,40 +1,37 @@
 # Restart after the Codex limit resets
 
-AWS cleanup completed on 16 October 2026. The final inventory found no active Wonderland resources across EC2/network/EBS/public IP, S3, ECR, Amplify, Cognito, API Gateway, SQS, CloudWatch and Secrets Manager. Terraform state was reconciled after deletion. The Stripe test webhook was deleted. ECR shared layers are restored to DISABLED. Non-billable IAM policy definitions and user attachments remain.
+AWS cleanup completed on 16 October 2026. The final inventory found no active Wonderland demo resources across EC2/network/EBS/public IP, S3, ECR, Amplify, Cognito, API Gateway, SQS, CloudWatch and Secrets Manager. Terraform state was reconciled and the matching Stripe test webhook removed. ECR shared layers remained disabled. Deployment IAM policy definitions and user attachments remain installed.
 
-The verified database backup, private configuration and teardown logs remain under `secrets/simple-cloud/` on this Mac. Do not upload that folder. The six built images remain in local Docker.
+Local code, `.env`, target configuration, private Terraform state, logs and earlier database backups remain. Do not upload `secrets/` or `.env`. The user manually terminated EC2 before teardown, so this latest deployment has no fresh database backup; do not describe the earlier backup as current.
 
-## What passed
+## Observed results
 
-- 176 local tests and visitor/admin frontend builds.
-- Simple Terraform mock test and actual AWS provisioning.
-- K3s Ready, SSM access, six immutable ECR images, separate Amplify websites and working visitor asset delivery.
-- Cognito signup, real email confirmation and SDK login.
-- PostgreSQL migration completed before the requested teardown.
-
-Cloud application readiness, Stripe checkout/webhook, gate/ride flow, Metabase reconciliation, cloud scaling/recovery and remote GitHub CI are not complete.
+- 193 Python tests and both Terraform mock tests passed; the later cleanup confirmation fix passed all 12 lifecycle tests.
+- Reviewed IAM correction and actual 45-resource Terraform provisioning passed.
+- All six images and both Amplify websites built/published on the AWS server; local Docker/Node are unnecessary for cloud deployment.
+- Kubernetes workloads and database migration became ready; public API, CORS, protected routes, visitor/admin login and confirmed real visitor signup passed.
+- Seven stored Metabase SQL cards executed successfully against the cloud database.
+- Concurrent booking creation with one idempotency key returned one booking. Stripe sandbox Checkout creation passed after removing a deprecated SDK parameter.
+- Payment was not completed. Signed webhook confirmation, paid gate/ride business flow, reporting reconciliation after those events and recovery/scale demonstrations remain pending.
+- Teardown removed the remaining stack. A stale IP association after external EC2 termination required a refreshed second deletion plan; final cleanup inventory was empty.
 
 ## Next session
 
-The user selected the complete 8 GiB AWS setup, retaining `m7i-flex.large` in us-east-1. Do not switch to T3. Review a fresh actual plan and cost before starting a server.
-
-The revised lifecycle is implemented as `./cloud.sh up` and `./cloud.sh down`. See [Terraform lifecycle guide](terraform-lifecycle.md). A separate administrator Terraform root imports existing IAM definitions/attachments and corrects versioned S3 cleanup and Amplify publishing permissions. The bundle is validated but must be planned/applied in administrator CloudShell with explicit action-time permission approval. The revised live create/destroy rehearsal remains pending.
-
-Both Terraform mock tests and 190 Python tests passed after starting the local PostgreSQL test database. These do not prove the new AWS lifecycle works live.
-
-The deployment Python environment has been corrected to use an isolated venv with pinned boto3 and cryptography dependencies. Future source changes need a new immutable release name. Do not push GitHub without the user’s approval.
-
-## Local demonstration while waiting
-
 ```bash
 cd /Users/sadithaudayanga/Projects/wonderland
-./start.sh
+./cloud.sh cleanup-check
+./cloud.sh up
 ```
 
-Visitor: http://localhost:5173. Admin: http://localhost:5174.
+Review the new plan and cost, then type `UP` only when ready to spend AWS credits. The selected configuration uses the reviewed 8 GiB `m7i-flex.large` in us-east-1. Installed IAM corrections are retained; there is no need to reinstall unchanged policies. Use a fresh immutable release name before releasing changed source. New hosted URLs and a new Stripe test webhook are generated for the rebuilt stack. Cognito accounts must also be recreated.
 
-To repeat the read-only AWS cleanup check:
+Continue the unfinished cloud tests. Do not push GitHub without user approval. See [Terraform lifecycle guide](terraform-lifecycle.md).
+
+When finished:
 
 ```bash
+./cloud.sh down
 ./cloud.sh cleanup-check
 ```
+
+Type `DOWN` after reviewing the deletion plan. A missing confirmation now fails explicitly rather than appearing successful. Keep the terminal open and check the final inventory; stopped EC2 alone does not remove storage/IP costs. Cleanup preserves deployment permissions and local configuration for another run.

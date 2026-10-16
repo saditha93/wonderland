@@ -6,6 +6,14 @@ from scripts import simple_cloud as cloud
 from scripts import simple_cleanup as cleanup
 
 
+def test_down_without_confirmation_reports_incomplete_cleanup(monkeypatch):
+    monkeypatch.setattr(cleanup,'plan_down',lambda *a:'review-digest')
+    monkeypatch.setattr(cloud,'confirm_cli',lambda *a:False)
+    monkeypatch.setattr(cleanup,'down',lambda *a:pytest.fail('Deletion without confirmation'))
+    with pytest.raises(ValueError,match='Cleanup was NOT executed'):
+        cloud.dispatch(SimpleNamespace(action='down',approve=None),None,{})
+
+
 @pytest.mark.parametrize('actions',[['create'],['update'],['delete','create']])
 def test_down_never_applies_non_destroy_actions(actions):
     with pytest.raises(ValueError,match='non-destruction'):

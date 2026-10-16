@@ -75,7 +75,7 @@ Unit=wonderland-autostop.service
 [Install]
 WantedBy=timers.target
 UNIT
-mkdir -p /var/www/acme/.well-known/acme-challenge
+install -d -m 755 /var/www/acme /var/www/acme/.well-known /var/www/acme/.well-known/acme-challenge
 rm -f /etc/nginx/sites-enabled/default
 cat > /etc/nginx/sites-available/wonderland <<'NGINX'
 server {

@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-15T23:07:00.300617+00:00",
+  "observed_at": "2026-10-16",
   "account_id": "459154641936",
   "region": "us-east-1",
   "instance_type": "m7i-flex.large",
@@ -12,23 +12,30 @@
   "installed_instance_whitelist": [
     "m7i-flex.large"
   ],
-  "application_release_verified": false,
+  "application_release_verified": true,
   "teardown_verified": true,
-  "local_test_count": 176,
+  "local_test_count": 193,
   "local_frontend_builds_passed": true,
   "amplify_visitor_published": true,
   "amplify_admin_published": true,
   "visitor_javascript_content_type_verified": true,
-  "status": "destroyed_at_user_request_before_codex_limit",
-  "cleanup_checked_at": "2026-10-16T16:08:22.863288+00:00",
+  "status": "destroyed_at_user_request",
   "remaining_active_resources": [],
   "registry_shared_layers_restored_to_disabled": true,
   "private_database_backup_verified": true,
   "stripe_test_webhook_removed": true,
   "pending": [
-    "Repair and validate one-command cleanup permissions before another deployment",
-    "Review eligible T3 small topology and memory budget; T2 micro is not marked eligible",
-    "Cloud business/payment/Metabase/failure/scale tests",
+    "Complete sandbox payment and signed webhook confirmation",
+    "Paid gate/ride business flow and reporting reconciliation",
+    "Cloud failure/recovery and scale demonstrations",
     "Approved GitHub publication and remote CI"
-  ]
+  ],
+  "cleanup_lifecycle_test_count": 12,
+  "cleanup_checked_at_unix": 1792174215,
+  "latest_deployment_fresh_backup_available": false,
+  "backup_note": "Only the earlier local backup is retained; user terminated the latest server before a fresh backup.",
+  "server_side_image_and_site_builds_verified": true,
+  "metabase_stored_cards_executed": 7,
+  "stripe_checkout_creation_verified": true,
+  "stripe_payment_and_webhook_verified": false
 }

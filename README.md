@@ -2,9 +2,22 @@
 
 A theme park booking demo with a separate visitor app and administrator app.
 
-The AWS demo is **destroyed**, with no active project resources found in the final inventory. The local MVP still works. Before another AWS deployment, read the [restart notes](docs/restart-after-codex-reset.md); you selected the complete 8 GiB AWS setup. Use the new [Terraform up/down guide](docs/terraform-lifecycle.md) for the one-time permission setup and everyday commands.
+The AWS deployment was removed after testing on 16 October 2026; the cleanup audit found no active demo resources. Images, visitor/admin websites, APIs, PostgreSQL and Metabase build or run in AWS. Your laptop holds the controller, private Terraform state and backups. Local Docker and Node.js are not required for the cloud commands.
 
-## Run
+## AWS commands
+
+```bash
+./cloud.sh up          # Review Terraform, then deploy and release
+./cloud.sh status      # Actual visitor/admin/API URLs
+./cloud.sh verify     # Live cloud checks
+./cloud.sh monitoring # Private Metabase tunnel
+./cloud.sh down        # Review deletion, back up and destroy
+./cloud.sh cleanup-check
+```
+
+Use the [Terraform up/down guide](docs/terraform-lifecycle.md). The complete cloud setup uses the reviewed 8 GiB Free-plan-eligible server; credits still cover usage. Deployment IAM permissions and local configuration are retained for the next deployment.
+
+## Optional local demonstration
 
 On this Mac, the dependencies are already installed. Open one terminal:
 

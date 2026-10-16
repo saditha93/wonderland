@@ -25,7 +25,6 @@ def create_stripe_checkout(settings, booking):
     return client.v1.checkout.sessions.create(
         {
             "mode": "payment",
-            "payment_method_types": ["card"],
             "client_reference_id": booking["reference"],
             "metadata": {"booking_reference": booking["reference"]},
             "line_items": [

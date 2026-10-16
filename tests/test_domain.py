@@ -528,6 +528,8 @@ def test_stripe_sdk_request_uses_stored_price_and_idempotency(domain, monkeypatc
 
     class Sessions:
         def create(self, params, options):
+            # Current Checkout rejects the removed explicit-method parameter.
+            assert "payment_method_types" not in params
             seen.update(params=params, options=options)
             return SimpleNamespace(
                 id="cs_test_example",
