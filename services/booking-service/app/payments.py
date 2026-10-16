@@ -3,15 +3,11 @@
 import hashlib
 import hmac
 import json
-from threading import Lock
-from time import monotonic, time
+from time import time
 
 import stripe
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError
-
-
-from wonderland_common.resilience import CircuitBreaker
 
 
 def create_stripe_checkout(settings, booking):

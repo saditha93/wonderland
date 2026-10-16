@@ -47,7 +47,8 @@ def guard():
         raise SystemExit("Start the named local cluster first")
     config = yaml.safe_load(CONFIG.read_text())
     context = next(
-        (c["context"] for c in config.get("contexts") or [] if c["name"] == PROFILE), None
+        (c["context"] for c in config.get("contexts") or [] if c["name"] == PROFILE),
+        None,
     )
     if not context:
         raise SystemExit("Dedicated local context is missing")
@@ -130,7 +131,13 @@ def main():
         profile = json.loads(path.read_text())
         if profile.get("Driver") != "docker" or profile.get("Name") != PROFILE:
             raise SystemExit("Refusing to stop an unrecognized local profile")
-        profiles = [json.loads(line) for line in run(["colima", "list", "--json"], capture_output=True).stdout.splitlines() if line.strip()]
+        profiles = [
+            json.loads(line)
+            for line in run(
+                ["colima", "list", "--json"], capture_output=True
+            ).stdout.splitlines()
+            if line.strip()
+        ]
         vm = next((p for p in profiles if p.get("name") == PROFILE), None)
         if not vm or vm.get("status") == "Stopped":
             print("Named local VM/cluster already stopped; persistent data retained")
@@ -185,7 +192,11 @@ def main():
                     dockerfile,
                     "-t",
                     f"wonderland/{name}:0.5.0",
-                    *(["--build-arg", "VITE_DEMO_MODE=true"] if name == "frontend" else []),
+                    *(
+                        ["--build-arg", "VITE_DEMO_MODE=true"]
+                        if name == "frontend"
+                        else []
+                    ),
                     context,
                 ]
             )
@@ -254,7 +265,13 @@ def main():
         kubectl("get", "pods,services,hpa,pvc")
         kubectl("top", "pods")
     elif args.action == "forward":
-        kubectl("port-forward", "--address=127.0.0.1", "service/frontend", "5180:8080", "5181:8081")
+        kubectl(
+            "port-forward",
+            "--address=127.0.0.1",
+            "service/frontend",
+            "5180:8080",
+            "5181:8081",
+        )
 
 
 if __name__ == "__main__":

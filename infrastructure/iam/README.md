@@ -2,7 +2,7 @@
 
 The `wonderland` IAM user has AWS-managed `ReadOnlyAccess` and the four approved deployment policies below for the domain-free EC2 Kubernetes demo. They do not make the existing advanced EKS runbook compatible with the EC2 topology. The smaller infrastructure is deployed; application validation is in progress.
 
-Generate private account-specific JSON using `.venv/bin/python scripts/deployment_policy.py --account YOUR_12_DIGIT_ACCOUNT_ID`. There are three managed deployment policies because the combined document exceeds AWS's 6,144-character per-managed-policy limit. The separately approved `WonderlandDemoDependencies` supplement adds required parent-resource and Cognito MFA operations. Together with `ReadOnlyAccess`, this uses five user policy attachments.
+Generate private account-specific JSON using `.venv/bin/python scripts/aws/policies.py --account YOUR_12_DIGIT_ACCOUNT_ID`. There are three managed deployment policies because the combined document exceeds AWS's 6,144-character per-managed-policy limit. The separately approved `WonderlandDemoDependencies` supplement adds required parent-resource and Cognito MFA operations. Together with `ReadOnlyAccess`, this uses five user policy attachments.
 
 | Definition | Purpose |
 |---|---|
@@ -20,9 +20,9 @@ IAM permissions do not cap instance count/runtime, enforce the account plan, sto
 
 ## Verification and installation
 
-Nine local security/approval-constraint tests passed. Read-only AWS `ValidatePolicy` returned zero findings for all four documents, and 17 actual IAM `SimulateCustomPolicy` allow/deny scenarios passed. Evidence: [validation](../../docs/evidence/deployment-policy-validation.json). Simulations use hypothetical resource contexts; they do not prove every service's live tag propagation, dependent action or Terraform lifecycle. Resolve any live denial against the exact resource/action before amending grants.
+Nine local security/approval-constraint tests passed. Read-only AWS `ValidatePolicy` returned zero findings for all four documents, and 17 actual IAM `SimulateCustomPolicy` allow/deny scenarios passed. Evidence: [validation](../../docs/results/evidence/deployment-policy-validation.json). Simulations use hypothetical resource contexts; they do not prove every service's live tag propagation, dependent action or Terraform lifecycle. Resolve any live denial against the exact resource/action before amending grants.
 
-The installer `scripts/install-demo-permissions.py` requires the exact approved bundle digest. It verifies account/user, the role boundary prerequisite, AWS document validation and existing matching definitions before writing. It creates missing policy definitions, attaches only the three deployment policies, and preserves existing attachments. It refuses silently overwriting a different existing policy. A failure can leave some definitions/attachments created and must be inspected before retrying; it does not claim transactional rollback.
+The installer `scripts/advanced/maintenance/install_permissions.py` requires the exact approved bundle digest. It verifies account/user, the role boundary prerequisite, AWS document validation and existing matching definitions before writing. It creates missing policy definitions, attaches only the three deployment policies, and preserves existing attachments. It refuses silently overwriting a different existing policy. A failure can leave some definitions/attachments created and must be inspected before retrying; it does not claim transactional rollback.
 
 Run installation only in the explicitly approved administrator CloudShell session after the user confirms this concrete access expansion. The application `.env` identity cannot install these policies itself. No access keys or `.env` values belong in CloudShell commands. Installing IAM grants does not launch compute resources or authorize a Paid-plan upgrade. The policy definitions have no access effect until attached to an identity or used as a boundary for an otherwise permitted role.
 

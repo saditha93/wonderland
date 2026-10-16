@@ -1,0 +1,42 @@
+{
+  "observed_at": "2026-10-16",
+  "account_id": "459154641936",
+  "region": "us-east-1",
+  "instance_type": "m7i-flex.large",
+  "infrastructure_created": true,
+  "bootstrap_completed": true,
+  "ssm_online": true,
+  "k3s_service_active": true,
+  "confirmed_visitor_signup_and_login": true,
+  "installed_compute_policy_version": "v2",
+  "installed_instance_whitelist": [
+    "m7i-flex.large"
+  ],
+  "application_release_verified": true,
+  "teardown_verified": true,
+  "local_test_count": 198,
+  "local_frontend_builds_passed": true,
+  "amplify_visitor_published": true,
+  "amplify_admin_published": true,
+  "visitor_javascript_content_type_verified": true,
+  "status": "destroyed_after_completed_core_aws_rehearsal",
+  "remaining_active_resources": [],
+  "registry_shared_layers_restored_to_disabled": true,
+  "private_database_backup_verified": true,
+  "stripe_test_webhook_removed": true,
+  "pending": [
+    "Review hosted portal and Metabase chart appearance with the user",
+    "Repeat booking/gate demonstration during operating hours without an after-hours date fixture",
+    "Authorized GitHub publication and observed remote CI",
+    "Final report/screenshots/student details and submission"
+  ],
+  "cleanup_lifecycle_test_count": 16,
+  "cleanup_checked_at_unix": 1792175618,
+  "latest_deployment_fresh_backup_available": true,
+  "backup_note": "Fresh checksum-verified backup contains this rehearsal booking; restore not rehearsed.",
+  "server_side_image_and_site_builds_verified": true,
+  "metabase_stored_cards_executed": 7,
+  "stripe_checkout_creation_verified": true,
+  "stripe_payment_and_webhook_verified": true,
+  "live_acceptance_evidence": "aws-rehearsal.json"
+}

@@ -27,8 +27,11 @@ parser.add_argument(
     help="Only after the separately approved cloud deployment",
 )
 parser.add_argument("--metabase-url", default="http://127.0.0.1:3000")
-parser.add_argument("--allow-ec2-reporting", action="store_true",
-                    help="Private SSM tunnel to the single-node AWS demo")
+parser.add_argument(
+    "--allow-ec2-reporting",
+    action="store_true",
+    help="Private SSM tunnel to the single-node AWS demo",
+)
 args = parser.parse_args()
 address = urlparse(args.metabase_url)
 if (
@@ -52,8 +55,11 @@ if args.allow_cloud_reporting:
 if args.allow_ec2_reporting:
     if args.allow_cloud_reporting:
         raise SystemExit("Select one cloud reporting target")
-    allowed_host = (url.host == "postgres" and url.query.get("sslmode") == "verify-full"
-                    and url.query.get("sslrootcert") == "/run/rds-ca/global-bundle.pem")
+    allowed_host = (
+        url.host == "postgres"
+        and url.query.get("sslmode") == "verify-full"
+        and url.query.get("sslrootcert") == "/run/rds-ca/global-bundle.pem"
+    )
     args.allow_cloud_reporting = True
 if args.database_host and (
     args.database_host not in {url.host, "postgres"}
@@ -63,7 +69,9 @@ if args.database_host and (
 if url.username != "wonderland_bi" or not allowed_host:
     raise SystemExit("Refusing a non-project reporting database")
 private = ROOT / (
-    "secrets/metabase-ec2.json" if args.allow_ec2_reporting else "secrets/metabase-cloud.json"
+    "secrets/metabase-ec2.json"
+    if args.allow_ec2_reporting
+    else "secrets/metabase-cloud.json"
     if args.allow_cloud_reporting
     else "secrets/metabase.json"
 )

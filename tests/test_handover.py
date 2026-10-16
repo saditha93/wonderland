@@ -11,7 +11,21 @@ handover = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(handover)
 
 
-@pytest.mark.parametrize("path", ["secrets/local.env", "tmp/postgres/data.json", "docs/course-materials/lecture.md", "frontend/.env.local", "frontend/dist/index.html", ".git/config", "infrastructure/state.tfstate.backup", "infrastructure/demo.tfvars", "../credentials.json", "/private/credentials.json"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "secrets/local.env",
+        "tmp/postgres/data.json",
+        "docs/course-materials/lecture.md",
+        "frontend/.env.local",
+        "frontend/dist/index.html",
+        ".git/config",
+        "infrastructure/state.tfstate.backup",
+        "infrastructure/demo.tfvars",
+        "../credentials.json",
+        "/private/credentials.json",
+    ],
+)
 def test_private_and_generated_paths_never_packaged(path):
     assert not handover.allowed(path)
 
@@ -21,7 +35,7 @@ def test_source_archive_excludes_even_tracked_private_files(tmp_path, monkeypatc
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     for name, content in {
         "start.sh": "#!/bin/sh\necho demo\n",
-        "docs/project-report.md": "# Test report\n",
+        "docs/assignment/report.md": "# Test report\n",
         "frontend/.env.example": "VITE_AUTH_MODE=local\n",
         "secrets/private.json": '{"secret":"PRIVATE_SENTINEL"}',
         "docs/course-materials/private.md": "PRIVATE_COURSE_SENTINEL",
@@ -34,7 +48,9 @@ def test_source_archive_excludes_even_tracked_private_files(tmp_path, monkeypatc
     handover.create_package()
     with ZipFile(tmp_path / "tmp/handover/wonderland-mvp.zip") as archive:
         assert "wonderland/frontend/.env.example" in archive.namelist()
-        assert not any("secrets/" in p or "course-materials/" in p for p in archive.namelist())
+        assert not any(
+            "secrets/" in p or "course-materials/" in p for p in archive.namelist()
+        )
         assert all(b"PRIVATE_" not in archive.read(p) for p in archive.namelist())
         assert archive.getinfo("wonderland/start.sh").external_attr >> 16
 
@@ -47,8 +63,8 @@ def test_packaging_refuses_private_key_material():
 
 def test_handover_works_from_unzipped_source_without_git(tmp_path, monkeypatch):
     monkeypatch.setattr(handover, "ROOT", tmp_path)
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs/project-report.md").write_text("# Report\n")
+    (tmp_path / "docs/assignment").mkdir(parents=True)
+    (tmp_path / "docs/assignment/report.md").write_text("# Report\n")
     (tmp_path / "start.sh").write_text("#!/bin/sh\necho demo\n")
     private = tmp_path / "secrets"
     private.mkdir()

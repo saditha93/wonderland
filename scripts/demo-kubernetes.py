@@ -185,7 +185,7 @@ def recovery():
         k.run(
             [
                 sys.executable,
-                "scripts/smoke-kubernetes.py",
+                "scripts/checks/cluster.py",
                 "--scenario",
                 scenario,
                 "--skip-analytics",
@@ -203,7 +203,7 @@ def recovery():
     finally:
         k.kubectl("scale", "deployment/analytics-worker", "--replicas=1")
         k.kubectl("rollout", "status", "deployment/analytics-worker", "--timeout=120s")
-    k.run([sys.executable, "scripts/smoke-kubernetes.py", "--scenario", scenario])
+    k.run([sys.executable, "scripts/checks/cluster.py", "--scenario", scenario])
     print(
         "PASS restarted worker drains backlog without duplicate arrival/ride or purchase counts"
     )
@@ -213,7 +213,13 @@ def autoscale():
     # Real bounded HTTP load against the catalog; no synthetic CPU-burn endpoint.
     def metrics_available():
         try:
-            k.kubectl("top", "pods", "-l", "app=attractions-service,color=blue", capture_output=True)
+            k.kubectl(
+                "top",
+                "pods",
+                "-l",
+                "app=attractions-service,color=blue",
+                capture_output=True,
+            )
             return True
         except subprocess.CalledProcessError:
             return False
@@ -266,7 +272,9 @@ def autoscale():
     observed = get("hpa/attractions-blue")["status"]
     # HPA's currentReplicas can lag the Deployment's actual ready count by a
     # controller sample. Require both real ready pods and an HPA scale request.
-    assert max(observed.get("currentReplicas", 0), observed.get("desiredReplicas", 0)) >= 3
+    assert (
+        max(observed.get("currentReplicas", 0), observed.get("desiredReplicas", 0)) >= 3
+    )
     print(
         "PASS CPU HPA requested scale-up; catalog reached 3 ready replicas from baseline 2 using actual HTTP traffic"
     )

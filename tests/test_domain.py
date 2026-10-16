@@ -429,7 +429,9 @@ def test_circuit_breaker_opens_and_half_open_recovers(domain):
 
     payments = importlib.import_module(domain["module"].__package__ + ".payments")
     now = [0]
-    breaker = payments.CircuitBreaker(threshold=2, cooldown=10, clock=lambda: now[0])
+    from wonderland_common.resilience import CircuitBreaker
+
+    breaker = CircuitBreaker(threshold=2, cooldown=10, clock=lambda: now[0])
 
     def failed():
         raise RuntimeError("simulated failure")

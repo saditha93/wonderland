@@ -2,7 +2,7 @@
 
 A theme park booking demo with a separate visitor app and administrator app.
 
-The complete AWS build and core business/recovery tests have been rehearsed; see the [observed results and run guide](docs/aws-rehearsal.md). Images, visitor/admin websites, APIs, PostgreSQL and Metabase build or run in AWS. Your laptop holds the controller, private Terraform state and backups. Local Docker and Node.js are not required for the cloud commands.
+The complete AWS build and core business/recovery tests have been rehearsed; see the [observed results and run guide](docs/results/aws-rehearsal.md). Images, visitor/admin websites, APIs, PostgreSQL and Metabase build or run in AWS. Your laptop holds the controller, private Terraform state and backups. Local Docker and Node.js are not required for the cloud commands.
 
 ## AWS commands
 
@@ -15,7 +15,7 @@ The complete AWS build and core business/recovery tests have been rehearsed; see
 ./cloud.sh cleanup-check
 ```
 
-Use the [Terraform up/down guide](docs/terraform-lifecycle.md). The complete cloud setup uses the reviewed 8 GiB Free-plan-eligible server; credits still cover usage. Deployment IAM permissions and local configuration are retained for the next deployment.
+Use the [Terraform up/down guide](docs/deployment.md). The complete cloud setup uses the reviewed 8 GiB Free-plan-eligible server; credits still cover usage. Deployment IAM permissions and local configuration are retained for the next deployment.
 
 ## Optional local demonstration
 
@@ -35,7 +35,7 @@ Press **Ctrl-C** to stop the apps. Bookings and passwords stay saved. Run the sa
 
 ## Demonstrate
 
-Follow the [short demo guide](docs/demo-guide.md). The main flow is:
+Follow the [short demo guide](docs/local/demo.md). The main flow is:
 
 **Book today's visit → demo payment → ticket → admin check-in → ride → reports.**
 
@@ -57,7 +57,7 @@ Keep the app running, then open a second terminal:
 ./start.sh monitoring
 ```
 
-This starts Metabase, verifies its seven saved queries and prints the dashboard URL/private login. See the [short assignment dashboard guide](docs/metabase-demo.md).
+This starts Metabase, verifies its seven saved queries and prints the dashboard URL/private login. See the [short assignment dashboard guide](docs/local/monitoring.md).
 
 ## Local infrastructure and handover
 
@@ -68,9 +68,9 @@ This starts Metabase, verifies its seven saved queries and prints the dashboard 
 ./start.sh package      # Create the clean source ZIP
 ```
 
-Run infrastructure commands one at a time. `infra-test` starts its own gateway; close an existing `infra` terminal first. See the [short infrastructure guide](docs/infrastructure-demo.md).
+Run infrastructure commands one at a time. `infra-test` starts its own gateway; close an existing `infra` terminal first. See the [short infrastructure guide](docs/local/kubernetes.md).
 
-The [project report](docs/project-report.md) and [viva speaking guide](docs/viva-demo.md) are ready for your review. Local tests do not complete the original AWS deployment phase or verify remote GitHub CI.
+The [project report](docs/assignment/report.md) and [viva speaking guide](docs/viva.md) are ready for your review. Local tests do not complete the original AWS deployment phase or verify remote GitHub CI.
 
 ## One-time setup on a fresh checkout
 

@@ -49,7 +49,7 @@ jobs:
       - name: Start containers, migrate, seed, and verify HTTP health
         run: |
           docker compose --env-file secrets/compose.env up -d --wait --wait-timeout 180 postgres migrate attractions-service booking-service gate-ride-service analytics-worker
-          python scripts/smoke-local.py
+          python scripts/checks/containers.py
       - if: always()
         run: docker compose --env-file secrets/compose.env down --volumes
       - name: Prepare source-only handover

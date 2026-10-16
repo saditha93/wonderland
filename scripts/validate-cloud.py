@@ -26,7 +26,14 @@ subprocess.run(
     env=env,
     check=True,
 )
-for stage in ["bootstrap", "persistent", "demo", "edge", "simple"]:
+for stage in [
+    "aws",
+    "permissions",
+    "advanced/bootstrap",
+    "advanced/persistent",
+    "advanced/demo",
+    "advanced/edge",
+]:
     prefix = [binary, "-chdir=" + str(ROOT / "infrastructure/terraform" / stage)]
     for args in [
         ["init", "-backend=false", "-input=false", "-no-color"],
@@ -35,5 +42,5 @@ for stage in ["bootstrap", "persistent", "demo", "edge", "simple"]:
     ]:
         subprocess.run(prefix + args, cwd=ROOT, env=env, check=True)
 print(
-    "All five Terraform roots validated and mocked plans passed. No live AWS plan/apply was run."
+    "All six Terraform roots validated and mocked plans passed. No live AWS plan/apply was run."
 )

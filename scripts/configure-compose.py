@@ -7,7 +7,7 @@ import secrets
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from scripts.local_phase3 import ensure_config
+from scripts.local.settings import ensure_config
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--output", type=Path, default=Path("secrets/compose.env"))

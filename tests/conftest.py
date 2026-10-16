@@ -69,7 +69,7 @@ def postgres_engine():
     if not available:
         engine.dispose()
         pytest.fail(
-            "Test PostgreSQL unavailable; start scripts/local-postgres.py first. Connection details suppressed.",
+            "Test PostgreSQL unavailable; start scripts/local/database.py first. Connection details suppressed.",
             pytrace=False,
         )
     from scripts.db_migrate import migrate

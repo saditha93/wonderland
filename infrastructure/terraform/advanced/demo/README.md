@@ -1,0 +1,3 @@
+# Temporary core
+
+VPC, EKS/access/node groups, private encrypted RDS, SQS/DLQ, scoped workload IAM, empty runtime secret shell, explicit ALB/backend security groups, CloudWatch logs/alarms/SNS. Nodes use public egress without internet ingress or NAT; ALB and RDS use private subnets. RDS protection/final snapshot retention default on; reviewed updates are needed before cleanup. Matching ALB v2.14.1 IAM policy is vendored from the [official release](https://github.com/kubernetes-sigs/aws-load-balancer-controller/blob/v2.14.1/docs/install/iam_policy.json). No AWS operation has been run. See [cloud runbook](../../../../docs/advanced/eks-runbook.md).

@@ -13,7 +13,7 @@ directory = ROOT / "tmp/metabase"
 jar = directory / "metabase.jar"
 if not jar.exists():
     raise SystemExit(
-        "Download the pinned v0.58.35 JAR described in docs/phase-4-outcome.md first"
+        "Download the pinned v0.58.35 JAR described in docs/archive/phases/phase-4-outcome.md first"
     )
 directory.mkdir(exist_ok=True, parents=True)
 env = {

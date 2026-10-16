@@ -94,7 +94,9 @@ def test_invalid_request_id_is_replaced(service):
     with TestClient(module.app) as client:
         response = client.get("/health", headers={"X-Request-ID": "unsafe value"})
     assert response.headers["x-request-id"] != "unsafe value"
-    assert module.SAFE_REQUEST_ID.fullmatch(response.headers["x-request-id"])
+    from wonderland_common.web import SAFE_REQUEST_ID
+
+    assert SAFE_REQUEST_ID.fullmatch(response.headers["x-request-id"])
 
 
 def test_domain_endpoints_are_not_faked(service):

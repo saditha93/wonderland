@@ -42,13 +42,17 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def safe_configuration(self):
-        if self.demo_mode and (self.environment not in {"local", "test"} or self.auth_mode != "local"):
+        if self.demo_mode and (
+            self.environment not in {"local", "test"} or self.auth_mode != "local"
+        ):
             raise ValueError("Demo mode requires local/test identity mode")
         if self.local_accounts_json:
             import json
 
             if self.auth_mode != "local" or self.environment not in {"local", "test"}:
-                raise ValueError("Local password accounts are prohibited outside local/test identity mode")
+                raise ValueError(
+                    "Local password accounts are prohibited outside local/test identity mode"
+                )
             try:
                 accounts = json.loads(self.local_accounts_json.get_secret_value())
                 if not isinstance(accounts, dict) or not 1 <= len(accounts) <= 100:
@@ -60,7 +64,9 @@ class Settings(BaseSettings):
                         or row.get("role") not in {"visitor", "admin"}
                         or not isinstance(row.get("subject"), str)
                         or not 1 <= len(row["subject"]) <= 160
-                        or not re.fullmatch(r"[a-f0-9]{32}:[a-f0-9]{128}", row.get("password_hash", ""))
+                        or not re.fullmatch(
+                            r"[a-f0-9]{32}:[a-f0-9]{128}", row.get("password_hash", "")
+                        )
                     ):
                         raise ValueError()
             except (ValueError, TypeError):

@@ -201,7 +201,9 @@ def test_stop_is_idempotent_without_live_kubeconfig(tmp_path, monkeypatch):
     from types import SimpleNamespace
     import sys
 
-    spec = importlib.util.spec_from_file_location("local_stop", ROOT / "scripts/local-kubernetes.py")
+    spec = importlib.util.spec_from_file_location(
+        "local_stop", ROOT / "scripts/local-kubernetes.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     profile = tmp_path / ".minikube/profiles/wonderland/config.json"
@@ -210,9 +212,13 @@ def test_stop_is_idempotent_without_live_kubeconfig(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     monkeypatch.setattr(sys, "argv", ["local-kubernetes.py", "stop"])
     calls = []
+
     def run(args, **kwargs):
         calls.append(args)
-        return SimpleNamespace(stdout='{"name":"wonderland","status":"Stopped","runtime":"docker"}\n')
+        return SimpleNamespace(
+            stdout='{"name":"wonderland","status":"Stopped","runtime":"docker"}\n'
+        )
+
     monkeypatch.setattr(module, "run", run)
     module.main()
     assert calls == [["colima", "list", "--json"]]
