@@ -590,6 +590,14 @@ code {
   overflow-wrap: anywhere;
 }
 
-.admin-portal-label { font-size: 0.85rem; font-weight: 600; color: #173d35; }
+.admin-portal-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #173d35;
+}
 
-.demo-note { font-size: 0.85rem; color: #526c5e; margin: 16px 0; }
+.demo-note {
+  font-size: 0.85rem;
+  color: #526c5e;
+  margin: 16px 0;
+}

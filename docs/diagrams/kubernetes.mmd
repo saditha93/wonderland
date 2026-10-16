@@ -1,16 +1,23 @@
-%% Proposed architecture; not deployed in Phase 1
 flowchart TB
- Gateway[API Gateway VPC link] --> ALB[Internal ALB]
- subgraph EKS[Namespace wonderland]
- ALB --> Services[ClusterIP Services and DNS]
- Services --> Pods[Attractions / Booking / Gate pods]
- ConfigMap --> Pods
- Secrets[External secret injection] --> Pods
- HPA --> Pods
- Probes[Readiness and liveness] --> Pods
- Worker[Analytics worker Deployment]
+ Gateway[API Gateway HTTP API] --> Proxy[Verified HTTPS NGINX proxy]
+ subgraph Server[One EC2 server]
+ subgraph Cluster[K3s namespace wonderland]
+ Proxy --> Router[Frontend API proxy]
+ Router --> Catalog[Attractions deployment]
+ Router --> Booking[Booking deployment]
+ Router --> Gate[Gate and ride deployment]
+ Router --> Worker[Analytics deployment]
+ HPA[CPU HPA: two to three catalog replicas] --> Catalog
+ Config[ConfigMaps and private Secrets] --> Catalog
+ Config --> Booking
+ Config --> Gate
+ Config --> Worker
+ Catalog --> Postgres[PostgreSQL StatefulSet / encrypted EBS]
+ Booking --> Postgres
+ Gate --> Postgres
+ Worker --> Postgres
+ Metabase -->|read-only reporting views| Postgres
  end
- Pods --> RDS[(Private RDS)]
- Pods --> SQS
- SQS --> Worker
- Worker --> RDS
+ end
+ Worker <--> SQS
+ Operator[Private SSM tunnel] --> Metabase

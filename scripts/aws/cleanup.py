@@ -21,7 +21,7 @@ from scripts.aws.cli import (
     run_terraform,
     source_fingerprint,
 )
-from scripts.aws.release import run_on_server
+from scripts.aws.remote import run_on_server
 
 
 def backup(aws, target_settings, deployment_details):

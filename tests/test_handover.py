@@ -46,7 +46,7 @@ def test_source_archive_excludes_even_tracked_private_files(tmp_path, monkeypatc
         p.write_text(content)
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
     handover.create_package()
-    with ZipFile(tmp_path / "tmp/handover/wonderland-mvp.zip") as archive:
+    with ZipFile(tmp_path / "tmp/handover/wonderland-source.zip") as archive:
         assert "wonderland/frontend/.env.example" in archive.namelist()
         assert not any(
             "secrets/" in p or "course-materials/" in p for p in archive.namelist()
@@ -70,6 +70,6 @@ def test_handover_works_from_unzipped_source_without_git(tmp_path, monkeypatch):
     private.mkdir()
     (private / "hidden.json").write_text('{"secret":"DO_NOT_PACKAGE"}')
     handover.create_package()
-    with ZipFile(tmp_path / "tmp/handover/wonderland-mvp.zip") as archive:
+    with ZipFile(tmp_path / "tmp/handover/wonderland-source.zip") as archive:
         assert "wonderland/start.sh" in archive.namelist()
         assert not any("secrets/" in path for path in archive.namelist())

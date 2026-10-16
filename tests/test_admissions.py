@@ -21,7 +21,7 @@ from test_domain import create, checkout
 
 
 @pytest.fixture
-def phase3(domain, monkeypatch, rsa_keys):
+def admissions(domain, monkeypatch, rsa_keys):
     private, public = rsa_keys
     owner_secret = "phase3-owner-hmac-testing-key-32-characters"
     for key, value in {
@@ -78,9 +78,9 @@ def arrive(ctx, ticket, guests=4):
     )
 
 
-def test_profile_is_owned_and_cannot_change_role(phase3):
-    client = phase3["booking"]
-    headers = phase3["headers"]()
+def test_profile_is_owned_and_cannot_change_role(admissions):
+    client = admissions["booking"]
+    headers = admissions["headers"]()
     assert (
         client.put(
             "/profile",
@@ -91,7 +91,7 @@ def test_profile_is_owned_and_cannot_change_role(phase3):
     )
     assert client.get("/profile", headers=headers).json()["display_name"] == "Alex"
     assert (
-        client.get("/profile", headers=phase3["headers"]("someone-else")).json()[
+        client.get("/profile", headers=admissions["headers"]("someone-else")).json()[
             "display_name"
         ]
         == ""
@@ -104,10 +104,10 @@ def test_profile_is_owned_and_cannot_change_role(phase3):
     )
 
 
-def test_tier_lifecycle_preserves_booking_snapshot(phase3):
-    client = phase3["booking"]
-    admin = phase3["headers"]("staff", "admin")
-    booking = create(phase3).json()
+def test_tier_lifecycle_preserves_booking_snapshot(admissions):
+    client = admissions["booking"]
+    admin = admissions["headers"]("staff", "admin")
+    booking = create(admissions).json()
     tier = {
         "name": "Family revised",
         "min_guests": 2,
@@ -116,16 +116,18 @@ def test_tier_lifecycle_preserves_booking_snapshot(phase3):
         "active": False,
     }
     path = "/admin/ticket-tiers/" + str(UUID(int=3))
-    assert client.put(path, json=tier, headers=phase3["headers"]()).status_code == 403
+    assert (
+        client.put(path, json=tier, headers=admissions["headers"]()).status_code == 403
+    )
     assert client.put(path, json=tier, headers=admin).status_code == 200
     assert len(client.get("/ticket-tiers").json()) == 3
     assert (
         client.get(
-            "/bookings/" + booking["reference"], headers=phase3["headers"]()
+            "/bookings/" + booking["reference"], headers=admissions["headers"]()
         ).json()["amount_cents"]
         == 14000
     )
-    assert create(phase3).status_code == 422
+    assert create(admissions).status_code == 422
     assert (
         client.post(
             "/admin/ticket-tiers",
@@ -151,28 +153,28 @@ def test_tier_lifecycle_preserves_booking_snapshot(phase3):
     assert len(client.get("/admin/ticket-tiers", headers=admin).json()) == 5
 
 
-def test_gate_counts_guests_not_bookings_and_rejects_duplicate(phase3):
-    ticket = paid_today(phase3)
+def test_gate_counts_guests_not_bookings_and_rejects_duplicate(admissions):
+    ticket = paid_today(admissions)
     assert (
-        phase3["gate"]
+        admissions["gate"]
         .post(
             "/admin/check-ins",
             json={"ticket_token": ticket["ticket_token"], "guest_count": 4},
-            headers=phase3["headers"](),
+            headers=admissions["headers"](),
         )
         .status_code
         == 403
     )
-    assert arrive(phase3, ticket, 3).status_code == 422
-    assert arrive(phase3, ticket).status_code == 201
-    assert arrive(phase3, ticket).status_code == 409
+    assert arrive(admissions, ticket, 3).status_code == 422
+    assert arrive(admissions, ticket).status_code == 201
+    assert arrive(admissions, ticket).status_code == 409
     totals = (
-        phase3["gate"]
-        .get("/admin/activity", headers=phase3["headers"]("staff", "admin"))
+        admissions["gate"]
+        .get("/admin/activity", headers=admissions["headers"]("staff", "admin"))
         .json()
     )
     assert totals["arriving_guests"] == 4 and totals["arrival_bookings"] == 1
-    with phase3["engine"].connect() as conn:
+    with admissions["engine"].connect() as conn:
         assert (
             conn.execute(
                 text(
@@ -183,42 +185,42 @@ def test_gate_counts_guests_not_bookings_and_rejects_duplicate(phase3):
         )
 
 
-def test_concurrent_gate_scans_admit_once(phase3):
-    ticket = paid_today(phase3)
+def test_concurrent_gate_scans_admit_once(admissions):
+    ticket = paid_today(admissions)
     with ThreadPoolExecutor(max_workers=6) as pool:
-        results = list(pool.map(lambda _: arrive(phase3, ticket), range(6)))
+        results = list(pool.map(lambda _: arrive(admissions, ticket), range(6)))
     assert sum(r.status_code == 201 for r in results) == 1
     assert sum(r.status_code == 409 for r in results) == 5
 
 
-def test_gate_is_independent_of_booking_and_attractions_api(phase3):
-    ticket = paid_today(phase3)
-    original_engine = phase3["module"].app.state.engine
-    phase3["module"].app.state.engine = None
-    phase3["gate_module"].app.state.catalog = SimpleNamespace(
+def test_gate_is_independent_of_booking_and_attractions_api(admissions):
+    ticket = paid_today(admissions)
+    original_engine = admissions["module"].app.state.engine
+    admissions["module"].app.state.engine = None
+    admissions["gate_module"].app.state.catalog = SimpleNamespace(
         get=lambda _, **kw: (_ for _ in ()).throw(
             AssertionError("Gate must not call catalog")
         )
     )
     try:
-        assert arrive(phase3, ticket).status_code == 201
+        assert arrive(admissions, ticket).status_code == 201
     finally:
-        phase3["module"].app.state.engine = original_engine
+        admissions["module"].app.state.engine = original_engine
 
 
-def test_gate_rejects_wrong_date_tampered_and_legacy_tickets(phase3, rsa_keys):
-    future = create(phase3).json()["reference"]
-    checkout(phase3, future)
-    phase3["booking"].post(
-        f"/bookings/{future}/sandbox-pay", headers=phase3["headers"]()
+def test_gate_rejects_wrong_date_tampered_and_legacy_tickets(admissions, rsa_keys):
+    future = create(admissions).json()["reference"]
+    checkout(admissions, future)
+    admissions["booking"].post(
+        f"/bookings/{future}/sandbox-pay", headers=admissions["headers"]()
     )
     ticket = (
-        phase3["booking"]
-        .get(f"/bookings/{future}/ticket", headers=phase3["headers"]())
+        admissions["booking"]
+        .get(f"/bookings/{future}/ticket", headers=admissions["headers"]())
         .json()
     )
-    assert arrive(phase3, ticket).status_code == 422
-    ticket = paid_today(phase3)
+    assert arrive(admissions, ticket).status_code == 422
+    ticket = paid_today(admissions)
     parts = ticket["ticket_token"].split(".")
     payload = json.loads(
         base64.urlsafe_b64decode(parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4))
@@ -228,7 +230,8 @@ def test_gate_rejects_wrong_date_tampered_and_legacy_tickets(phase3, rsa_keys):
         base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
     )
     assert (
-        arrive(phase3, {**ticket, "ticket_token": ".".join(parts)}).status_code == 400
+        arrive(admissions, {**ticket, "ticket_token": ".".join(parts)}).status_code
+        == 400
     )
     legacy = jwt.encode(
         {
@@ -239,28 +242,28 @@ def test_gate_rejects_wrong_date_tampered_and_legacy_tickets(phase3, rsa_keys):
         "phase2-legacy-testing-key" * 2,
         algorithm="HS256",
     )
-    assert arrive(phase3, {"ticket_token": legacy}).status_code == 400
+    assert arrive(admissions, {"ticket_token": legacy}).status_code == 400
 
 
-def test_gate_outbox_failure_rolls_back_arrival(phase3):
-    ticket = paid_today(phase3)
-    with phase3["engine"].begin() as conn:
+def test_gate_outbox_failure_rolls_back_arrival(admissions):
+    ticket = paid_today(admissions)
+    with admissions["engine"].begin() as conn:
         conn.exec_driver_sql(
             "ALTER TABLE visits.outbox ADD CONSTRAINT reject_arrival CHECK(false) NOT VALID"
         )
     try:
-        assert arrive(phase3, ticket).status_code == 503
-        with phase3["engine"].connect() as conn:
+        assert arrive(admissions, ticket).status_code == 503
+        with admissions["engine"].connect() as conn:
             assert (
                 conn.execute(text("SELECT count(*) FROM visits.check_ins")).scalar()
                 == 0
             )
     finally:
-        with phase3["engine"].begin() as conn:
+        with admissions["engine"].begin() as conn:
             conn.exec_driver_sql(
                 "ALTER TABLE visits.outbox DROP CONSTRAINT reject_arrival"
             )
-    assert arrive(phase3, ticket).status_code == 201
+    assert arrive(admissions, ticket).status_code == 201
 
 
 def ride(ctx, reference, event_id=None, guests=2):
@@ -275,54 +278,56 @@ def ride(ctx, reference, event_id=None, guests=2):
     )
 
 
-def test_ride_requires_arrival_and_bounded_party(phase3):
-    ticket = paid_today(phase3)
+def test_ride_requires_arrival_and_bounded_party(admissions):
+    ticket = paid_today(admissions)
     ref = ticket["booking"]["reference"]
-    assert ride(phase3, ref).status_code == 422
-    arrive(phase3, ticket)
-    assert ride(phase3, ref, guests=5).status_code == 422
+    assert ride(admissions, ref).status_code == 422
+    arrive(admissions, ticket)
+    assert ride(admissions, ref, guests=5).status_code == 422
     event_id = str(uuid4())
-    assert ride(phase3, ref, event_id).status_code == 201
-    assert ride(phase3, ref, event_id).json()["duplicate"] is True
-    assert ride(phase3, ref, event_id, guests=3).status_code == 409
-    history = phase3["gate"].get("/visits", headers=phase3["headers"]()).json()
+    assert ride(admissions, ref, event_id).status_code == 201
+    assert ride(admissions, ref, event_id).json()["duplicate"] is True
+    assert ride(admissions, ref, event_id, guests=3).status_code == 409
+    history = admissions["gate"].get("/visits", headers=admissions["headers"]()).json()
     assert len(history["visits"]) == 1 and len(history["ride_events"]) == 1
-    assert phase3["gate"].get("/visits", headers=phase3["headers"]("other")).json() == {
+    assert admissions["gate"].get(
+        "/visits", headers=admissions["headers"]("other")
+    ).json() == {
         "visits": [],
         "ride_events": [],
     }
 
 
-def test_ride_catalog_outage_is_fail_closed_but_gate_stays_available(phase3):
-    ticket = paid_today(phase3)
-    arrive(phase3, ticket)
+def test_ride_catalog_outage_is_fail_closed_but_gate_stays_available(admissions):
+    ticket = paid_today(admissions)
+    arrive(admissions, ticket)
 
     def unavailable(_, **kwargs):
         raise HTTPException(503, "simulated catalog outage")
 
-    phase3["gate_module"].app.state.catalog = SimpleNamespace(get=unavailable)
-    assert ride(phase3, ticket["booking"]["reference"]).status_code == 503
-    with phase3["engine"].connect() as conn:
+    admissions["gate_module"].app.state.catalog = SimpleNamespace(get=unavailable)
+    assert ride(admissions, ticket["booking"]["reference"]).status_code == 503
+    with admissions["engine"].connect() as conn:
         assert (
             conn.execute(text("SELECT count(*) FROM visits.ride_events")).scalar() == 0
         )
-    assert phase3["gate"].get("/health/live").status_code == 200
+    assert admissions["gate"].get("/health/live").status_code == 200
 
 
-def test_concurrent_ride_event_retry_is_deduplicated(phase3):
-    ticket = paid_today(phase3)
-    arrive(phase3, ticket)
+def test_concurrent_ride_event_retry_is_deduplicated(admissions):
+    ticket = paid_today(admissions)
+    arrive(admissions, ticket)
     event_id = str(uuid4())
     with ThreadPoolExecutor(max_workers=6) as pool:
         results = list(
             pool.map(
-                lambda _: ride(phase3, ticket["booking"]["reference"], event_id),
+                lambda _: ride(admissions, ticket["booking"]["reference"], event_id),
                 range(6),
             )
         )
     assert all(r.status_code == 201 for r in results)
     assert sum(not r.json()["duplicate"] for r in results) == 1
-    with phase3["engine"].connect() as conn:
+    with admissions["engine"].connect() as conn:
         assert (
             conn.execute(
                 text("SELECT count(*) FROM visits.outbox WHERE event_type='ride.used'")
@@ -331,13 +336,15 @@ def test_concurrent_ride_event_retry_is_deduplicated(phase3):
         )
 
 
-def test_admin_sales_use_confirmed_snapshot_and_reject_visitor(phase3):
-    paid_today(phase3)
-    create(phase3)
-    client = phase3["booking"]
-    assert client.get("/admin/sales", headers=phase3["headers"]()).status_code == 403
+def test_admin_sales_use_confirmed_snapshot_and_reject_visitor(admissions):
+    paid_today(admissions)
+    create(admissions)
+    client = admissions["booking"]
+    assert (
+        client.get("/admin/sales", headers=admissions["headers"]()).status_code == 403
+    )
     rows = client.get(
-        "/admin/sales", headers=phase3["headers"]("staff", "admin")
+        "/admin/sales", headers=admissions["headers"]("staff", "admin")
     ).json()
     assert (
         len(rows) == 1 and rows[0]["tickets"] == 1 and rows[0]["revenue_cents"] == 14000
@@ -457,28 +464,28 @@ def test_cognito_rejects_algorithm_confusion(cognito):
     )
 
 
-def test_ride_outbox_failure_rolls_back_and_can_retry(phase3):
-    ticket = paid_today(phase3)
-    arrive(phase3, ticket)
+def test_ride_outbox_failure_rolls_back_and_can_retry(admissions):
+    ticket = paid_today(admissions)
+    arrive(admissions, ticket)
     event_id = str(uuid4())
     ref = ticket["booking"]["reference"]
-    with phase3["engine"].begin() as conn:
+    with admissions["engine"].begin() as conn:
         conn.exec_driver_sql(
             "ALTER TABLE visits.outbox ADD CONSTRAINT reject_ride CHECK(false) NOT VALID"
         )
     try:
-        assert ride(phase3, ref, event_id).status_code == 503
-        with phase3["engine"].connect() as conn:
+        assert ride(admissions, ref, event_id).status_code == 503
+        with admissions["engine"].connect() as conn:
             assert (
                 conn.execute(text("SELECT count(*) FROM visits.ride_events")).scalar()
                 == 0
             )
     finally:
-        with phase3["engine"].begin() as conn:
+        with admissions["engine"].begin() as conn:
             conn.exec_driver_sql(
                 "ALTER TABLE visits.outbox DROP CONSTRAINT reject_ride"
             )
-    assert ride(phase3, ref, event_id).status_code == 201
+    assert ride(admissions, ref, event_id).status_code == 201
 
 
 def test_cognito_role_claim_cannot_replace_admin_group(cognito):
@@ -500,10 +507,12 @@ def test_cognito_role_claim_cannot_replace_admin_group(cognito):
     )
 
 
-def test_catalog_client_checks_status_and_propagates_request_id(phase3, monkeypatch):
+def test_catalog_client_checks_status_and_propagates_request_id(
+    admissions, monkeypatch
+):
     import httpx
 
-    routes = importlib.import_module(phase3["gate_module"].__package__ + ".routes")
+    routes = importlib.import_module(admissions["gate_module"].__package__ + ".routes")
     original = httpx.Client
     mode = ["closed"]
     seen = []
@@ -534,40 +543,40 @@ def test_catalog_client_checks_status_and_propagates_request_id(phase3, monkeypa
     assert seen == ["ride-trace-1", "ride-trace-2"]
 
 
-def test_gate_readiness_requires_verification_and_ownership_keys(phase3):
-    assert phase3["gate"].get("/health/ready").status_code == 200
-    settings = phase3["gate_module"].settings
+def test_gate_readiness_requires_verification_and_ownership_keys(admissions):
+    assert admissions["gate"].get("/health/ready").status_code == 200
+    settings = admissions["gate_module"].settings
     public = settings.ticket_public_key_b64
     settings.ticket_public_key_b64 = None
-    assert phase3["gate"].get("/health/ready").status_code == 503
-    assert phase3["gate"].get("/health/live").status_code == 200
+    assert admissions["gate"].get("/health/ready").status_code == 503
+    assert admissions["gate"].get("/health/live").status_code == 200
     settings.ticket_public_key_b64 = public
     settings.ticket_owner_secret = None
-    assert phase3["gate"].get("/health/ready").status_code == 503
+    assert admissions["gate"].get("/health/ready").status_code == 503
 
 
-def test_renaming_does_not_split_tier_or_attraction_totals(phase3):
-    ticket = paid_today(phase3)
-    arrive(phase3, ticket)
+def test_renaming_does_not_split_tier_or_attraction_totals(admissions):
+    ticket = paid_today(admissions)
+    arrive(admissions, ticket)
     ref = ticket["booking"]["reference"]
-    assert ride(phase3, ref).status_code == 201
-    phase3["gate_module"].app.state.catalog = SimpleNamespace(
+    assert ride(admissions, ref).status_code == 201
+    admissions["gate_module"].app.state.catalog = SimpleNamespace(
         get=lambda attraction_id, **kw: {
             "id": str(attraction_id),
             "name": "Renamed Coaster",
             "operational_status": "open",
         }
     )
-    assert ride(phase3, ref).status_code == 201
-    with phase3["engine"].begin() as conn:
+    assert ride(admissions, ref).status_code == 201
+    with admissions["engine"].begin() as conn:
         conn.execute(
             text("UPDATE booking.ticket_tiers SET name='Renamed Family' WHERE id=:id"),
             {"id": UUID(int=3)},
         )
-    paid_today(phase3)
+    paid_today(admissions)
     sales = (
-        phase3["booking"]
-        .get("/admin/sales", headers=phase3["headers"]("staff", "admin"))
+        admissions["booking"]
+        .get("/admin/sales", headers=admissions["headers"]("staff", "admin"))
         .json()
     )
     assert (
@@ -576,8 +585,8 @@ def test_renaming_does_not_split_tier_or_attraction_totals(phase3):
         and sales[0]["revenue_cents"] == 28000
     )
     rides = (
-        phase3["gate"]
-        .get("/admin/activity", headers=phase3["headers"]("staff", "admin"))
+        admissions["gate"]
+        .get("/admin/activity", headers=admissions["headers"]("staff", "admin"))
         .json()["rides"]
     )
     assert len(rides) == 1 and rides[0]["riders"] == 4 and rides[0]["ride_events"] == 2

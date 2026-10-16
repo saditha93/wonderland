@@ -9,27 +9,28 @@ import jwt
 import pytest
 
 from test_domain import command, create
-from test_phase3 import phase3, paid_today
+from test_admissions import admissions, paid_today
 from wonderland_common.config import Settings
 
 
-def test_reference_check_in_preserves_visitor_ownership(phase3):
-    original = paid_today(phase3, subject="booking-owner")
+def test_reference_check_in_preserves_visitor_ownership(admissions):
+    original = paid_today(admissions, subject="booking-owner")
     ref = original["booking"]["reference"]
-    client = phase3["booking"]
+    client = admissions["booking"]
     path = f"/admin/bookings/{ref}/ticket"
     assert client.get(path).status_code == 401
     assert (
-        client.get(path, headers=phase3["headers"]("other-visitor")).status_code == 403
+        client.get(path, headers=admissions["headers"]("other-visitor")).status_code
+        == 403
     )
-    response = client.get(path, headers=phase3["headers"]("staff", "admin"))
+    response = client.get(path, headers=admissions["headers"]("staff", "admin"))
     assert response.status_code == 200
     ticket = response.json()
 
     def claims(value):
         return jwt.decode(
             value,
-            phase3["public"],
+            admissions["public"],
             algorithms=["RS256"],
             audience="wonderland-gate",
             issuer="wonderland-tickets",
@@ -39,17 +40,23 @@ def test_reference_check_in_preserves_visitor_ownership(phase3):
         claims(ticket["ticket_token"])["owner_tag"]
         == claims(original["ticket_token"])["owner_tag"]
     )
-    headers = phase3["headers"]("staff", "admin")
+    headers = admissions["headers"]("staff", "admin")
     body = {"ticket_token": ticket["ticket_token"], "guest_count": 4}
     assert (
-        phase3["gate"].post("/admin/check-ins", headers=headers, json=body).status_code
+        admissions["gate"]
+        .post("/admin/check-ins", headers=headers, json=body)
+        .status_code
         == 201
     )
     assert (
-        phase3["gate"].post("/admin/check-ins", headers=headers, json=body).status_code
+        admissions["gate"]
+        .post("/admin/check-ins", headers=headers, json=body)
+        .status_code
         == 409
     )
-    visits = phase3["gate"].get("/visits", headers=phase3["headers"]("booking-owner"))
+    visits = admissions["gate"].get(
+        "/visits", headers=admissions["headers"]("booking-owner")
+    )
     assert visits.status_code == 200
     assert visits.json()["visits"][0]["booking_reference"] == ref
 

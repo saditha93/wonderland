@@ -1,4 +1,4 @@
-"""Render real EKS workloads without contacting AWS. Never print secret manifests."""
+"""Render shared Kubernetes/TLS templates for AWS deployment variants."""
 
 import base64
 import copy

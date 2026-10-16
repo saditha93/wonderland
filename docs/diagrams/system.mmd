@@ -1,14 +1,25 @@
-%% Proposed architecture; not deployed in Phase 1
+%% Selected single-server AWS demonstration; optional EKS/RDS diagram is under advanced/.
 flowchart LR
- Visitor --> Amplify[React on Amplify]
- Amplify --> Cognito
- Amplify --> Gateway[API Gateway HTTP API]
- Gateway --> Link[VPC link]
- Link --> ALB[Internal ALB]
- ALB --> EKS[Microservices on EKS]
- EKS --> RDS[PostgreSQL RDS]
- EKS --> SQS
- SQS --> Worker[Analytics worker]
- Worker --> Reporting[SQL reporting schema]
- Reporting --> Metabase
- EKS --> CloudWatch
+    Visitor --> VisitorSite[Visitor website on Amplify]
+    Admin --> AdminSite[Admin website on Amplify]
+    VisitorSite --> Cognito
+    AdminSite --> Cognito
+    VisitorSite --> Gateway[API Gateway]
+    AdminSite --> Gateway
+    Gateway --> Proxy[HTTPS NGINX origin proxy]
+    subgraph Server[One EC2 server / K3s]
+        Proxy --> Catalog[Attractions API]
+        Proxy --> Booking[Booking API]
+        Proxy --> Gate[Gate and rides API]
+        Proxy --> Analytics[Analytics API and worker]
+        Catalog --> PostgreSQL[PostgreSQL schemas and outboxes]
+        Booking --> PostgreSQL
+        Gate --> PostgreSQL
+        Analytics --> PostgreSQL
+        Metabase -->|read-only views| PostgreSQL
+    end
+    Analytics <--> SQS
+    Server --> CloudWatch
+    ECR --> Server
+    S3[Private source artifacts] --> Server
+    Operator[Operator via private SSM tunnel] --> Metabase

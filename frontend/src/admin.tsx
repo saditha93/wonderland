@@ -4,5 +4,7 @@ import { AdminApp } from "./admin/AdminApp";
 import "./style.css";
 
 createRoot(document.getElementById("root")!).render(
-  <React.StrictMode><AdminApp /></React.StrictMode>,
+  <React.StrictMode>
+    <AdminApp />
+  </React.StrictMode>,
 );

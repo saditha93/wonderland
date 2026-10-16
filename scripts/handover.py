@@ -109,7 +109,7 @@ def create_package():
     files = source_files(ROOT)
     directory = ROOT / "tmp/handover"
     directory.mkdir(parents=True, exist_ok=True)
-    archive = directory / "wonderland-mvp.zip"
+    archive = directory / "wonderland-source.zip"
     temporary = archive.with_suffix(".zip.partial")
     manifest = {
         "scope": "Source and public documentation only; no credentials, databases, dependencies or private course PDFs",

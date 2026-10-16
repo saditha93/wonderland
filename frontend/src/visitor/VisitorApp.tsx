@@ -34,7 +34,9 @@ export function VisitorApp() {
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [tierId, setTierId] = useState("");
   const [guests, setGuests] = useState(1);
-  const [visitDate, setVisitDate] = useState(() => parkDate(import.meta.env.VITE_DEMO_MODE === "true" ? 0 : 1));
+  const [visitDate, setVisitDate] = useState(() =>
+    parkDate(import.meta.env.VITE_DEMO_MODE === "true" ? 0 : 1),
+  );
   const [slot, setSlot] = useState("09:00");
   const commandKey = useRef(crypto.randomUUID());
   const epoch = useRef(0);
@@ -170,7 +172,9 @@ export function VisitorApp() {
     if (current !== epoch.current) return;
     if (result.role !== "visitor") {
       await clearManagedSession();
-      throw new Error("Use the administrator portal to sign in with this account.");
+      throw new Error(
+        "Use the administrator portal to sign in with this account.",
+      );
     }
     epoch.current++;
     setToken(value);
@@ -210,7 +214,9 @@ export function VisitorApp() {
   const authNotice = !token ? (
     <div className="notice">
       Sign in to book or view your history.{" "}
-      <button className="text-button" onClick={() => navigate("login")}>Sign in</button>
+      <button className="text-button" onClick={() => navigate("login")}>
+        Sign in
+      </button>
     </div>
   ) : null;
   const bookingSummary = booking && (
@@ -279,7 +285,11 @@ export function VisitorApp() {
         </nav>
       </header>
       <main className="shell">
-        {import.meta.env.VITE_DEMO_MODE === "true" && <p className="demo-note">Demo · No real payments. You can book today's visit at any time.</p>}
+        {import.meta.env.VITE_DEMO_MODE === "true" && (
+          <p className="demo-note">
+            Demo · No real payments. You can book today's visit at any time.
+          </p>
+        )}
         {error && (
           <div role="alert" className="error">
             {error}
@@ -308,7 +318,6 @@ export function VisitorApp() {
               >
                 Explore the park <span aria-hidden="true">↗</span>
               </button>
-
             </section>
             <section className="section">
               <div className="section-top">
@@ -503,9 +512,7 @@ export function VisitorApp() {
                     ))}
                   </select>
                 </label>
-                <p className="muted">
-                  Arrival times use Sri Lanka time.
-                </p>
+                <p className="muted">Arrival times use Sri Lanka time.</p>
                 <button
                   className="primary"
                   disabled={busy || !token || !selectedTier}
@@ -523,8 +530,8 @@ export function VisitorApp() {
                   {selectedTier ? money(selectedTier.price_cents) : "—"}
                 </strong>
                 <p className="muted">
-                  Review your final total before paying. Your booking keeps
-                  this price even if ticket prices change later.
+                  Review your final total before paying. Your booking keeps this
+                  price even if ticket prices change later.
                 </p>
               </aside>
             </div>
@@ -594,23 +601,34 @@ export function VisitorApp() {
                   </>
                 ) : (
                   <>
-                    <p className="muted">Demo payment only. No money is charged.</p>
+                    <p className="muted">
+                      Demo payment only. No money is charged.
+                    </p>
                     {!checkout && (
                       <button
                         className="primary"
                         disabled={busy}
-                        onClick={() => void run(async (current) => {
-                          const result = await api<Checkout>(
-                            `/api/booking/bookings/${reference}/checkout`, token, { method: "POST" },
-                          );
-                          if (current !== epoch.current) return;
-                          if (result.provider === "local") {
-                            await api(`/api/booking/bookings/${reference}/sandbox-pay`, token, { method: "POST" });
-                            if (current === epoch.current) navigate("ticket", reference);
-                          } else {
-                            setCheckout(result);
-                          }
-                        })}
+                        onClick={() =>
+                          void run(async (current) => {
+                            const result = await api<Checkout>(
+                              `/api/booking/bookings/${reference}/checkout`,
+                              token,
+                              { method: "POST" },
+                            );
+                            if (current !== epoch.current) return;
+                            if (result.provider === "local") {
+                              await api(
+                                `/api/booking/bookings/${reference}/sandbox-pay`,
+                                token,
+                                { method: "POST" },
+                              );
+                              if (current === epoch.current)
+                                navigate("ticket", reference);
+                            } else {
+                              setCheckout(result);
+                            }
+                          })
+                        }
                       >
                         {busy ? "Processing…" : "Continue to payment"}
                       </button>
@@ -671,7 +689,8 @@ export function VisitorApp() {
                 <code>{ticket.booking.reference}</code>
                 {bookingSummary}
                 <p className="muted">
-                  Valid on the visit date in Asia/Colombo. Present this QR ticket at the gate.
+                  Valid on the visit date in Asia/Colombo. Present this QR
+                  ticket at the gate.
                 </p>
                 <a
                   className="secondary inline-button"
@@ -680,7 +699,6 @@ export function VisitorApp() {
                 >
                   Download QR ticket
                 </a>
-
               </article>
             )}
           </section>
@@ -689,16 +707,24 @@ export function VisitorApp() {
         {(page === "profile" || page === "visits") && (
           <>
             <nav className="admin-tabs" aria-label="My account">
-              <button className={page === "profile" ? "primary" : "secondary"} onClick={() => navigate("profile")}>Profile</button>
-              <button className={page === "visits" ? "primary" : "secondary"} onClick={() => navigate("visits")}>Visit history</button>
+              <button
+                className={page === "profile" ? "primary" : "secondary"}
+                onClick={() => navigate("profile")}
+              >
+                Profile
+              </button>
+              <button
+                className={page === "visits" ? "primary" : "secondary"}
+                onClick={() => navigate("visits")}
+              >
+                Visit history
+              </button>
             </nav>
             <AccountPanel key={identity + page} token={token} view={page} />
           </>
         )}
       </main>
-      <footer>
-        Wonderland Theme Park · Plan a day of wonder
-      </footer>
+      <footer>Wonderland Theme Park · Plan a day of wonder</footer>
     </>
   );
 }

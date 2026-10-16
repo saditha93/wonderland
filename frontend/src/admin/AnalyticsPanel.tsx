@@ -31,11 +31,9 @@ type Analytics = {
     quietest_rank: number;
   }[];
   outside_hours_arrivals: { day: string; arriving_guests: number }[];
-
 };
 export function AnalyticsPanel({ token }: { token: string }) {
-  const metabaseUrl =
-    import.meta.env.VITE_METABASE_URL || "";
+  const metabaseUrl = import.meta.env.VITE_METABASE_URL || "";
   const [data, setData] = useState<Analytics | null>(null);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -62,8 +60,8 @@ export function AnalyticsPanel({ token }: { token: string }) {
     <section aria-label="Park reports">
       <h2>Visitor and sales reports</h2>
       <p className="muted">
-        Reports update shortly after each payment, check-in or ride.
-        Dates use Sri Lanka time. Hourly reports cover 09:00–18:00.
+        Reports update shortly after each payment, check-in or ride. Dates use
+        Sri Lanka time. Hourly reports cover 09:00–18:00.
       </p>
       <div className="button-row">
         <button
@@ -214,8 +212,8 @@ export function AnalyticsPanel({ token }: { token: string }) {
                 (sum, r) => sum + Number(r.arriving_guests),
                 0,
               )}{" "}
-              arrivals occurred outside opening hours. They are
-              included in daily totals.
+              arrivals occurred outside opening hours. They are included in
+              daily totals.
             </p>
           )}
         </>

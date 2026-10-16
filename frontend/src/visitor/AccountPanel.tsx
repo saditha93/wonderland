@@ -82,11 +82,7 @@ export function AccountPanel({
       <h1 className="page-title">
         {view === "profile" ? "My profile" : "My visits"}
       </h1>
-      {!token && (
-        <div className="notice">
-          Sign in to view your account.
-        </div>
-      )}
+      {!token && <div className="notice">Sign in to view your account.</div>}
       {message && (
         <p role="status" className="notice">
           {message}

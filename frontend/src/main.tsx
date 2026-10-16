@@ -4,5 +4,7 @@ import { VisitorApp } from "./visitor/VisitorApp";
 import "./style.css";
 
 createRoot(document.getElementById("root")!).render(
-  <React.StrictMode><VisitorApp /></React.StrictMode>,
+  <React.StrictMode>
+    <VisitorApp />
+  </React.StrictMode>,
 );

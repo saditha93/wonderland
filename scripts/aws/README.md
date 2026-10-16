@@ -5,7 +5,11 @@ Run `./cloud.sh help` from the project root. The normal sequence is `up`, `statu
 | File | Responsibility |
 |---|---|
 | `cli.py` | Read the target, check identity, review/apply Terraform plans and route commands |
-| `release.py` | Coordinate secrets, server builds, workload installation, hosting and base checks |
+| `release.py` | Show the release sequence in one short function |
+| `runtime.py` | Prepare Stripe, runtime material and Cognito demo identities |
+| `build.py` | Coordinate server image/site builds and workload installation |
+| `remote.py` | Run bounded SSM operations and keep diagnostics private |
+| `verification.py` | Verify the platform/SQL cards and open the monitoring tunnel |
 | `cleanup.py` | Back up first, destroy the reviewed resources, then audit inventory |
 | `credentials.py` | Load credentials privately and define safe configuration errors |
 | `policies.py` | Generate the bounded deployment/runtime IAM policies |

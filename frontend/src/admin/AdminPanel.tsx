@@ -1,9 +1,20 @@
 import { AnalyticsPanel } from "./AnalyticsPanel";
 import { useEffect, useRef, useState } from "react";
-import { api, money, type Attraction, type Tier, type Ticket } from "../shared/api";
+import {
+  api,
+  money,
+  type Attraction,
+  type Tier,
+  type Ticket,
+} from "../shared/api";
 
 type Tab =
-  "overview" | "attractions" | "pricing" | "gate" | "rides" | "analytics";
+  | "overview"
+  | "attractions"
+  | "pricing"
+  | "gate"
+  | "rides"
+  | "analytics";
 type TierRow = Tier & { active: boolean };
 type EditAttraction = Omit<Attraction, "id">;
 type EditTier = {
@@ -65,9 +76,10 @@ export function AdminPanel({
   const [sales, setSales] = useState<Sales>([]);
   const [activity, setActivity] = useState<Activity | null>(null);
   const [editId, setEditId] = useState("");
-  const [a, setA] = useState<EditAttraction>(emptyAttraction);
+  const [attractionForm, setAttractionForm] =
+    useState<EditAttraction>(emptyAttraction);
   const [tierId, setTierId] = useState("");
-  const [t, setT] = useState<EditTier>(emptyTier);
+  const [tierForm, setTierForm] = useState<EditTier>(emptyTier);
   const [scan, setScan] = useState("");
   const [scanToken, setScanToken] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -97,13 +109,20 @@ export function AdminPanel({
       api<Sales>("/api/booking/admin/sales", token),
       api<Activity>("/api/gate/admin/activity", token),
     ])
-      .then(([a, t, s, v]) => {
+      .then(([catalogResult, pricingResult, salesResult, activityResult]) => {
         if (!active) return;
-        if (a.status === "fulfilled") setAttractions(a.value);
-        if (t.status === "fulfilled") setTiers(t.value);
-        if (s.status === "fulfilled") setSales(s.value);
-        if (v.status === "fulfilled") setActivity(v.value);
-        const failures = [a, t, s, v].filter((r) => r.status === "rejected");
+        if (catalogResult.status === "fulfilled")
+          setAttractions(catalogResult.value);
+        if (pricingResult.status === "fulfilled") setTiers(pricingResult.value);
+        if (salesResult.status === "fulfilled") setSales(salesResult.value);
+        if (activityResult.status === "fulfilled")
+          setActivity(activityResult.value);
+        const failures = [
+          catalogResult,
+          pricingResult,
+          salesResult,
+          activityResult,
+        ].filter((r) => r.status === "rejected");
         if (failures.length)
           setError(
             "Some services are unavailable or access was denied. Available sections remain usable.",
@@ -135,7 +154,7 @@ export function AdminPanel({
   }
   function pickAttraction(row: Attraction) {
     setEditId(row.id);
-    setA({
+    setAttractionForm({
       name: row.name,
       description: row.description,
       category: row.category,
@@ -151,11 +170,14 @@ export function AdminPanel({
       await api(
         `/api/attractions/attractions${editId ? "/" + editId : ""}`,
         token,
-        { method: editId ? "PUT" : "POST", body: JSON.stringify(a) },
+        {
+          method: editId ? "PUT" : "POST",
+          body: JSON.stringify(attractionForm),
+        },
       );
       if (alive.current) {
         setEditId("");
-        setA(emptyAttraction);
+        setAttractionForm(emptyAttraction);
       }
     }, "Attraction saved.");
   }
@@ -165,11 +187,11 @@ export function AdminPanel({
       await api(
         `/api/booking/admin/ticket-tiers${tierId ? "/" + tierId : ""}`,
         token,
-        { method: tierId ? "PUT" : "POST", body: JSON.stringify(t) },
+        { method: tierId ? "PUT" : "POST", body: JSON.stringify(tierForm) },
       );
       if (alive.current) {
         setTierId("");
-        setT(emptyTier);
+        setTierForm(emptyTier);
       }
     }, "Ticket prices saved. Earlier bookings keep their original price.");
   }
@@ -177,7 +199,9 @@ export function AdminPanel({
     <section className="section">
       <p className="eyebrow">Park operations</p>
       <h1 className="page-title">Park administration</h1>
-      <p className="muted">Check in a booking, record a ride, then open Reports to see the results.</p>
+      <p className="muted">
+        Check in a booking, record a ride, then open Reports to see the results.
+      </p>
       <nav className="admin-tabs" aria-label="Administrator sections">
         {(
           [
@@ -198,7 +222,16 @@ export function AdminPanel({
               setError("");
             }}
           >
-            {{ overview: "Dashboard", attractions: "Attractions", pricing: "Tickets & prices", gate: "Check-in", rides: "Rides", analytics: "Reports" }[id]}
+            {
+              {
+                overview: "Dashboard",
+                attractions: "Attractions",
+                pricing: "Tickets & prices",
+                gate: "Check-in",
+                rides: "Rides",
+                analytics: "Reports",
+              }[id]
+            }
           </button>
         ))}
         <button
@@ -281,9 +314,7 @@ export function AdminPanel({
               </article>
             ))}
           </div>
-          <p className="muted">
-            Open Reports to see sales and visitor trends.
-          </p>
+          <p className="muted">Open Reports to see sales and visitor trends.</p>
         </>
       )}
       {tab === "analytics" && <AnalyticsPanel token={token} />}
@@ -297,8 +328,10 @@ export function AdminPanel({
                 required
                 minLength={2}
                 maxLength={120}
-                value={a.name}
-                onChange={(e) => setA({ ...a, name: e.target.value })}
+                value={attractionForm.name}
+                onChange={(e) =>
+                  setAttractionForm({ ...attractionForm, name: e.target.value })
+                }
               />
             </label>
             <label>
@@ -307,25 +340,35 @@ export function AdminPanel({
                 required
                 minLength={10}
                 maxLength={2000}
-                value={a.description}
-                onChange={(e) => setA({ ...a, description: e.target.value })}
+                value={attractionForm.description}
+                onChange={(e) =>
+                  setAttractionForm({
+                    ...attractionForm,
+                    description: e.target.value,
+                  })
+                }
               />
             </label>
             <label>
               Category
               <input
                 required
-                value={a.category}
-                onChange={(e) => setA({ ...a, category: e.target.value })}
+                value={attractionForm.category}
+                onChange={(e) =>
+                  setAttractionForm({
+                    ...attractionForm,
+                    category: e.target.value,
+                  })
+                }
               />
             </label>
             <label>
               Thrill level
               <select
-                value={a.thrill_level}
+                value={attractionForm.thrill_level}
                 onChange={(e) =>
-                  setA({
-                    ...a,
+                  setAttractionForm({
+                    ...attractionForm,
                     thrill_level: e.target
                       .value as EditAttraction["thrill_level"],
                   })
@@ -342,9 +385,12 @@ export function AdminPanel({
                 type="number"
                 min={0}
                 max={120}
-                value={a.minimum_age}
+                value={attractionForm.minimum_age}
                 onChange={(e) =>
-                  setA({ ...a, minimum_age: Number(e.target.value) })
+                  setAttractionForm({
+                    ...attractionForm,
+                    minimum_age: Number(e.target.value),
+                  })
                 }
               />
             </label>
@@ -354,19 +400,22 @@ export function AdminPanel({
                 type="number"
                 min={0}
                 max={250}
-                value={a.minimum_height_cm}
+                value={attractionForm.minimum_height_cm}
                 onChange={(e) =>
-                  setA({ ...a, minimum_height_cm: Number(e.target.value) })
+                  setAttractionForm({
+                    ...attractionForm,
+                    minimum_height_cm: Number(e.target.value),
+                  })
                 }
               />
             </label>
             <label>
               Status
               <select
-                value={a.operational_status}
+                value={attractionForm.operational_status}
                 onChange={(e) =>
-                  setA({
-                    ...a,
+                  setAttractionForm({
+                    ...attractionForm,
                     operational_status: e.target
                       .value as EditAttraction["operational_status"],
                   })
@@ -385,7 +434,7 @@ export function AdminPanel({
               className="text-button"
               onClick={() => {
                 setEditId("");
-                setA(emptyAttraction);
+                setAttractionForm(emptyAttraction);
               }}
             >
               Clear form
@@ -440,8 +489,10 @@ export function AdminPanel({
                 required
                 minLength={2}
                 maxLength={80}
-                value={t.name}
-                onChange={(e) => setT({ ...t, name: e.target.value })}
+                value={tierForm.name}
+                onChange={(e) =>
+                  setTierForm({ ...tierForm, name: e.target.value })
+                }
               />
             </label>
             <label>
@@ -451,9 +502,12 @@ export function AdminPanel({
                 min={1}
                 max={5}
                 required
-                value={t.min_guests}
+                value={tierForm.min_guests}
                 onChange={(e) =>
-                  setT({ ...t, min_guests: Number(e.target.value) })
+                  setTierForm({
+                    ...tierForm,
+                    min_guests: Number(e.target.value),
+                  })
                 }
               />
             </label>
@@ -461,12 +515,15 @@ export function AdminPanel({
               Maximum guests
               <input
                 type="number"
-                min={t.min_guests}
+                min={tierForm.min_guests}
                 max={5}
                 required
-                value={t.max_guests}
+                value={tierForm.max_guests}
                 onChange={(e) =>
-                  setT({ ...t, max_guests: Number(e.target.value) })
+                  setTierForm({
+                    ...tierForm,
+                    max_guests: Number(e.target.value),
+                  })
                 }
               />
             </label>
@@ -478,10 +535,10 @@ export function AdminPanel({
                 max={100000}
                 step={0.01}
                 required
-                value={t.price_cents / 100}
+                value={tierForm.price_cents / 100}
                 onChange={(e) =>
-                  setT({
-                    ...t,
+                  setTierForm({
+                    ...tierForm,
                     price_cents: Math.round(Number(e.target.value) * 100),
                   })
                 }
@@ -490,8 +547,10 @@ export function AdminPanel({
             <label className="checkbox-label">
               <input
                 type="checkbox"
-                checked={t.active}
-                onChange={(e) => setT({ ...t, active: e.target.checked })}
+                checked={tierForm.active}
+                onChange={(e) =>
+                  setTierForm({ ...tierForm, active: e.target.checked })
+                }
               />
               Available for new bookings
             </label>
@@ -503,7 +562,7 @@ export function AdminPanel({
               className="text-button"
               onClick={() => {
                 setTierId("");
-                setT(emptyTier);
+                setTierForm(emptyTier);
               }}
             >
               Clear form
@@ -523,7 +582,7 @@ export function AdminPanel({
                   className="secondary"
                   onClick={() => {
                     setTierId(row.id);
-                    setT({
+                    setTierForm({
                       name: row.name,
                       min_guests: row.min_guests,
                       max_guests: row.max_guests,
@@ -548,7 +607,10 @@ export function AdminPanel({
               void action(async () => {
                 let ticketToken = scan.trim();
                 if (/^WL-[A-F0-9]{32}$/.test(ticketToken)) {
-                  const ticket = await api<Ticket>(`/api/booking/admin/bookings/${ticketToken}/ticket`, token);
+                  const ticket = await api<Ticket>(
+                    `/api/booking/admin/bookings/${ticketToken}/ticket`,
+                    token,
+                  );
                   ticketToken = ticket.ticket_token;
                 }
                 const p = await api<Preview>(
@@ -684,9 +746,14 @@ export function AdminPanel({
               required
             >
               <option value="">Choose today's arrival</option>
-              {activity?.arrivals.map((arrival) => <option key={arrival.booking_reference} value={arrival.booking_reference}>
-                {arrival.booking_reference} · {arrival.guest_count} guests
-              </option>)}
+              {activity?.arrivals.map((arrival) => (
+                <option
+                  key={arrival.booking_reference}
+                  value={arrival.booking_reference}
+                >
+                  {arrival.booking_reference} · {arrival.guest_count} guests
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -701,10 +768,12 @@ export function AdminPanel({
             >
               <option value="">Choose an open attraction</option>
               {attractions
-                .filter((a) => a.operational_status === "open")
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
+                .filter(
+                  (attraction) => attraction.operational_status === "open",
+                )
+                .map((attraction) => (
+                  <option key={attraction.id} value={attraction.id}>
+                    {attraction.name}
                   </option>
                 ))}
             </select>

@@ -1,6 +1,18 @@
 # Terraform: start and remove the AWS demo
 
-The selected deployment keeps everything in AWS: one 8 GiB `m7i-flex.large` server in `us-east-1`, separate visitor/admin Amplify websites, Cognito, ECR, SQS, API Gateway, private artifacts and runtime secrets. PostgreSQL and Metabase run on the server. The live deployment was destroyed on 16 October 2026; the final AWS inventory found no active demo resources. Deployment IAM policies and local configuration are retained.
+The selected deployment keeps everything in AWS: one 8 GiB `m7i-flex.large` server in `us-east-1`, separate visitor/admin Amplify websites, Cognito, ECR, SQS, API Gateway, private artifacts and runtime secrets. PostgreSQL and Metabase run on the server. The latest live deployment was destroyed; the final AWS inventory found no active demo resources. Deployment IAM policies and local configuration are retained.
+
+## Required tools and private configuration
+
+This project's laptop already has its private target, credentials, permissions and tool binaries. Keep those files; do not overwrite them during the reorganization.
+
+For a fresh machine, install Python/Node/uv as described in the README, AWS CLI and Session Manager plugin, and Terraform **1.16.6**. The controller prefers `terraform` on PATH and otherwise uses `tmp/tools/terraform`. The provider is pinned by the checked-in lock files. The root target is selected explicitly; the optional EKS/RDS configuration is separate.
+
+Copy `infrastructure/terraform/aws/target.example.json` to the ignored `secrets/simple-cloud/target.json`, replacing the account and AMI placeholders. Select an available official Ubuntu x86-64 AMI owned by `099720109477` in us-east-1; `up` verifies owner, architecture, server eligibility and memory before creation. The availability zone can be omitted so preflight selects an offered zone. Use a fresh lowercase release identifier when source changes.
+
+Root `.env` holds the reviewed non-root AWS credentials and a Stripe `sk_test_` key. For a new deployment, leave `APP_STRIPE_WEBHOOK_SECRET` blank: the release helper creates the matching sandbox endpoint after the API URL exists and stores the signing secret privately. Never put AWS or Stripe secrets in `VITE_` variables. The original project's reusable IAM grants remain installed; new accounts require the separate reviewed administrator setup below.
+
+Use `./demo.sh` for the normal viva sequence. `cloud.sh` exposes additional planning/recovery commands; they use the same implementation.
 
 ## One-time permissions setup
 
@@ -29,7 +41,7 @@ The installed correction adds project-scoped S3 object-version deletion and publ
 
 ## Everyday use
 
-Keep AWS and Stripe sandbox credentials in the ignored root `.env`. Keep the private target in `secrets/simple-cloud/target.json`. Source changes require a fresh immutable release name; do not reuse the previous `r20261016-demo5` for changed source.
+Keep AWS and Stripe sandbox credentials in the ignored root `.env`. Keep the private target in `secrets/simple-cloud/target.json`. Source changes require a fresh immutable release name; do not reuse an identifier from a different source revision.
 
 ```bash
 cd /Users/sadithaudayanga/Projects/wonderland

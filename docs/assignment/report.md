@@ -1,118 +1,68 @@
-# Wonderland: cloud-native booking and analytics platform
+# Wonderland: booking, admission and reporting MVP
 
-SE6020 — Architecting Enterprise Cloud Solutions / Cloud Computing  
-Technical report for the implemented local MVP and prepared cloud architecture  
-Evidence date: 15 October 2026; viva date supplied for this project: 8 November 2026
+SE6020 — Cloud Computing / Architecting Enterprise Cloud Solutions
+Student name: **[complete]** · Student ID: **[complete]**
+Repository/submission links: **[complete after authorized publication]**
 
-**Status:** the application is implemented locally. The local infrastructure evidence records measured results. AWS deployment, managed authentication/hosting, external payment delivery and remote CI are explicitly separate verification gaps. This report requires the student's review, screenshots and submission details before academic submission.
+**Evidence status:** the original AWS implementation completed a core cloud rehearsal. The source has since been reorganized and verified with 198 regression tests, both frontend builds, local startup and six offline Terraform configurations. A new complete AWS run of the reorganized source is not claimed. UI/chart review, an ordinary operating-hours walkthrough, remote CI and submission remain open gates.
 
-## 1. Objective and requirements
+## 1. Objective and scope
 
-Wonderland needs a visitor-facing attraction catalogue and ticket booking system, together with administrator controls and visibility into park activity. The official assignment is the primary requirements source [1]. Its visitor requirements include authentication/profile, attraction suitability, one ticket tier per booking, visit date/time, secure payment, a reference or QR ticket, and owned history. Administrator requirements include attraction and price management plus visitor/ride analytics. The required reports cover daily arrivals, tickets and revenue by tier, popular attractions, and busiest/quietest hours.
+Wonderland supports visitors browsing attractions, registering/signing in, booking one ticket tier for a party/date/time, paying in a Stripe sandbox, obtaining a signed QR ticket and viewing owned history. Administrators manage attractions and pricing, admit paid bookings, record ride activity and inspect operational reports. [Requirements](requirements.md) and [coverage](coverage.md) map the supplied assignment to implementation and evidence.
 
-The assignment also assesses microservices, containers, Kubernetes and a gateway, persistent data, a web interface, managed cloud authentication/hosting, monitoring visualization, Infrastructure as Code and repository integration. These requirements are mapped individually in [requirements traceability](requirements.md), with all seven rubric weights and live acceptance gates in [current assignment coverage](coverage.md). A successful local demonstration does not establish all cloud assessment requirements.
+There are separate React visitor and administrator entry points. The API enforces identity, role and ownership checks regardless of which website sends a request. Refunds, partial arrival, re-entry and production capacity planning are outside this MVP.
 
-The project uses the uploaded lectures/labs as supporting sources, particularly cloud design patterns [2], Docker [3], and Kubernetes [4–5]. The assignment remains authoritative where implementation convenience differs from its expectations. Its page 3 cloud-specific automation wording and page 4 allowance for CloudFormation or Terraform should be clarified with the lecturer before relying on Terraform alone for the live AWS assessment.
+## 2. Implemented architecture
 
-## 2. Scope and user experience
+The selected AWS topology uses Amplify for the two websites, Cognito for managed identity and API Gateway for the HTTP API. API Gateway sends requests over verified HTTPS to an origin-protected NGINX proxy on one 8 GiB EC2 server. K3s runs the service workloads, PostgreSQL and Metabase. ECR stores immutable images, S3 holds private build artifacts, SQS transports events and CloudWatch receives application logs. The current [system diagram](../diagrams/system.mmd) shows this topology.
 
-The MVP has two independent React/TypeScript entry points: a visitor app and an administrator app. Both reuse shared API/component code. The visitor can browse without authentication, then sign in, select a tier/party/date/slot, create a booking, confirm a simulated payment, and view a signed QR ticket and history. Profile and visit history are available under My account.
+Four independently built services separate attractions, booking/payment/profile, gate/rides and analytics. PostgreSQL schemas and database roles separate ownership. This is self-managed PostgreSQL on encrypted EBS, not RDS. The optional EKS/RDS design is retained under `infrastructure/terraform/advanced/`; it is not the topology used for the core cloud rehearsal.
 
-The administrator can create/update/retire attractions, manage database-stored tiers/prices, admit a paid booking by reference or signed QR content, record ride usage for a checked-in party, and view reports. The reference shortcut resolves the booking into its signed ticket through an administrator-protected booking endpoint; gate still verifies that ticket and enforces the visit date and full party count. It does not bypass payment or signature verification.
+One server keeps the small demonstration manageable and within its reviewed memory/budget needs. A server or database outage is a shared failure domain. Pod replicas and HPA do not establish multi-node high availability or lower a fixed EC2 bill automatically.
 
-The simple launcher starts native PostgreSQL, the APIs and both apps in one terminal. A separate command performs the Kubernetes infrastructure rehearsal. Complex operator commands remain inside scripts and optional technical guides rather than the primary demonstration instructions. The walkthrough is [the short demo guide](../local/demo.md); infrastructure commands are in [the local infrastructure guide](../local/kubernetes.md).
+## 3. Booking, payment and ticket integrity
 
-## 3. Implemented architecture
+Reservation creation validates the tier, party size, visit date and future time slot. It stores the tier name, revision and price at creation. Subsequent administrative price changes do not rewrite an existing booking's amount. An owner/idempotency-key constraint makes a retry return the existing logical booking; conflicting reuse is rejected.
 
-The system separates catalogue, booking/payment/profile, gate/ride operations and reporting into four deployable services. PostgreSQL stores separate owned schemas, with restricted service roles. This balances independent application deployment against local operational simplicity. A shared database instance remains an explicit failure domain; this is not a database-per-service or highly available production design.
+Stripe Checkout is sandbox-only. The booking remains pending until a webhook signature is verified and its session, reference, amount and currency match stored data. Event IDs/fingerprints deduplicate notification retries. The confirmation transaction updates payment state and stores a purchase event in the outbox. A declined payment remains unpaid and produces no reporting revenue.
 
-```mermaid
-flowchart LR
-  V[Visitor app] --> G[Local nginx gateway]
-  A[Administrator app] --> G
-  G --> C[Attractions API]
-  G --> B[Booking and payment API]
-  G --> R[Gate and ride API]
-  G --> W[Analytics API and worker]
-  R -->|Open ride lookup through Service DNS| C
-  C --> DB[(PostgreSQL: owned schemas)]
-  B --> DB
-  R --> DB
-  DB -->|Outbox and durable queue| W
-  W -->|Deduplicated reporting facts| DB
-  M[Optional Metabase: read-only views] --> DB
-```
+Only confirmed bookings receive signed RS256 QR tickets. The gate verifies the public key, audience, issuer, ticket kind and visit date independently of the booking API. A unique check-in constraint admits the full booked party once. Ride records require admission, a valid visit date, an open attraction and a permitted guest count; event IDs deduplicate retries.
 
-This diagram describes local Kubernetes. Native development uses Vite's local proxies instead of nginx. Native and cluster databases/credentials are separate. Metabase is verified against the native database and is started with `./start.sh monitoring`; it does not automatically query cluster records.
+## 4. Reporting and resilience
 
-The selected smaller AWS target runs K3s Kubernetes, PostgreSQL and Metabase on one Free-plan-eligible 8 GiB x86 EC2 server (`m7i-flex.large`), with separate Amplify visitor/admin websites, Cognito, SQS, ECR, Secrets Manager, CloudWatch application logs and AWS API Gateway. The gateway forwards over verified HTTPS to a protected public-IP origin; internal services and PostgreSQL also use verified TLS. Administration and Metabase use private SSM access. The server was provisioned on 16 October 2026; K3s reports Ready, SSM is online, both Amplify websites are published, and Cognito email signup/confirmation/login passed. Application image publication and integrated cloud verification remain in progress. EKS/private RDS/private ALB/IRSA remain an optional advanced design, not the selected deployment. Additional architecture diagrams and trade-offs are in [architecture](../architecture/overview.md) and [decisions](../architecture/decisions.md).
+Business transactions retain events in an outbox. The analytics worker publishes/consumes queued events and records each processed event ID before creating reporting facts. A worker outage delays reports while business events remain durable. The reporting schema separates purchases, arrivals and rides. Metabase uses a read-only BI login and seven saved SQL cards for daily arrivals, tickets/revenue by tier, attraction popularity, hourly arrivals, busiest/quietest hours and outside-hours arrivals.
 
-## 4. Data integrity and booking lifecycle
+Kubernetes startup/readiness/liveness probes, replicas and replacement improve process recovery. Circuit breakers and bounded operations limit dependency failures. The catalog HPA uses CPU utilization within a two-to-three replica bound. A whole-host or shared-database failure still requires operational recovery; it is not covered by independent pod replicas.
 
-Ticket tiers and prices are stored in PostgreSQL. Initial prices are Individual USD 40, Couple USD 75, Family USD 140 and Group USD 165, with guest limits enforced by the backend. Administrators can change these records. Each booking retains the tier/price snapshot used at creation, so subsequent price edits do not rewrite historical purchases. Money is represented as integer cents.
+## 5. Infrastructure, security and lifecycle
 
-A booking begins pending. User-bound idempotency keys and payload fingerprints protect retries: the same command reuses its result, while conflicting reuse is rejected. Confirmation checks a verified provider event against the stored checkout, amount and currency, then updates booking/payment/outbox state transactionally. The local payment simulator exercises a signed server event through the verification path without contacting a payment provider. The Stripe test adapter has offline request/signature/circuit-breaker tests; actual external checkout and webhook delivery remain unverified.
+The main Terraform root is `infrastructure/terraform/aws/`. Files are split by network, compute, storage, identity, hosting, gateway and monitoring while retaining resource addresses and one private local state. Terraform versions/providers are pinned. The separate `permissions/` root manages reusable bounded deployment grants; normal demo cleanup retains those policy definitions and attachments.
 
-Tickets use an RSA signature. Booking holds the private signing key; gate receives the public key and an opaque ownership-tag key. Admission requires a valid signed ticket for today's Asia/Colombo visit date and the entire booked party. A unique reference prevents a second arrival. Ride recording requires today's arrival, a count within party size and a currently open attraction verified through a bounded catalogue request. Stable ride event identifiers protect retries. Visitor history is filtered by verified ownership rather than user-provided owner parameters.
+`./demo.sh up` reviews the actual target/plan/cost, then provisions resources and coordinates application release. Server-side helpers build images and both websites, run migrations, configure Kubernetes and publish Amplify artifacts. Static AWS keys do not enter public source bundles or server build commands. Runtime material is fetched privately through Secrets Manager; temporary build credentials are removed from the current runtime value after use.
 
-Normal booking rules reject past dates, dates more than 365 days ahead and elapsed same-day slots. The local demo launcher explicitly permits today's elapsed slots to allow an evening rehearsal; dates, payment, identity and admission checks remain enforced. Demo mode cannot be enabled with cloud/non-local identity settings. This exception must not be described as normal production booking behavior.
+Cognito JWTs establish identity; the services enforce administrator membership and ownership. Service/database TLS, encrypted disk, a private artifact bucket, protected origin routing, limited public ports, restricted runtime permissions and private Metabase access define the security boundaries. The server role is one shared trust domain; per-pod IRSA is not claimed for this topology.
 
-## 5. Reporting and design patterns
+`./demo.sh down` verifies a fresh off-server database backup before reviewed Terraform deletion and then audits remaining resources. A bounded retry handles only a detached demo IP after no active demo server remains. Other leftovers, associated IPs or backup failures stop the automatic path. Local state, configuration, evidence and backups remain private. Backup checksum/gzip validation passed; restore has not been rehearsed.
 
-Operational changes write outbox events with the business transaction. The local worker moves them into a durable PostgreSQL queue and projects purchases, arrivals and rides into reporting facts. Source acknowledgement/queue insertion and fact/deduplication/completion each have atomic transaction boundaries. Invalid work retries with backoff and reaches a stored dead-letter state after the configured limit. Reporting is eventually consistent: a successful operation can precede its updated chart/table.
+## 6. Observed results and limits
 
-The five required metrics are calculated from stored facts, not fabricated chart series. Local purchases/arrivals are demonstration data, not real park statistics. Arrivals sum actual admitted guests; ticket counts count purchased bookings; revenue uses confirmed cents; attraction popularity sums riders; hourly arrivals include zero-filled operating-hour buckets. Daily/hourly boundaries use Asia/Colombo, and the provisional operating window is 09:00–18:00. Outside-hours arrivals remain in daily totals and are identified separately. Equal counts share busiest/quietest ranks.
+The original AWS rehearsal provisioned 45 resources and completed server-side container/site builds, HTTPS routing, Cognito confirmation/login, role/owner checks, successful and declined sandbox payments, payment retry handling, concurrent admission, ride retry handling, booking/gate isolation, analytics recovery, pod replacement and seven Metabase SQL queries. Source and reporting records reconciled to one paid booking/USD 140, four admitted guests and two ride events/eight riders.
 
-| Pattern | Implementation and reason | Limit |
-|---|---|---|
-| CQRS/read model [2, pp8–14] | Validated operational writes feed separate reporting facts/views | Shared physical database; eventual report lag |
-| Service discovery [2, pp21–22] | Gate addresses catalogue through stable Kubernetes Service DNS | Cluster DNS/network dependency |
-| Circuit breaker [2, pp23–24] | Bounded Stripe-adapter retries and closed/open/half-open behavior | Per-process state; real provider operation pending |
-| Gateway [2, pp25–27] | Local nginx routes browser requests to internal APIs | Actual AWS API Gateway remains unverified |
-| Health checks [2, pp36–37] | Liveness separates process state from database/schema readiness | Shared DB failure affects several ready states |
-| Transactional outbox/idempotency | Commit business state and durable work together; deduplicate repeated events | At-least-once delivery is not exactly-once transport |
+The run occurred after available booking slots. It first rejected a future-date gate ticket, then used a documented one-booking visit-date fixture for the positive same-day admission test. Application date checks remained enabled. This does not prove an ordinary same-day purchase after closing. Hourly reports correctly showed outside-hours arrivals and zero operating-hour counts; the small dataset does not establish a meaningful business peak.
 
-Metabase uses a restricted BI role with access to reporting aggregate views. The local monitoring launcher verifies all seven saved SQL questions, and source/report reconciliation has passed. The native development metadata store uses H2 and must not be presented as a production metadata deployment. The optional cloud metadata design uses separate PostgreSQL ownership, with real deployment pending.
+A burst triggered an observed HPA 2→3→2 cycle, with 979 successes and 11,021 unclassified unsuccessful responses above the gateway's configured 20 requests/second limit. A separate 18 requests/second test returned 2,724 successes and zero errors; CPU stayed below the HPA threshold and two replicas were retained. These are bounded demo observations, not a production capacity benchmark.
 
-## 6. Security boundaries
+The first teardown pass encountered a stale IP-association authorization error. A refreshed Terraform plan released the detached IP, and inventory confirmed no active demo resources. The guarded automatic retry added afterward has four regression cases; another full AWS create/destroy cycle after the helper change and source reorganization has not been repeated.
 
-Local sign-in verifies generated private passwords with salted scrypt hashes and issues one-hour signed access tokens. Roles and subjects come from server configuration, not the login request. Wrong-portal accounts are rejected. The visitor bundle excludes the administrator dashboard, but security does not depend on that separation: every protected API independently checks the role and booking/history endpoints enforce ownership. Local password login is bounded per process and is explicitly prohibited outside local/test identity configuration.
+Detailed observations: [AWS results](../results/aws-rehearsal.md), [machine-readable evidence](../results/evidence/aws-rehearsal.json), and [current commands](../demo.md). Historical local results remain separate under `docs/results/`; the earlier local report is retained under `docs/archive/`.
 
-Browser sessions keep tokens in memory and clear on refresh/sign-out. Private credentials, ticket keys, local databases and course PDFs are ignored by Git. Request logging uses sanitized route templates/request IDs rather than body, token, secret or URL query content. Only booking receives the private ticket key and payment secrets; other services have separately scoped database roles. Local pods use non-root identities, read-only root filesystems, dropped capabilities, bounded resources and no automatic API token mount.
+## 7. Submission and handover
 
-Local loopback HTTP and single-node Kubernetes Secrets are development boundaries, not proof of production TLS or encryption at rest. The selected AWS configuration adds encrypted EBS/S3/SQS, verified PostgreSQL and service TLS, managed secrets, a bounded EC2 runtime IAM role and Cognito verification. Pods share that node role within one trust domain; this is not per-pod IRSA. The advanced design separately prepares RDS/IRSA. Actual AWS permissions, TLS delivery, identity lifecycle and leakage review must be demonstrated before making production claims.
+`./demo.sh package` creates a source-only ZIP with hashes, excluding credentials, private databases/state, installed dependencies and generated builds. This is a bounded packaging safeguard. The CI workflow runs local regression/build/container checks and offline Terraform validation without AWS credentials; a successful remote workflow must be observed after authorized publication.
 
-## 7. Infrastructure and reproducibility
+The student must review the hosted pages/dashboard, rehearse the ordinary operating-hours flow, add screenshots and personal details, verify repository access, observe CI and submit through the required process. [The viva guide](../viva.md) supports an explanation in the student's own words.
 
-A named Colima VM hosts a named Minikube cluster using a dedicated private kubeconfig. The local helper rejects non-local targets. PostgreSQL uses a persistent volume; deployment waits for database readiness and a versioned migration Job before rolling out APIs. Locally reused image tags are followed by rollout restarts so updated code and Secrets reach running pods.
-
-The catalogue has two baseline replicas and an HPA bounded to three using CPU utilization. Real HTTP catalogue load is used for the scaling demonstration. Blue and green deployments use the same domain artifact with distinct version metadata to demonstrate atomic Service selection and rollback; this is not a new-feature rollout. Failure tests restore worker/database/deployment baselines and retain measured outcomes, including failed attempts.
-
-Terraform now has five roots. The selected simple root provisions the no-domain EC2/K3s topology; four optional advanced roots retain state bootstrap, identity/hosting/registry, EKS/RDS and private gateway-edge infrastructure. The simple cloud wrapper automates bootstrap, image publication, database migration, workloads, hosting and verification after a reviewed saved plan. Local private Terraform state requires a secure backup. A live read-only plan succeeded with 45 creations and no deletions; offline validation/mock checks passed for all five roots. The reviewed deployment permissions are installed and actual provisioning succeeded. The observed m7i-flex.large compute quote is $0.09576/hour before storage/IPv4/service usage. Six-hour auto-stop and explicit stop/start limit compute runtime, while retained resources can still consume credits. Neither stop nor a Free-plan credit balance proves zero cost.
-
-## 8. Testing and evidence
-
-Application tests cover real PostgreSQL transactions, concurrent booking/event behavior, authorization/ownership, signature validation, price snapshots, projection/deduplication/permissions, cloud configuration guards and handover privacy. Both visitor/admin builds are type-checked. Local HTTP scenarios exercise actual API/proxy/database interactions rather than only mocked domain responses.
-
-The single infrastructure-test command runs four offline Terraform roots, actual image builds/deployment, business integration, pod replacement, blue-green rollback, worker interruption/catch-up, database readiness/PVC recovery, HPA load and final report/source reconciliation. The authoritative measured record is [local infrastructure evidence](../results/evidence/local-infrastructure.json). Its timestamps, step status, elapsed time and explicitly public observations come from execution; private raw logs remain outside the handover.
-
-One rehearsal exposed metrics-server sampling lag after a pod replacement. The failed result was preserved, the baseline restored, and autoscaling was changed to wait a bounded interval for metrics before starting load. A second attempt served 45,064 successful requests with no failures and reached three ready pods, but an assertion rejected the lagging HPA current-replica field. The assertion was corrected to require an HPA scale-up request together with actual ready Deployment capacity. Both attempts are preserved; only a fully successful retry establishes a passing suite. Exact request throughput is a measurement for this Mac, not a production capacity promise.
-
-The final local rehearsal passed all **14 stages**, including **46,964 successful catalogue requests with zero failures** and HPA scale **2 → 3 → 2**. Scale-up was observed after the load sampling window; the deployment's ready count and the HPA request provided the scale-up evidence. The current application/packaging suite passed **149 tests with no skips** and both frontend builds passed. One existing Starlette TestClient deprecation warning remains. These results describe the local run, not cloud throughput or managed-service verification.
-
-The Git remote is configured and a read-only SSH HEAD query succeeded. The CI definition runs tests, builds, offline Terraform checks, container checks and a source-only handover artifact. Remote source publication and a successful workflow run still require observed evidence. Manual browser appearance, screenshots and the student's timed explanation remain personal review tasks.
-
-## 9. Limitations and assessment readiness
-
-The local MVP demonstrates the core visitor/admin flows and local orchestration. It deliberately excludes cancellation/refunds, partial arrival, re-entry, production capacity controls and ticket revocation policies. The shared database, single-node cluster and per-process authentication throttling are not production high availability or distributed security controls. Report lag, certificate rotation and retention need operational policies before production.
-
-The Phase 7 AWS rehearsal remains pending; the local rehearsal is development/testing evidence only. The selected K3s/PostgreSQL host is one failure domain. A pod HPA does not provide node autoscaling or reduce the EC2 hourly rate. Cloud concurrent booking/check-in, event-burst handling and individual-service failure recovery must still be demonstrated; production seasonal capacity and whole-host/database high availability are not claimed. Phase 8 has a report, source evidence and a viva script, with academic review, public repository access, remote CI, hosted integrations and submission still pending. The user-requested Phase 9 adds a clean handover archive and restart/stop commands; no earlier roadmap definition of Phase 9 is implied.
-
-Cold shutdown/restart also preserved eight confirmed bookings and their matching purchase facts; the existing administrator password remained valid. Repeated stop is harmless, even after Minikube clears its kubeconfig entries. See [local handover evidence](../results/evidence/local-handover.json).
-
-The handover command packages source and public documentation with file hashes and an archive checksum. It excludes credentials, database state, installed dependencies, build output and private course material, even if an excluded path was accidentally tracked. It refuses recognized private-key/live-credential material. This is a bounded packaging safeguard, not a universal secret-scanner guarantee.
-
-## 10. References and acknowledgement
+## 8. References and acknowledgement
 
 [1] SLIIT, *Assignment — Cloud Computing 2026 — AUG*, supplied course document, pp1–4. Primary functional requirements, tasks and assessment weights. Original retained privately.
 

@@ -43,7 +43,7 @@ Stops the named local cluster and VM. Database volumes, signing keys and images 
 ./start.sh package
 ```
 
-Creates `tmp/handover/wonderland-mvp.zip` and its SHA-256 file. The source archive includes the report, guides, code and optional infrastructure. Credentials, database files, installed dependencies, build output and private course PDFs are excluded.
+Creates `tmp/handover/wonderland-source.zip` and its SHA-256 file. The source archive includes the report, guides, code and optional infrastructure. Credentials, database files, installed dependencies, build output and private course PDFs are excluded.
 
 For app-only testing, use `./start.sh test`. For app-only startup, use `./start.sh`.
 

@@ -1,4 +1,4 @@
-"""Small AWS demo operator. Credentials/state stay in ignored private files."""
+"""AWS lifecycle commands for Wonderland; credentials and state stay private."""
 
 import argparse
 import base64
@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -23,7 +24,7 @@ from scripts.aws.policies import policies
 
 PRIVATE = ROOT / "secrets/simple-cloud"
 TFROOT = ROOT / "infrastructure/terraform/aws"
-TF = str(ROOT / "tmp/tools/terraform")
+TF = shutil.which("terraform") or str(ROOT / "tmp/tools/terraform")
 
 
 def aws_environment(settings):
@@ -406,11 +407,8 @@ def dispatch(args, aws, target_settings):
             )
             destroy(aws, target_settings, value, args.approve)
     else:
-        from scripts.aws.release import (
-            release_application,
-            verify_deployment,
-            open_monitoring_tunnel,
-        )
+        from scripts.aws.release import release_application
+        from scripts.aws.verification import verify_deployment, open_monitoring_tunnel
 
         {
             "release": release_application,

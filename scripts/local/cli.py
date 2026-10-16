@@ -236,6 +236,7 @@ def main():
         start_database()
         run(PYTHON, "-m", "pytest", "-q")
         run("npm", "--prefix", "frontend", "run", "build")
+        run(PYTHON, "scripts/checks/docs.py")
         print("MVP tests and both frontend builds passed.")
     else:
         start(args.check)

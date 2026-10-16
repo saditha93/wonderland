@@ -1,90 +1,83 @@
-# Wonderland MVP
+# Wonderland
 
-A theme park booking demo with a separate visitor app and administrator app.
+A theme park booking MVP with separate visitor and administrator websites. Four Python services handle attractions, bookings/payments, gate/rides and reporting. The AWS demo runs Kubernetes, PostgreSQL and Metabase on one server, with Amplify, Cognito, API Gateway, ECR and SQS around it.
 
-The complete AWS build and core business/recovery tests have been rehearsed; see the [observed results and run guide](docs/results/aws-rehearsal.md). Images, visitor/admin websites, APIs, PostgreSQL and Metabase build or run in AWS. Your laptop holds the controller, private Terraform state and backups. Local Docker and Node.js are not required for the cloud commands.
-
-## AWS commands
+## Start here
 
 ```bash
-./cloud.sh up          # Review Terraform, then deploy and release
-./cloud.sh status      # Actual visitor/admin/API URLs
-./cloud.sh verify     # Live cloud checks
-./cloud.sh monitoring # Private Metabase tunnel
-./cloud.sh down        # Review deletion, back up and destroy
-./cloud.sh cleanup-check
+./demo.sh help
+./demo.sh test
+./demo.sh terraform-check
 ```
 
-Use the [Terraform up/down guide](docs/deployment.md). The complete cloud setup uses the reviewed 8 GiB Free-plan-eligible server; credits still cover usage. Deployment IAM permissions and local configuration are retained for the next deployment.
+`test` runs the regression suite and builds both websites. `terraform-check` validates six configurations with mocked providers. Neither creates AWS resources.
 
-## Optional local demonstration
-
-On this Mac, the dependencies are already installed. Open one terminal:
+For a live demonstration:
 
 ```bash
-cd /Users/sadithaudayanga/Projects/wonderland
-./start.sh
+./demo.sh up       # Review the real plan and cost; type UP
+./demo.sh status   # Show visitor/admin/API URLs
+./demo.sh check    # Check hosting, APIs, access rules and Metabase SQL
+./demo.sh monitor  # Private Metabase tunnel; keep this terminal open
 ```
 
-Keep the terminal open. It starts the database, APIs and both apps, then shows your private sign-in details.
-
-- **Visitor:** http://localhost:5173 — browse, book, pay and view tickets.
-- **Admin:** http://localhost:5174 — manage attractions/prices, check in visitors, record rides and view reports.
-
-Press **Ctrl-C** to stop the apps. Bookings and passwords stay saved. Run the same command next time.
-
-## Demonstrate
-
-Follow the [short demo guide](docs/local/demo.md). The main flow is:
-
-**Book today's visit → demo payment → ticket → admin check-in → ride → reports.**
-
-The local launcher allows today's bookings even after the chosen slot, so you can rehearse at any time. Payments are simulated; no money is charged. Existing booking data is preserved. No Docker, Kubernetes, Metabase or AWS setup is needed for this MVP walkthrough.
-
-## Test
+Use [the demonstration guide](docs/demo.md) for the visitor → payment → gate → ride → reports walkthrough. When finished, close the monitoring tunnel with Ctrl+C and run:
 
 ```bash
-./start.sh test
+./demo.sh down     # Review deletions; type DOWN; backup precedes destruction
+./demo.sh audit    # Confirm no active demo resources remain
 ```
 
-This runs the Python tests and builds both apps. It does not create demo bookings or contact AWS.
+Keep Terminal open until commands finish. Stopping or manually terminating EC2 is not the complete cleanup procedure. Deployment permissions, local configuration and private backups remain for the next run. AWS usage consumes credits; `up` displays the reviewed cost before creating resources.
 
-## Assignment monitoring dashboard
+## Understand and present the project
 
-Keep the app running, then open a second terminal:
+| Guide | Use it for |
+|---|---|
+| [Demo](docs/demo.md) | Commands, browser steps and expected results |
+| [Viva](docs/viva.md) | A short speaking script and answers to likely questions |
+| [Code guide](docs/code-guide.md) | Where each responsibility lives and which functions to explain |
+| [Deployment](docs/deployment.md) | Terraform, initial permissions and recovery details |
+| [Observed AWS results](docs/results/aws-rehearsal.md) | What was actually tested, including limitations |
+| [Assignment checklist](docs/assignment/coverage.md) | Remaining report, UI review, CI and submission work |
 
-```bash
-./start.sh monitoring
+The live rehearsal completed before this source reorganization. The reorganized source is checked with regression tests, both frontend builds, local startup and offline Terraform tests; it has not yet had another complete AWS deployment. Historical results are not presented as a new live run.
+
+## Folder map
+
+```text
+frontend/src/             visitor/, admin/, auth/, shared/
+services/                 attractions, booking, gate/ride, analytics
+wonderland_common/        shared authentication, database, tickets, resilience
+scripts/aws/              main cloud lifecycle and server build tools
+scripts/local/            optional laptop demo
+scripts/checks/           optional integration scenarios
+infrastructure/aws/       server bootstrap and Kubernetes installation
+infrastructure/terraform/ aws/ (main), permissions/ (one-time), advanced/ (optional)
+analytics/                dashboard and seven SQL queries
+tests/                    regression and safety checks
+docs/                     current guides, assignment, results and archive
 ```
 
-This starts Metabase, verifies its seven saved queries and prints the dashboard URL/private login. See the [short assignment dashboard guide](docs/local/monitoring.md).
+The optional EKS/RDS design and historical phase material are retained under `advanced/` and `docs/archive/`; they are not the main viva deployment.
 
-## Local infrastructure and handover
+## Fresh laptop setup
 
-```bash
-./start.sh infra-test   # Build/deploy locally and run recovery/scaling tests
-./start.sh infra        # Open the Kubernetes visitor/admin apps
-./start.sh infra-stop   # Stop the cluster/VM; keep data
-./start.sh package      # Create the clean source ZIP
-```
-
-Run infrastructure commands one at a time. `infra-test` starts its own gateway; close an existing `infra` terminal first. See the [short infrastructure guide](docs/local/kubernetes.md).
-
-The [project report](docs/assignment/report.md) and [viva speaking guide](docs/viva.md) are ready for your review. Local tests do not complete the original AWS deployment phase or verify remote GitHub CI.
-
-## One-time setup on a fresh checkout
-
-Use Python 3.12, uv, Node.js 22.12+ and PostgreSQL 17. On this Mac PostgreSQL binaries are under `/opt/homebrew/opt/postgresql@17/bin`.
+Use Python 3.12, uv, Node.js 22.12+ and PostgreSQL 17 for local tests. On this Mac the PostgreSQL binaries are under `/opt/homebrew/opt/postgresql@17/bin`.
 
 ```bash
 uv venv --python 3.12 .venv
 uv pip sync requirements-dev.lock --python .venv/bin/python
 npm --prefix frontend ci
-./start.sh
 ```
 
-Create `.venv` only if it does not exist. Private accounts are generated under `secrets/`; do not share or commit them.
+Create `.venv` only if missing. Cloud deployment additionally needs the AWS CLI, Session Manager plugin, the pinned Terraform binary and the private target configuration; see [deployment setup](docs/deployment.md). Images and websites build on AWS, so local Docker/Node are not required for the cloud build itself.
 
-## Optional assignment material
+Optional commands:
 
-The AWS, Kubernetes, Metabase, architecture and phase evidence files are retained separately for the SE6020 assignment. They are optional for this local demo. See [advanced documentation](docs/README.md). Actual cloud hosting/authentication and external payment delivery still require separate verification.
+```bash
+./demo.sh local     # Visitor localhost:5173; admin localhost:5174
+./demo.sh package   # Source-only ZIP in tmp/handover/
+```
+
+Private credentials, Terraform state and backups stay in ignored `.env`, `secrets/` and `tmp/`. Never submit those directories. `cloud.sh` and `start.sh` remain available for advanced and existing workflows.

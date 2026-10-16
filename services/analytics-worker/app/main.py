@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from botocore.exceptions import BotoCoreError, ClientError
 from .sqs_transport import SqsTransport
-from wonderland_common.web import create_app, SAFE_REQUEST_ID
+from wonderland_common.web import create_app
 from wonderland_common.auth import administrator
 from .pipeline import tick
 

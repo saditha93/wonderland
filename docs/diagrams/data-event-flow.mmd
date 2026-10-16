@@ -1,4 +1,4 @@
-%% Proposed architecture; not deployed in Phase 1
+%% Logical application flow; the selected AWS topology is in system.mmd
 flowchart LR
  Command --> Transaction[Domain write and outbox in one transaction]
  Transaction --> Publisher[Retrying publisher]

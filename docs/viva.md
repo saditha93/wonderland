@@ -1,44 +1,88 @@
-# Simple viva rehearsal
+# Viva speaking guide
 
-Use this as a speaking guide, and explain the code in your own words. The report and screenshots require your personal review before submission.
+Use [demo.md](demo.md) for the exact sequence. Prepare the deployment before your presentation so image downloads do not consume speaking time. Show a real Terraform creation/cleanup when the examiner requests IaC evidence; an offline mock is labelled as such.
 
-## Before presenting
+## A short presentation
 
-Run `./start.sh test` and `./start.sh infra-test`. Read the recorded pass/fail results. Do not present passwords, readable QR payloads or private terminal logs. Keep the source archive from `./start.sh package` ready. Confirm the lecturer's provisioning/submission rules; a local rehearsal does not satisfy live AWS requirements by itself.
+**Opening — 30 seconds**
 
-## App: about five minutes
+“Wonderland is a theme park booking MVP. Visitors browse, book, pay and receive signed tickets. Administrators manage attractions/prices, admit guests and record ride activity. Reporting uses actual events from those operations.”
 
-1. Open the visitor app. Explain: “Visitors can browse rides and choose a ticket tier.”
-2. Sign in, book four guests for today and confirm the demo payment. Explain that the backend stores the price and verifies confirmation; the simulator does not charge money.
-3. Show the reference/QR and My bookings.
-4. Open the separate admin app. Check in that reference for four guests. Repeat it to demonstrate duplicate prevention.
-5. Choose that arrival and record two riders at an open attraction.
-6. Open Reports. Show the five required metrics and explain that reports update after processing. Mention Sri Lanka time and the 09:00–18:00 hourly window.
-7. If asked, show price/attraction management and the visitor profile/history.
+**Architecture — 60 seconds**
 
-## Infrastructure: allow several minutes
+Open `docs/diagrams/system.mmd` or the architecture guide. Explain four independently built services: attractions, booking/payment/profile, gate/rides and analytics. Each owns a PostgreSQL schema. Cognito authenticates users, API Gateway receives requests, and Kubernetes runs the workloads. Amplify hosts separate visitor and admin sites. Metabase reads reporting views through a read-only database role.
 
-Run `./start.sh infra-test` from a clean gateway state. Explain each displayed step while it runs:
+“The demo uses one 8 GiB EC2 server for Kubernetes, PostgreSQL and Metabase. This keeps the teaching deployment manageable. A whole-server or database outage remains a shared failure; I am not claiming multi-node high availability.”
 
-- Terraform mock checks validate the prepared definitions without provisioning AWS.
-- Each API has its own container and Kubernetes Service. Gate looks up attractions through internal service DNS.
-- Deleting a catalog pod causes Kubernetes to replace it; the second replica continues serving traffic.
-- Blue/green deployments demonstrate service switching and rollback. This demo uses the same domain code with different version metadata.
-- Pausing analytics preserves queued work while purchases/arrivals/rides continue; processing catches up afterward.
-- Database failure leaves processes alive but unready; restoration verifies persistent records.
-- Real catalog requests cause the HPA to grow from two to three replicas, then return to two.
+**Infrastructure and commands — 60 seconds**
 
-Show `docs/results/evidence/local-infrastructure.json` afterward. Do not call nginx “AWS API Gateway”, local password login “Cognito”, mocked plans “applied infrastructure”, or simulated payments “Stripe delivery”.
+```bash
+./demo.sh help
+./demo.sh terraform-check
+./demo.sh status
+./demo.sh check
+```
 
-## Six questions to practise
+Explain that `terraform-check` uses mocked providers and creates no AWS resources. For a real deployment, `up` reviews/applies Terraform, then coordinates server builds and the application release. Splitting `.tf` files by purpose improves navigation while keeping one state and the same resource addresses.
 
-| Question | Answer to explain |
+Open `infrastructure/terraform/aws/network.tf`, `server.tf`, `identity.tf` and `gateway.tf`. Point to ownership tags, encrypted storage, restricted public ports and the gateway origin check. Explain that the separate permissions root sets up the deployment user's bounded IAM grants.
+
+**Business demonstration — 3 minutes**
+
+1. Show a valid visitor booking and its stored price. A retry uses the same idempotency key.
+2. Complete a Stripe sandbox payment. The signed webhook must match the stored session, amount and currency before confirmation.
+3. Show the reference and signed QR ticket. The gate verifies its signature and visit date using the public key.
+4. Admit the party once, show duplicate rejection and record a ride.
+5. Explain role/owner checks: hiding admin buttons alone does not protect the API.
+
+Use a valid same-day booking during operating hours. The earlier after-hours fixture is disclosed in the results; it is not an ordinary purchase flow.
+
+**Reporting and reliability — 90 seconds**
+
+```bash
+./demo.sh monitor
+```
+
+Refresh the seven dashboard cards and explain booking count, guests, revenue, rides and hourly activity. “The analytics worker drains an outbox through SQS. Event IDs prevent duplicate facts. A worker outage delays reporting; the source transaction and its event remain durable.”
+
+Show the observed rehearsal results: one paid booking/USD 140, four admitted guests, two ride events/eight riders; worker catch-up and pod replacement passed. Explain the load evidence carefully: the burst induced 2→3→2 scaling with unsuccessful requests above the gateway limit; a separate 18 requests/second run returned 2,724 successes and zero errors while staying below the scaling threshold. These measurements describe the small demo, not production capacity.
+
+**Close — 30 seconds**
+
+```bash
+./demo.sh down
+./demo.sh audit
+```
+
+“Cleanup verifies a fresh database backup before destroying the approved stack, then checks for leftovers. Local state, backups and deployment permissions are retained for reuse. A stopped server can leave storage/IP allocated.”
+
+## Questions to prepare
+
+| Topic | Explain it simply |
 |---|---|
-| Why separate services? | Catalog, booking, gate and reports have different responsibilities; deployment/failure isolation costs extra coordination. |
-| How are duplicates prevented? | User-bound booking command keys, signed payment event handling, unique arrivals and ride event IDs, and transactional reporting deduplication. |
-| Why can reports lag? | Operational writes commit first; an outbox/queue feeds reporting facts asynchronously. |
-| What is ready versus live? | A process can be running while database/schema access fails; unready pods should not receive service traffic. |
-| Why PostgreSQL? | Bookings, payment state and reporting need transactions, uniqueness and SQL aggregation. The shared instance is still a failure domain. |
-| What is still unverified? | Actual AWS resources/auth/hosting/queues/gateway, external Stripe delivery, remote CI and the live cloud cleanup audit. |
+| Why microservices? | Booking, admissions and reporting have different responsibilities. They can be built and tested independently. The shared host/database remains a demo trade-off. |
+| Why separate schemas? | Each service owns its tables and database role. Other services use APIs/events rather than writing those tables. |
+| Why Kubernetes? | Deployments maintain replicas, probes control readiness and the catalog HPA adjusts pods. Pod replacement was demonstrated. |
+| Why an API gateway? | One API entry point provides routing, origin controls and bounded request throttling. |
+| Why Cognito and API authorization? | Cognito proves identity. The backend separately checks administrator membership and record ownership. |
+| Why is payment confirmation asynchronous? | The browser can close or retry. A verified provider webhook is the authoritative payment notification. |
+| What is idempotency? | Repeating one logical request with the same key/event ID produces one booking, admission or reporting fact. Conflicting reuse is rejected. |
+| Why a signed ticket? | Gate can validate the paid ticket independently while the booking API is unavailable. It still checks visit date and duplicate admission. |
+| Why an outbox? | The business transaction stores its event in the same database transaction. A worker can retry delivery later. |
+| How do reporting numbers stay correct? | Stable event IDs, payment matching and unique arrival/purchase keys prevent duplicate facts. Reconcile dashboard totals with source records. |
+| Why Terraform? | Versioned infrastructure, reviewed plans, repeatable creation/deletion and traceable outputs. Scripts handle application build/release steps. |
+| Why one server? | A small demonstration footprint fits the chosen budget and memory needs. Whole-host/DB failure remains a limitation. |
+| Does HPA lower this EC2 bill? | It changes pod replicas. The fixed server, disk and public IP remain until the relevant infrastructure is removed. |
+| Why retain IAM/state? | IAM defines reusable deployment permissions; private state tracks resources and supports safe cleanup. Neither is application source for the public ZIP. |
+| What remains before submission? | User UI/chart review, a normal-hours walkthrough, authorized GitHub publication and remote CI, final screenshots/student details and submission. |
 
-End by showing `./start.sh infra-stop` and explaining that it stops local resources while preserving data. Actual cloud cleanup is separately guarded and must be audited.
+## Know these code paths
+
+- `scripts/aws/release.py`: the release sequence in one short function.
+- `services/booking-service/app/reservations.py`: validation, price snapshot and idempotent creation.
+- `services/booking-service/app/checkout.py`: verified confirmation and duplicate event handling.
+- `services/booking-service/app/tickets.py` and `wonderland_common/tickets.py`: signing and verification.
+- `services/analytics-worker/app/pipeline.py`: durable event processing and reporting.
+- `scripts/aws/cleanup.py`: backup, reviewed deletion, guarded detached-IP recovery and audit.
+
+See [code-guide.md](code-guide.md) for the complete map. Explain the reasoning in your own words and acknowledge assistance as required by the assignment.

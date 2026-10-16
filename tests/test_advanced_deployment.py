@@ -279,7 +279,7 @@ def test_sqs_poison_does_not_starve_valid_messages(domain):
     from importlib import import_module
 
     adapter = import_module(module.__package__ + ".sqs_transport")
-    from test_phase4 import envelope
+    from test_reporting import envelope
 
     deleted = []
 

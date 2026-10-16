@@ -33,7 +33,9 @@ export function AttractionCard({
         <p>{attraction.description}</p>
         <p className="guidance">
           {attraction.thrill_level} thrill ·{" "}
-          {attraction.minimum_height_cm ? `${attraction.minimum_height_cm}+ cm` : "All heights"}
+          {attraction.minimum_height_cm
+            ? `${attraction.minimum_height_cm}+ cm`
+            : "All heights"}
         </p>
         <button className="text-button" onClick={onSelect}>
           Explore attraction →

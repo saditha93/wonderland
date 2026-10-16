@@ -1,5 +1,9 @@
-from wonderland_common.web import create_app, SAFE_REQUEST_ID
-from .routes import router, CatalogLookup
+"""Gate API assembly and independent ticket-verification readiness."""
+
+from fastapi import HTTPException
+from wonderland_common.tickets import verification_key
+from wonderland_common.web import create_app
+from .routes import CatalogLookup, router
 
 app = create_app("gate-ride-service", "visits")
 app.state.catalog = CatalogLookup(
@@ -9,11 +13,9 @@ app.include_router(router)
 settings = app.state.settings
 logger = app.state.logger
 
-from wonderland_common.tickets import verification_key
-from fastapi import HTTPException
-
 
 def gate_readiness():
+    """Admission requires a usable public key and ownership key."""
     verification_key(settings)
     if not settings.ticket_owner_secret:
         raise HTTPException(503, "Ticket ownership key is not configured")

@@ -42,4 +42,3 @@ export function parkDate(daysAhead: number) {
     parts.find((part) => part.type === type)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
-
