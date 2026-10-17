@@ -14,7 +14,7 @@ There are separate React visitor and administrator entry points. The API enforce
 
 ## 2. Implemented architecture
 
-The selected AWS topology uses Amplify for the two websites, Cognito for managed identity and API Gateway for the HTTP API. API Gateway sends requests over verified HTTPS to an origin-protected NGINX proxy on one 8 GiB EC2 server. K3s runs the service workloads, PostgreSQL and Metabase. ECR stores immutable images, S3 holds private build artifacts, SQS transports events and CloudWatch receives application logs. The current [system diagram](../diagrams/system.mmd) shows this topology.
+The selected AWS topology uses Amplify for the two websites, Cognito for managed identity and API Gateway for the HTTP API. API Gateway sends requests over verified HTTPS to an origin-protected NGINX proxy on one 8 GiB EC2 server. Minikube on the Docker driver, managed with kubectl and its built-in Ingress add-on, runs the service workloads, PostgreSQL and Metabase. ECR stores immutable images, S3 holds private build artifacts, SQS transports events and CloudWatch receives application logs. The current [system diagram](../diagrams/system.mmd) shows this topology.
 
 Four independently built services separate attractions, booking/payment/profile, gate/rides and analytics. PostgreSQL schemas and database roles separate ownership. This is self-managed PostgreSQL on encrypted EBS, not RDS. The optional EKS/RDS design is retained under `infrastructure/terraform/advanced/`; it is not the topology used for the core cloud rehearsal.
 
@@ -88,7 +88,7 @@ The seven marked areas below separate recorded evidence from the student’s rem
 |---|---:|---|---|
 | Solution report | 15% | Report, system diagram, design choices and observed limitations | Add student details, screenshots, final links and personal review |
 | Microservices | 20% | Four containerized services; bookings, payments, admission, rides and reporting exercised in AWS | Repeat the ordinary visitor journey with the student |
-| Kubernetes and API Gateway | 20% | K3s, HTTPS gateway, probes, pod replacement and bounded HPA/recovery checks | Explain the single-host limit; full HPA scale-up/down was recorded in the earlier run |
+| Kubernetes and API Gateway | 20% | Minikube/Ingress manifests and HTTPS gateway; previous K3s rehearsal covers probes, pod replacement and bounded HPA/recovery checks | Explain the single-host limit; full HPA scale-up/down was recorded in the earlier run |
 | Web, Amplify and Cognito | 15% | Separate hosted apps, confirmed email/signup/login, role and owner checks | Review hosted screen appearance and usability |
 | Monitoring and visualization | 10% | Seven Metabase SQL cards queried and reconciled with purchases, arrivals and rides | Review chart appearance and capture screenshots |
 | Infrastructure as Code | 10% | Terraform provisioned 45 resources; scripted release, backup and teardown observed | Review the latest recorded lifecycle and rehearse the commands personally |
@@ -107,7 +107,7 @@ The seven marked areas below separate recorded evidence from the student’s rem
 
 ## Infrastructure interpretation
 
-K3s supplies Kubernetes on the selected server; it is not EKS. PostgreSQL on encrypted EBS is self-managed, not RDS. The assignment's database guidance mentions managed options; confirm with the lecturer if a managed database is expected. The optional EKS/RDS files remain available. Terraform is explicitly accepted in Task 8. Pod HPA changes replicas, not the fixed EC2 bill, and one server does not provide multi-node high availability.
+Minikube supplies Kubernetes on the selected server; it is not EKS. The built-in ingress-nginx add-on is retired and retained for this lab demonstration. The Minikube implementation needs a new live rehearsal; previous runtime evidence is from K3s. PostgreSQL on encrypted EBS is self-managed, not RDS. The assignment's database guidance mentions managed options; confirm with the lecturer if a managed database is expected. The optional EKS/RDS files remain available. Terraform is explicitly accepted in Task 8. Pod HPA changes replicas, not the fixed EC2 bill, and one server does not provide multi-node high availability.
 
 Primary assignment PDF SHA-256: `8d91c2588dc4c25db389f895a08841632f4ec810a11073b978c8a84b9c722f37`. Original teaching materials remain private under `docs/course-materials/`.
 
@@ -154,7 +154,7 @@ Initial tiers are Individual (1 guest/USD40), Couple (2/USD75), Family (up to 4/
 | D02 | Microservices | `services/`, shared `wonderland_common/`, regression tests |
 | D03 | Web, Amplify and Cognito | `frontend/src/{visitor,admin,auth,shared}/`, Terraform hosting/identity |
 | D04 | Container images | Service Dockerfiles; server image builder and ECR |
-| D05 | Kubernetes and API Gateway | K3s workloads and Terraform gateway; optional EKS design retained separately |
+| D05 | Kubernetes and API Gateway | Minikube/Ingress workloads and Terraform gateway; optional EKS design retained separately |
 | D06 | Database persistence | PostgreSQL schemas/migrations and encrypted server storage; self-managed rather than RDS |
 | D07 | Run Infrastructure as Code | `infrastructure/terraform/aws/`, `./demo.sh up`, `down`, `audit`; [deployment guide](../deployment.md) |
 | D08 | Repository integration | `.github/workflows/ci.yml`; successful remote CI and examiner access still need verification |

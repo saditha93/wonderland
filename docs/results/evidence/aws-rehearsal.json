@@ -142,6 +142,23 @@
     "actual_read_only_plan": "45 creations; selected server/key/name/IP rule verified",
     "iam_policy_validation": "Zero findings; exact key-pair launch grant prepared, not applied",
     "deployed": false,
-    "live_ssh_connectivity_tested": false
+    "live_ssh_connectivity_tested": false,
+    "permission_correction": {
+      "cause": "RunInstances authorizes key-pair/sliit_test, not key-pair/key-ID",
+      "corrected_policy_validated": true,
+      "exact_resource_simulation": "allowed",
+      "installed_correction": "pending administrator Terraform application",
+      "new_deployment": "partial resources; no EC2 instance"
+    }
+  },
+  "subsequent_command_simplification": {
+    "up_down_extra_prompt": false,
+    "preview_commands": [
+      "./demo.sh plan",
+      "./demo.sh plan-down"
+    ],
+    "regression_tests_passed": 205,
+    "backup_and_saved_plan_guards_retained": true,
+    "cloud_actions_executed_for_this_edit": false
   }
 }

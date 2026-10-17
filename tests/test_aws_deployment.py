@@ -78,13 +78,18 @@ def test_single_node_tls_and_private_administration():
             "tls": tls,
         },
     )
-    assert not any(x["kind"] == "Ingress" for x in docs)
+    ingresses = [x for x in docs if x["kind"] == "Ingress"]
+    assert len(ingresses) == 4
+    assert {x["spec"]["ingressClassName"] for x in ingresses} == {"nginx"}
+    assert not any(
+        x["kind"] == "Deployment" and x["metadata"]["name"] == "frontend" for x in docs
+    )
     services = [x for x in docs if x["kind"] == "Service"]
     assert [
         (x["metadata"]["name"], x["spec"].get("type"))
         for x in services
         if x["spec"].get("type") == "NodePort"
-    ] == [("frontend", "NodePort")]
+    ] == []
     ca = next(x for x in docs if x["metadata"]["name"] == "rds-ca")
     assert ca["data"]["global-bundle.pem"] == tls["ca"]
     pg = next(x for x in docs if x["kind"] == "StatefulSet")["spec"]["template"][

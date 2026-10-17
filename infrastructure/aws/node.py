@@ -3,6 +3,7 @@
 import argparse
 import base64
 import json
+import ipaddress
 import os
 from pathlib import Path
 import subprocess
@@ -87,6 +88,21 @@ def configure_proxy(deployment_details, runtime):
     ca = ROOT / "internal-ca.pem"
     ca.write_text(runtime["tls"]["ca"])
     ca.chmod(0o600)
+    node_ip = command(
+        [
+            "runuser",
+            "-u",
+            "ubuntu",
+            "--",
+            "/usr/local/bin/minikube",
+            "-p",
+            "wonderland",
+            "ip",
+        ]
+    ).stdout.strip()
+    address = ipaddress.ip_address(node_ip)
+    if address.version != 4 or not address.is_private:
+        raise ValueError("Expected a private Minikube node IPv4 address")
     token = runtime["origin_token"]
     if not all(ch.isalnum() or ch in "-_" for ch in token):
         raise ValueError("Unexpected origin token")
@@ -118,7 +134,7 @@ def configure_proxy(deployment_details, runtime):
                 "wonderland-ip",
             ]
         )
-    nginx = f'''server {{
+    nginx = f"""server {{
     listen 80 default_server;
     server_name _;
     location ^~ /.well-known/acme-challenge/ {{ root /var/www/acme; }}
@@ -134,7 +150,7 @@ server {{
         if ($http_x_wonderland_gateway != "{token}") {{ return 403; }}
         # API Gateway supplies the allowed-origin headers; keep its origin guard first.
         if ($request_method = OPTIONS) {{ return 204; }}
-        proxy_pass https://127.0.0.1:30443;
+        proxy_pass https://{node_ip}:443;
         proxy_ssl_verify on;
         proxy_ssl_trusted_certificate {ca};
         proxy_ssl_server_name on;
@@ -145,7 +161,7 @@ server {{
     }}
     location / {{ return 404; }}
 }}
-'''
+"""
     Path("/etc/nginx/sites-available/wonderland").write_text(nginx)
     command(["nginx", "-t"])
     command(["systemctl", "reload", "nginx"])
@@ -181,7 +197,7 @@ def install_units(config):
             "oneshot",
         ),
     ]:
-        unit = f"[Unit]\nDescription=Wonderland {name}\nAfter=k3s.service network-online.target\n[Service]\nType={kind}\nExecStart={execstart}\n"
+        unit = f"[Unit]\nDescription=Wonderland {name}\nAfter=wonderland-minikube.service network-online.target\nRequires=wonderland-minikube.service\n[Service]\nType={kind}\nExecStart={execstart}\n"
         if kind == "simple":
             unit += "Restart=always\nRestartSec=5\n"
         unit += "[Install]\nWantedBy=multi-user.target\n"
@@ -205,6 +221,70 @@ WantedBy=timers.target
             "wonderland-cert-renew.timer",
         ]
     )
+
+
+def configure_ingress(docs):
+    """Configure the built-in add-on using kubectl only, then install API routes."""
+    prefix = ["/usr/local/bin/kubectl", "-n", "ingress-nginx"]
+    command(
+        prefix
+        + [
+            "patch",
+            "configmap",
+            "ingress-nginx-controller",
+            "--type=merge",
+            "-p",
+            json.dumps(
+                {
+                    "data": {
+                        "disable-access-log": "true",
+                        "allow-snippet-annotations": "false",
+                    }
+                }
+            ),
+        ]
+    )
+    controller = json.loads(
+        command(
+            prefix + ["get", "deployment", "ingress-nginx-controller", "-o", "json"]
+        ).stdout
+    )
+    container = next(
+        c
+        for c in controller["spec"]["template"]["spec"]["containers"]
+        if c["name"] == "controller"
+    )
+    # Hostless IP routes use our internal certificate, verified by the host proxy.
+    args = [
+        a for a in container["args"] if not a.startswith("--default-ssl-certificate=")
+    ]
+    args.append("--default-ssl-certificate=wonderland/frontend-tls")
+    command(
+        prefix
+        + [
+            "patch",
+            "deployment",
+            "ingress-nginx-controller",
+            "--type=strategic",
+            "-p",
+            json.dumps(
+                {
+                    "spec": {
+                        "template": {
+                            "spec": {
+                                "containers": [{"name": "controller", "args": args}]
+                            }
+                        }
+                    }
+                }
+            ),
+        ]
+    )
+    command(
+        prefix
+        + ["rollout", "status", "deployment/ingress-nginx-controller", "--timeout=300s"]
+    )
+    apply([x for x in docs if x["kind"] == "Ingress"])
 
 
 def main():
@@ -282,7 +362,9 @@ def main():
         HTTPServer(("127.0.0.1", 8765), Handler).serve_forever()
         return
     if args.action == "status":
-        print(kube("get", "pods,deploy,statefulset,hpa,svc", "-o", "wide").stdout)
+        print(
+            kube("get", "pods,deploy,statefulset,hpa,svc,ingress", "-o", "wide").stdout
+        )
         return
     if args.action == "refresh":
         refresh(aws, deployment_details)
@@ -344,9 +426,12 @@ def main():
             "--timeout=180s",
         ]
     )
+    configure_ingress(docs)
     configure_proxy(deployment_details, runtime)
     install_units(args.config)
-    print("Workloads ready; TLS proxy and private Metabase forwarding configured.")
+    print(
+        "Minikube workloads and Ingress ready; TLS proxy and private Metabase forwarding configured."
+    )
 
 
 if __name__ == "__main__":

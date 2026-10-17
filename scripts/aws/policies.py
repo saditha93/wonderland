@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 
 
-def policies(account, region="us-east-1", name="wonderland-demo", ssh_key_pair_id=None):
+def policies(account, region="us-east-1", name="wonderland-demo", ssh_key_name=None):
     if (
         not re.fullmatch(r"\d{12}", account)
         or region != "us-east-1"
@@ -103,13 +103,13 @@ def policies(account, region="us-east-1", name="wonderland-demo", ssh_key_pair_i
         ],
         ec2_tags,
     )
-    if ssh_key_pair_id:
-        if not re.fullmatch(r"key-[0-9a-f]+", ssh_key_pair_id):
+    if ssh_key_name:
+        if not re.fullmatch(r"[A-Za-z0-9_.-]{1,255}", ssh_key_name):
             raise ValueError("Invalid SSH key pair ID")
         add(
             "UseExistingSshKey",
             "ec2:RunInstances",
-            arn("ec2", "key-pair/" + ssh_key_pair_id),
+            arn("ec2", "key-pair/" + ssh_key_name),
             regional,
         )
     launch_tags = json.loads(json.dumps(request_tags))

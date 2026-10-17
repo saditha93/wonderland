@@ -10,7 +10,7 @@ Use [demo.md](demo.md) for the exact sequence. Prepare the deployment before you
 
 **Architecture — 60 seconds**
 
-Open `docs/diagrams/system.mmd` and the report. Explain four independently built services: attractions, booking/payment/profile, gate/rides and analytics. Each owns a PostgreSQL schema. Cognito authenticates users, API Gateway receives requests, and Kubernetes runs the workloads. Amplify hosts separate visitor and admin sites. Metabase reads reporting views through a read-only database role.
+Open `docs/diagrams/system.mmd` and the report. Explain four independently built services: attractions, booking/payment/profile, gate/rides and analytics. Each owns a PostgreSQL schema. Cognito authenticates users, API Gateway receives requests, and Minikube runs Kubernetes on EC2. Its built-in Ingress routes each API prefix to the correct service. Amplify hosts separate visitor and admin sites. Metabase reads reporting views through a read-only database role.
 
 “The demo uses one 8 GiB EC2 server for Kubernetes, PostgreSQL and Metabase. This keeps the teaching deployment manageable. A whole-server or database outage remains a shared failure; I am not claiming multi-node high availability.”
 
@@ -55,6 +55,21 @@ Show the observed rehearsal results: one paid booking/USD 140, four admitted gue
 ```
 
 “Cleanup verifies a fresh database backup before destroying the approved stack, then checks for leftovers. Local state, backups and deployment permissions are retained for reuse. A stopped server can leave storage/IP allocated.”
+
+## Show Minikube and Ingress
+
+After SSH login as `ubuntu`:
+
+```bash
+minikube -p wonderland status
+kubectl get nodes
+kubectl -n wonderland get pods,svc,ingress,hpa
+kubectl -n wonderland describe ingress api-booking
+```
+
+Explain: “Minikube creates the Kubernetes cluster. Kubectl manages its resources. The Ingress controller reads our Ingress rules and sends `/api/booking/...` to the booking Service, which selects ready booking pods. API Gateway remains the AWS public entry point.”
+
+The built-in ingress-nginx add-on is retired, so describe this as the lecturer-aligned lab setup. Historical recovery/load results below came from the previous K3s runtime; rerun the live demo before claiming them for Minikube.
 
 ## Questions to prepare
 

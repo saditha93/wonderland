@@ -22,8 +22,9 @@ resource "aws_instance" "demo" {
     delete_on_termination = true
   }
   metadata_options {
-    http_tokens                 = "required"
-    http_put_response_hop_limit = 2
+    http_tokens = "required"
+    # Docker node plus pod networking requires an extra metadata hop.
+    http_put_response_hop_limit = 3
     instance_metadata_tags      = "disabled"
   }
   depends_on = [aws_iam_role_policy.runtime, aws_route_table_association.demo]

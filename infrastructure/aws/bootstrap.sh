@@ -2,7 +2,8 @@
 set -euo pipefail
 umask 077
 # Public bootstrap only: no database, AWS or payment credentials in user data.
-K3S_VERSION=__K3S_VERSION__
+MINIKUBE_VERSION=v1.39.0
+KUBERNETES_VERSION=v1.36.5
 install -d -m 700 /opt/wonderland
 # Wait for Terraform to associate the fixed public address before apt/downloads.
 TOKEN=$(curl -fsS -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600' http://169.254.169.254/latest/api/token)
@@ -13,7 +14,7 @@ done
 unset TOKEN
 export DEBIAN_FRONTEND=noninteractive
 apt-get -o Acquire::Retries=5 update
-apt-get -o Acquire::Retries=5 install -y ca-certificates curl nginx python3-venv python3-boto3 jq
+apt-get -o Acquire::Retries=5 install -y ca-certificates curl nginx python3-venv python3-boto3 jq docker.io conntrack
 systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service || {
   snap install amazon-ssm-agent --classic
   snap start amazon-ssm-agent
@@ -26,35 +27,43 @@ net.bridge.bridge-nf-call-iptables=1
 net.bridge.bridge-nf-call-ip6tables=1
 SYSCTL
 sysctl --system >/dev/null
-mkdir -p /opt/wonderland/k3s-download
-cd /opt/wonderland/k3s-download
-case "$(uname -m)" in
-  x86_64) K3S_BINARY=k3s; K3S_ARCH=amd64 ;;
-  aarch64) K3S_BINARY=k3s-arm64; K3S_ARCH=arm64 ;;
-  *) echo 'Unsupported server architecture' >&2; exit 1 ;;
-esac
-curl -fL --retry 5 -o "$K3S_BINARY" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/${K3S_BINARY}"
-curl -fL --retry 5 -o checksums.txt "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/sha256sum-${K3S_ARCH}.txt"
-grep " ${K3S_BINARY}$" checksums.txt | sha256sum -c -
-install -m 755 "$K3S_BINARY" /usr/local/bin/k3s
-ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl
-cat > /etc/systemd/system/k3s.service <<'UNIT'
+# Minikube runs a Docker node as ubuntu; the EC2 host needs no nested VM.
+systemctl enable --now docker
+usermod -aG docker ubuntu
+install -d -m 755 /opt/wonderland/downloads
+cd /opt/wonderland/downloads
+curl -fL --retry 5 -o minikube "https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64"
+curl -fL --retry 5 -o minikube.sha256 "https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64.sha256"
+echo "$(cat minikube.sha256)  minikube" | sha256sum -c -
+install -m 755 minikube /usr/local/bin/minikube
+curl -fL --retry 5 -o kubectl-real "https://dl.k8s.io/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
+curl -fL --retry 5 -o kubectl.sha256 "https://dl.k8s.io/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl.sha256"
+echo "$(cat kubectl.sha256)  kubectl-real" | sha256sum -c -
+install -m 755 kubectl-real /usr/local/bin/kubectl-real
+# Root SSM commands and ubuntu SSH sessions use the same private cluster.
+cat > /usr/local/bin/kubectl <<'KUBECTL'
+#!/bin/sh
+exec /usr/local/bin/kubectl-real --kubeconfig=/home/ubuntu/.kube/config "$@"
+KUBECTL
+chmod 755 /usr/local/bin/kubectl
+cat > /etc/systemd/system/wonderland-minikube.service <<UNIT
 [Unit]
-Description=Wonderland single-node Kubernetes
-After=network-online.target
+Description=Wonderland Minikube cluster
+Requires=docker.service
+After=docker.service network-online.target
 Wants=network-online.target
 [Service]
-Type=notify
-Delegate=yes
-KillMode=process
-LimitNOFILE=1048576
-LimitNPROC=infinity
-LimitCORE=infinity
-TasksMax=infinity
-TimeoutStartSec=0
-Restart=always
-RestartSec=5
-ExecStart=/usr/local/bin/k3s server --node-name=wonderland-demo --disable=traefik --disable=servicelb --secrets-encryption --write-kubeconfig-mode=600 --kube-proxy-arg=nodeport-addresses=127.0.0.1/32
+Type=oneshot
+RemainAfterExit=yes
+User=ubuntu
+Group=ubuntu
+SupplementaryGroups=docker
+Environment=HOME=/home/ubuntu
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+TimeoutStartSec=1200
+TimeoutStopSec=180
+ExecStart=/usr/local/bin/minikube start -p wonderland --driver=docker --container-runtime=containerd --cpus=2 --memory=5120 --kubernetes-version=${KUBERNETES_VERSION} --addons=ingress,metrics-server
+ExecStop=/usr/local/bin/minikube stop -p wonderland
 [Install]
 WantedBy=multi-user.target
 UNIT
@@ -90,7 +99,7 @@ ln -sf /etc/nginx/sites-available/wonderland /etc/nginx/sites-enabled/wonderland
 python3 -m venv /opt/wonderland/certbot
 /opt/wonderland/certbot/bin/pip install --disable-pip-version-check certbot==5.4.0
 systemctl daemon-reload
-systemctl enable --now k3s wonderland-autostop.timer nginx
+systemctl enable --now wonderland-minikube wonderland-autostop.timer nginx
 nginx -t
 systemctl reload nginx
 touch /opt/wonderland/bootstrap-ready

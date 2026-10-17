@@ -8,14 +8,43 @@ from scripts.aws import cli as cloud
 from scripts.aws import cleanup
 
 
-def test_down_without_confirmation_reports_incomplete_cleanup(monkeypatch):
-    monkeypatch.setattr(cleanup, "plan_down", lambda *a: "review-digest")
-    monkeypatch.setattr(cloud, "confirm_cli", lambda *a: False)
+def test_down_command_plans_then_applies_without_an_extra_prompt(monkeypatch):
+    calls = []
+
+    def plan(*args):
+        calls.append("plan")
+        return "review-digest"
+
+    monkeypatch.setattr(cleanup, "plan_down", plan)
+    monkeypatch.setattr(cleanup, "down", lambda *args: calls.append(args[-1]))
+    cloud.dispatch(SimpleNamespace(action="down", approve=None), None, {})
+    assert calls == ["plan", "review-digest"]
+
+
+def test_plan_down_is_preview_only(monkeypatch):
+    monkeypatch.setattr(cleanup, "plan_down", lambda *args: "review-digest")
     monkeypatch.setattr(
-        cleanup, "down", lambda *a: pytest.fail("Deletion without confirmation")
+        cleanup, "down", lambda *args: pytest.fail("Preview executed deletion")
     )
-    with pytest.raises(ValueError, match="Cleanup was NOT executed"):
-        cloud.dispatch(SimpleNamespace(action="down", approve=None), None, {})
+    cloud.dispatch(SimpleNamespace(action="plan-down", approve=None), None, {})
+
+
+def test_up_command_uses_its_fresh_saved_plan_without_an_extra_prompt(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(cloud, "PRIVATE", tmp_path)
+    monkeypatch.setattr(cloud, "check_cleanup_permissions", lambda *args: None)
+
+    def plan(*args):
+        (tmp_path / "review.json").write_text(
+            json.dumps({"plan_sha256": "fresh-digest"})
+        )
+
+    calls = []
+    monkeypatch.setattr(cloud, "plan", plan)
+    monkeypatch.setattr(cloud, "deploy", lambda *args: calls.append(args[-1]))
+    cloud.up(None, {}, None, infra_only=True)
+    assert calls == ["fresh-digest"]
 
 
 @pytest.mark.parametrize("actions", [["create"], ["update"], ["delete", "create"]])
@@ -226,13 +255,37 @@ def test_missing_key_pair_permission_stops_up_before_planning(monkeypatch):
         "plan",
         lambda *args: pytest.fail("Planning with missing SSH key permission"),
     )
-    with pytest.raises(ValueError, match="existing SSH key pair"):
+    with pytest.raises(ValueError, match="SSH key-name grant"):
         cloud.up(
             aws,
             {
                 "account_id": "111111111111",
                 "region": "us-east-1",
-                "ssh_key_pair_id": "key-0123456789abcdef0",
+                "ssh_key_name": "sliit_test",
             },
             None,
         )
+
+
+def test_key_launch_preflight_checks_name_arn_not_key_id():
+    checked = []
+
+    def simulate(**kwargs):
+        checked.append(kwargs)
+        return {"EvaluationResults": [{"EvalDecision": "allowed"}]}
+
+    aws = SimpleNamespace(
+        client=lambda name: SimpleNamespace(simulate_principal_policy=simulate)
+    )
+    cloud.check_cleanup_permissions(
+        aws,
+        {
+            "account_id": "111111111111",
+            "region": "us-east-1",
+            "ssh_key_name": "sliit_test",
+            "ssh_key_pair_id": "key-0123456789abcdef0",
+        },
+    )
+    assert checked[-1]["ResourceArns"] == [
+        "arn:aws:ec2:us-east-1:111111111111:key-pair/sliit_test"
+    ]

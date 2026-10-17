@@ -1,6 +1,6 @@
 # Wonderland
 
-A theme park booking MVP with separate visitor and administrator websites. Four Python services handle attractions, bookings/payments, gate/rides and reporting. The AWS demo runs Kubernetes, PostgreSQL and Metabase on one server, with Amplify, Cognito, API Gateway, ECR and SQS around it.
+A theme park booking MVP with separate visitor and administrator websites. Four Python services handle attractions, bookings/payments, gate/rides and reporting. The AWS demo runs Minikube with its Ingress add-on, PostgreSQL and Metabase on one server, with Amplify, Cognito, API Gateway, ECR and SQS around it.
 
 ## Start here
 
@@ -15,7 +15,7 @@ A theme park booking MVP with separate visitor and administrator websites. Four 
 For a live demonstration:
 
 ```bash
-./demo.sh up       # Review the real plan and cost; type UP
+./demo.sh up       # Plan, provision and release; no extra prompt
 ./demo.sh status   # Show visitor/admin/API URLs
 ./demo.sh check    # Check hosting, APIs, access rules and Metabase SQL
 ./demo.sh monitor  # Private Metabase tunnel; keep this terminal open
@@ -24,7 +24,7 @@ For a live demonstration:
 Use [the demonstration guide](docs/demo.md) for the visitor → payment → gate → ride → reports walkthrough. When finished, close the monitoring tunnel with Ctrl+C and run:
 
 ```bash
-./demo.sh down     # Review deletions; type DOWN; backup precedes destruction
+./demo.sh down     # Back up, destroy and audit; no extra prompt
 ./demo.sh audit    # Confirm no active demo resources remain
 ```
 
@@ -41,7 +41,7 @@ Keep Terminal open until commands finish. Stopping or manually terminating EC2 i
 | [Observed AWS results](docs/results/aws-rehearsal.md) | What was actually tested, including limitations |
 | [Assignment report](docs/assignment/report.md) | Architecture, requirements, rubric and submission checklist |
 
-The reorganized release was deployed and tested on 17 October 2026. Browser testing found a failed preflight response; the proxy was corrected on AWS and the verifier now rejects unsuccessful CORS responses. Local checks pass 202 tests, both frontend builds, startup/shutdown and six offline Terraform configurations. Terraform cleanup and an independent inventory audit passed; no active demo resources remain. See the results guide for remaining manual checks.
+The reorganized release was deployed and tested on 17 October 2026. Browser testing found a failed preflight response; the proxy was corrected on AWS and the verifier now rejects unsuccessful CORS responses. Local checks pass 205 tests, both frontend builds, startup/shutdown and six offline Terraform configurations. The recorded rehearsal ended with successful cleanup. A subsequent SSH deployment attempt created partial resources before EC2 denied the key permission; use `audit` for current inventory. See the results guide for remaining manual checks.
 
 ## Folder map
 

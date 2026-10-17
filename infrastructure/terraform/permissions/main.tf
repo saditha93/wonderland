@@ -41,6 +41,7 @@ resource "aws_iam_user_policy_attachment" "deployment" {
   for_each   = local.grants
   user       = "wonderland"
   policy_arn = aws_iam_policy.definition[each.key].arn
+  lifecycle { prevent_destroy = true }
 }
 import {
   for_each = var.existing_policies

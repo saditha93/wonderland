@@ -58,7 +58,9 @@ See [the report](assignment/report.md) for architecture and [the recorded result
 | `cleanup.py` | `backup`, `plan_down`, `down`, `apply_destroy`, `audit` | Verify backup before reviewed deletion, handle a detached-IP retry and audit leftovers |
 | `workloads.py` / `workload_templates.py` | `render` | Render Kubernetes configuration for the selected server |
 | `image_builder.py` / `site_builder.py` | `main` | Programs executed on EC2 to build and publish artifacts |
-| `infrastructure/aws/node.py` | install/status/backup actions | Configure the server's workloads, TLS and private monitoring forwarder |
+| `infrastructure/aws/bootstrap.sh` | server startup | Install Minikube/kubectl; enable built-in Ingress and metrics add-ons |
+| `infrastructure/aws/node.py` | `configure_ingress`, `configure_proxy`, install/status/backup actions | Apply routes, verify TLS and configure private monitoring |
+| `infrastructure/kubernetes/aws/ingress.yaml` | Four Ingress rules | Map public API paths to their internal services |
 
 Terraform creates AWS resources. The release scripts build images, run migrations and publish application artifacts. Explaining both parts is more accurate than claiming Terraform itself compiles the application.
 

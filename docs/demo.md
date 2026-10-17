@@ -1,6 +1,8 @@
 # Run and demonstrate Wonderland
 
-Use the AWS path below for the assignment. Optional laptop commands are included at the end of this guide.
+Use the AWS path below for the assignment. The server now uses Minikube, kubectl and the built-in Ingress add-on. Optional laptop commands are included at the end of this guide.
+
+For server-side viva commands and the Ingress route example, see [Minikube and Ingress](deployment.md#minikube-and-ingress-on-the-server). The previous live rehearsal used K3s; repeat `up` and `check` to validate the new runtime.
 
 ## 1. Prepare without spending AWS credits
 
@@ -23,7 +25,7 @@ If setup is missing, follow the README and [deployment setup](deployment.md). Th
 ./demo.sh up
 ```
 
-Review the account, region, resources and cost. Type `UP` when ready. Keep Terminal open until all stages finish:
+`up` prints the account, plan and cost, then provisions and releases automatically. For a preview first, run `./demo.sh plan`. Keep Terminal open until all stages finish:
 
 1. Terraform creates the infrastructure.
 2. The server builds/publishes six container images.
@@ -94,7 +96,7 @@ Close the monitoring tunnel with Ctrl+C, then:
 ./demo.sh audit
 ```
 
-Review deletion, type `DOWN`, and keep Terminal open. A fresh database backup is verified before destruction. The final inventory must report **no active demo resources**. A missing confirmation, failed backup or cleanup error is not a successful teardown.
+`down` plans and deletes automatically; keep Terminal open. Use `./demo.sh plan-down` first if you want a preview. A fresh database backup is verified before destruction. The final inventory must report **no active demo resources**. A failed backup or cleanup error is not a successful teardown.
 
 Deployment IAM policies, local `.env`, source, Terraform state and backups remain. The server/database, public IP, hosted apps, registries, artifacts, queues, logs and runtime secret are removed; the matching Stripe test webhook is also removed. `up` creates a fresh seeded demo with new URLs/accounts; it does not automatically restore the old database.
 

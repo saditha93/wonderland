@@ -157,6 +157,7 @@ def install_workloads(aws, target_settings, deployment_details):
             for folder in [
                 "infrastructure/kubernetes/base",
                 "infrastructure/kubernetes/local",
+                "infrastructure/kubernetes/aws",
             ]
             for p in (ROOT / folder).glob("*.yaml")
         ]

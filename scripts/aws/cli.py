@@ -202,11 +202,7 @@ def plan(aws, target_settings):
         import secrets
 
         write_private_json(tokenfile, {"token": secrets.token_urlsafe(48)})
-    bootstrap = (
-        (ROOT / "infrastructure/aws/bootstrap.sh")
-        .read_text()
-        .replace("__K3S_VERSION__", target_settings["k3s_version"])
-    )
+    bootstrap = (ROOT / "infrastructure/aws/bootstrap.sh").read_text()
     variables = {
         k: target_settings[k]
         for k in ("account_id", "ami_id", "availability_zone", "instance_type")
@@ -296,16 +292,6 @@ def load_deployment():
     return json.loads((PRIVATE / "deployment.json").read_text())
 
 
-def confirm_cli(action, digest):
-    if not sys.stdin.isatty():
-        print(f"Review complete. Apply with: ./cloud.sh {action} --approve {digest}")
-        return False
-    return (
-        input(f"After reviewing the plan, type {action.upper()} to continue: ").strip()
-        == action.upper()
-    )
-
-
 def check_cleanup_permissions(aws, target_settings):
     result = aws.client("iam").simulate_principal_policy(
         PolicySourceArn=f"arn:aws:iam::{target_settings['account_id']}:user/wonderland",
@@ -319,8 +305,8 @@ def check_cleanup_permissions(aws, target_settings):
             "One-time Terraform permissions setup is required: S3 version cleanup is not allowed. No infrastructure was created. See docs/deployment.md."
         )
 
-    if target_settings.get("ssh_key_pair_id"):
-        key_arn = f"arn:aws:ec2:{target_settings['region']}:{target_settings['account_id']}:key-pair/{target_settings['ssh_key_pair_id']}"
+    if target_settings.get("ssh_key_name"):
+        key_arn = f"arn:aws:ec2:{target_settings['region']}:{target_settings['account_id']}:key-pair/{target_settings['ssh_key_name']}"
         result = aws.client("iam").simulate_principal_policy(
             PolicySourceArn=f"arn:aws:iam::{target_settings['account_id']}:user/wonderland",
             ActionNames=["ec2:RunInstances"],
@@ -335,7 +321,7 @@ def check_cleanup_permissions(aws, target_settings):
         )
         if any(x["EvalDecision"] != "allowed" for x in result["EvaluationResults"]):
             raise GuardError(
-                "One-time Terraform permissions update required: allow this existing SSH key pair for launch. See docs/deployment.md. No infrastructure created."
+                "Retained IAM policies are missing the SSH key-name grant. Apply the one-time administrator Terraform correction for key-pair/sliit_test. Normal down retains these policies. See docs/deployment.md. No infrastructure created."
             )
 
 
@@ -344,9 +330,7 @@ def up(aws, target_settings, approved, infra_only=False):
     if not approved:
         plan(aws, target_settings)
         approved = json.loads((PRIVATE / "review.json").read_text())["plan_sha256"]
-        if not confirm_cli("up", approved):
-            return
-    # Planning resolves the existing key pair ID; check that exact grant before apply.
+    # EC2 authorizes RunInstances against the key-pair NAME, not its key-* ID.
     check_cleanup_permissions(aws, target_settings)
     deploy(aws, target_settings, approved)
     if not infra_only:
@@ -429,10 +413,6 @@ def dispatch(args, aws, target_settings):
             down(aws, target_settings, args.approve)
         else:
             digest = plan_down(aws, target_settings)
-            if not confirm_cli("down", digest):
-                raise GuardError(
-                    "Cleanup was NOT executed. AWS resources may still incur costs. Run ./cloud.sh down in a terminal and type DOWN, or use the printed --approve command."
-                )
             down(aws, target_settings, digest)
     elif args.action == "plan":
         plan(aws, target_settings)

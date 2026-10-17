@@ -7,11 +7,12 @@ flowchart LR
     VisitorSite --> Gateway[API Gateway]
     AdminSite --> Gateway
     Gateway --> Proxy[HTTPS NGINX origin proxy]
-    subgraph Server[One EC2 server / K3s]
-        Proxy --> Catalog[Attractions API]
-        Proxy --> Booking[Booking API]
-        Proxy --> Gate[Gate and rides API]
-        Proxy --> Analytics[Analytics API and worker]
+    subgraph Server[One EC2 server / Minikube]
+        Proxy --> Ingress[Minikube Ingress]
+        Ingress --> Catalog[Attractions API]
+        Ingress --> Booking[Booking API]
+        Ingress --> Gate[Gate and rides API]
+        Ingress --> Analytics[Analytics API and worker]
         Catalog --> PostgreSQL[PostgreSQL schemas and outboxes]
         Booking --> PostgreSQL
         Gate --> PostgreSQL

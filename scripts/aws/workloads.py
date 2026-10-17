@@ -38,6 +38,7 @@ def render(target, deployment, runtime):
         deployment_details
         for deployment_details in docs
         if deployment_details["kind"] != "Ingress"
+        and deployment_details["metadata"]["name"] not in {"frontend", "nginx-cloud"}
     ]
     for deployment_details in docs:
         name = deployment_details["metadata"]["name"]
@@ -55,11 +56,6 @@ def render(target, deployment, runtime):
                         )
                         .render_as_string(hide_password=False)
                     )
-        if deployment_details["kind"] == "Service" and name == "frontend":
-            deployment_details["spec"]["type"] = "NodePort"
-            deployment_details["spec"]["ports"][0].update(
-                nodePort=30443, targetPort="http"
-            )
         if deployment_details["kind"] not in {"Deployment", "Job"}:
             continue
         pod = deployment_details["spec"]["template"]["spec"]
@@ -124,6 +120,15 @@ def render(target, deployment, runtime):
     )
     logs[0]["metadata"].pop("annotations", None)
     docs += logs
+    docs.append(secret("ingress-ca", {"ca.crt": runtime["tls"]["ca"]}))
+    docs += list(
+        yaml.safe_load_all(
+            (ROOT / "infrastructure/kubernetes/aws/ingress.yaml").read_text()
+        )
+    )
+    next(x for x in docs if x["metadata"]["name"] == "frontend-tls")[
+        "type"
+    ] = "kubernetes.io/tls"
     # Bind rollouts to final secret contents after adapting the CA mount.
     fingerprint = hashlib.sha256(
         json.dumps(

@@ -2,6 +2,30 @@
 
 The selected deployment keeps everything in AWS: one 8 GiB `m7i-flex.large` server in `us-east-1`, separate visitor/admin Amplify websites, Cognito, ECR, SQS, API Gateway, private artifacts and runtime secrets. PostgreSQL and Metabase run on the server. The latest live deployment was destroyed; the final AWS inventory found no active demo resources. Deployment IAM policies and local configuration are retained.
 
+## Minikube and Ingress on the server
+
+The current server bootstrap installs **Minikube v1.39.0** and **kubectl v1.36.5**. Minikube runs as `ubuntu` with the Docker driver and containerd, two CPUs and 5 GiB assigned to the cluster on the 8 GiB EC2 host. Docker is the Linux driver dependency; there is no Helm or separate controller installation. The built-in `ingress` and `metrics-server` add-ons supply routing and HPA metrics. Systemd starts the same persistent cluster after a reboot.
+
+The request path is Amplify → API Gateway → protected host HTTPS proxy → Minikube Ingress → Kubernetes Service → API pod. Ingress strips `/api/booking`, for example, before forwarding `/bookings` to the booking service. Each hop verifies its TLS peer. The obsolete in-cluster frontend proxy is omitted because Amplify already hosts the websites. PostgreSQL and Metabase have no public Ingress rules. The security group still exposes only 80/443 and SSH from the laptop's `/32`; Kubernetes and the Docker node stay private.
+
+The four readable rules are in [ingress.yaml](../infrastructure/kubernetes/aws/ingress.yaml). The bootstrap automatically enables the add-ons, and the release applies the rules with kubectl. For your viva, SSH as `ubuntu` and run:
+
+```bash
+minikube -p wonderland status
+minikube -p wonderland addons list
+kubectl get nodes
+kubectl -n wonderland get pods,svc,ingress,hpa
+kubectl -n wonderland describe ingress api-booking
+kubectl -n ingress-nginx get pods
+kubectl -n wonderland top pods
+```
+
+Expected: the node is Ready, all four Ingress objects use class `nginx`, API Services are internal ClusterIP, and the Ingress controller is ready. `/api/attractions/health` through the API Gateway URL checks actual routing. `./demo.sh check` also checks hosted API access and private Metabase. Use `./demo.sh down` on the laptop for complete AWS teardown; `minikube stop` alone leaves chargeable AWS resources allocated.
+
+This is a lab demonstration. Minikube's bundled ingress-nginx controller was [retired in March 2026](https://github.com/kubernetes/ingress-nginx/blob/main/README.md) and receives no further fixes. This choice follows the requested built-in add-on rather than adding another controller. The server disk is encrypted by EBS; the former K3s-specific secrets-encryption option does not apply to Minikube. The node instance role remains shared by workloads in this trusted single-node demo; IMDSv2 is required with a hop limit of three for Docker-node/pod networking.
+
+The Minikube change has offline regression and Terraform coverage. The earlier live results below describe the previous K3s deployment; a new AWS `up` and `check` is required to record Minikube runtime results. Replacing an existing K3s server is not an in-place database migration: first use `down` for its verified backup and teardown. From a clean state, deploy with the ordinary `up` command and a fresh release identifier.
+
 ## Required tools and private configuration
 
 This project's laptop already has its private target, credentials, permissions and tool binaries. Keep those files; do not overwrite them during the reorganization.
@@ -48,7 +72,7 @@ cd /Users/sadithaudayanga/Projects/wonderland
 ./cloud.sh up
 ```
 
-The command previews the actual Terraform plan, account, region and cost, then asks you to type `UP`. It applies the reviewed plan and releases the application. Terraform manages AWS infrastructure. The release helper builds/publishes containers and both websites on the AWS node, installs Kubernetes workloads through SSM, and publishes the website artifacts to Amplify. Local Docker and Node.js are not needed. A temporary project-scoped ECR token and signed artifact-upload URLs are fetched privately from Secrets Manager and removed from its current value after each build; no static AWS keys enter the node or source bundle. Keep the terminal open until verification finishes. A failed release may leave infrastructure running: use `status`, investigate, then retry `release` or remove it with `down`.
+The command prints the actual Terraform plan, account, region and cost, then applies that saved plan and releases the application without another prompt. Use `./demo.sh plan` for a preview without applying. Terraform manages AWS infrastructure. The release helper builds/publishes containers and both websites on the AWS node, installs Kubernetes workloads through SSM, and publishes the website artifacts to Amplify. Local Docker and Node.js are not needed. A temporary project-scoped ECR token and signed artifact-upload URLs are fetched privately from Secrets Manager and removed from its current value after each build; no static AWS keys enter the node or source bundle. Keep the terminal open until verification finishes. A failed release may leave infrastructure running: use `status`, investigate, then retry `release` or remove it with `down`.
 
 ```bash
 ./cloud.sh status
@@ -65,7 +89,7 @@ Remove the demo after testing:
 ./cloud.sh cleanup-check
 ```
 
-`down` previews resource deletions and asks you to type `DOWN`. It backs up an existing database to this Mac, refreshes Terraform state, updates deletion-protection/force-delete settings through Terraform, destroys the approved infrastructure, removes the matching Stripe test webhook and checks AWS inventory. A failed backup blocks destruction. If you already terminated the server, it reports that a fresh backup is impossible and preserves prior local backups. If the server is stopped, run `./cloud.sh start` and wait for readiness before `down` so backup can succeed.
+`down` creates and applies its validated deletion plan without another prompt. Use `./demo.sh plan-down` to preview without deleting. It backs up an existing database to this Mac, refreshes Terraform state, updates deletion-protection/force-delete settings through Terraform, destroys the approved infrastructure, removes the matching Stripe test webhook and checks AWS inventory. A failed backup blocks destruction. If you already terminated the server, it reports that a fresh backup is impossible and preserves prior local backups. If the server is stopped, run `./cloud.sh start` and wait for readiness before `down` so backup can succeed.
 
 Cleanup retains deployment IAM policy definitions/attachments, local `.env`, Terraform configuration/state and backups. Disposable server IAM roles are recreated on the next deployment. The matching temporary Stripe webhook is removed because its deleted API endpoint cannot receive events.
 
@@ -75,7 +99,7 @@ Stopping with `./cloud.sh stop` preserves storage and public IP, which can still
 
 ## Preview and automation
 
-Without an interactive terminal, `up` and `down` only preview and print the exact approval command. Unconfirmed `down` exits with an error explicitly stating cleanup was not executed. Use the digest from that run, without angle brackets:
+`up` and `down` perform their named actions in interactive terminals and automation alike. They retain account, scope, source, state and saved-plan checks. For manual plan/apply separation, use the preview commands and optionally pass the printed digest:
 
 ```bash
 ./cloud.sh plan
@@ -90,7 +114,7 @@ The observed compute quote is $0.09576/hour, about $0.58 for six hours, plus IPv
 
 ## Verification status
 
-All six Terraform configurations and 200 Python tests passed. The complete 45-resource creation/server-side release and live acceptance checks were repeated in release `r20261017-tf-lifecycle8`. Browser login initially failed because the protected origin forwarded OPTIONS to services that returned 405; the proxy now returns 204 after its gateway-origin check, and verification requires a successful preflight status. Visitor and administrator browser login passed afterward. This includes real email confirmation/login, admin/ownership checks, successful and declined Stripe sandbox payments, signed webhook deduplication, concurrent gate admission, booking/gate isolation, worker recovery, pod replacement, reporting reconciliation and Metabase SQL cards. A fresh database backup was verified before teardown.
+All six Terraform configurations and 211 Python tests passed for the Minikube source update; both website builds passed. These are offline/laptop checks. The complete 45-resource creation/server-side release and live acceptance checks were repeated in release `r20261017-tf-lifecycle8`. Browser login initially failed because the protected origin forwarded OPTIONS to services that returned 405; the proxy now returns 204 after its gateway-origin check, and verification requires a successful preflight status. Visitor and administrator browser login passed afterward. This includes real email confirmation/login, admin/ownership checks, successful and declined Stripe sandbox payments, signed webhook deduplication, concurrent gate admission, booking/gate isolation, worker recovery, pod replacement, reporting reconciliation and Metabase SQL cards. A fresh database backup was verified before teardown.
 
 See [the detailed results](results/aws-rehearsal.md) for the after-hours date fixture, burst/load interpretation and remaining manual assignment gates. Cleanup status is recorded in [acceptance evidence](results/evidence/aws-rehearsal.json). Deployment IAM policies and local configuration are retained for reuse.
 
@@ -117,3 +141,7 @@ ssh -i ~/Projects/pem/sliit_test.pem ubuntu@SERVER_PUBLIC_IP
 Replace `SERVER_PUBLIC_IP` with the output of `status`; Terraform also outputs the complete SSH command. The existing key pair is referenced, not created or deleted by demo cleanup.
 
 Launching with a key pair requires an additional `ec2:RunInstances` permission for that exact key-pair ARN. The separate Terraform permission generator includes that narrow grant. Use the one-time permissions procedure above to review/apply the new bundle before the next deployment; `up` checks it before creating resources. No installed IAM grants were changed by this edit.
+
+The SSH correction scopes `RunInstances` to `key-pair/sliit_test` (the key **name**). EC2 does not authorize this launch against the `key-*` ID. The first prepared grant used the ID and was denied; the corrected bundle is `secrets/simple-cloud/terraform-permissions-ssh-name.zip`. Apply its reviewed administrator Terraform plan, then rerun `./demo.sh up` to resume the partial stack. The source preflight now checks the same name ARN that EC2 uses.
+
+The generated private `secrets/simple-cloud/install-wonderland-permissions.sh` packages the validated permission bundle for a single administrator CloudShell upload/run. It plans and applies the requested correction using the bootstrap’s saved-plan checks, then verifies installed policies/attachments. Policy definitions and user attachments both have `prevent_destroy`; normal `down` uses a different Terraform root. The script is a snapshot of the prepared correction; regenerate the bundle if installed definitions change before running it.

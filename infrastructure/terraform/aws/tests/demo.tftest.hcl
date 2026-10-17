@@ -14,7 +14,7 @@ variables {
 run "bounded_demo" {
   command = plan
   assert {
-    condition     = aws_instance.demo.instance_type == "m7i-flex.large" && aws_instance.demo.metadata_options[0].http_tokens == "required" && aws_instance.demo.root_block_device[0].encrypted
+    condition     = aws_instance.demo.instance_type == "m7i-flex.large" && aws_instance.demo.metadata_options[0].http_tokens == "required" && aws_instance.demo.metadata_options[0].http_put_response_hop_limit == 3 && aws_instance.demo.root_block_device[0].encrypted
     error_message = "Require the reviewed Free-plan-eligible compute size, encrypted disk and IMDSv2."
   }
   assert {

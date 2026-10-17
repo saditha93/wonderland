@@ -22,6 +22,10 @@ Rehearsal: **17 October 2026**, release `r20261017-tf-lifecycle8`, AWS account `
 | Backup | Fresh off-server backup verified by SHA-256/gzip; contains the paid test booking; restore not rehearsed |
 | Teardown | Passed: down exited 0, detached-IP retry succeeded, state has zero resources, independent final audit found no active demo resources |
 
+## Runtime change after this rehearsal
+
+The source now provisions Minikube v1.39.0 / Kubernetes v1.36.5 with the built-in Ingress and metrics-server add-ons. Four Ingress routes replace the internal frontend proxy. The results above are historical K3s results, not proof of a live Minikube deployment. Repeat the AWS acceptance sequence and capture new evidence after deploying the changed source.
+
 ## Fix found by browser testing
 
 Cognito sign-in succeeded but the next API request failed because OPTIONS returned HTTP 405. API Gateway supplied the expected CORS headers, so the old verifier incorrectly accepted it. The protected NGINX origin now returns 204 for OPTIONS **after** checking the gateway token. Allowed origins and authentication remain restricted. The verifier requires a successful preflight status; two regression cases reject 405/500 even when headers match. Both hosted browser logins passed after the correction. The corrected node configuration is saved in source for future deployments.
