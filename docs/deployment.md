@@ -1,6 +1,6 @@
 # Terraform: start and remove the AWS demo
 
-The selected deployment keeps everything in AWS: one 8 GiB `m7i-flex.large` server in `us-east-1`, separate visitor/admin Amplify websites, Cognito, ECR, SQS, API Gateway, private artifacts and runtime secrets. PostgreSQL and Metabase run on the server. The latest live deployment was destroyed; the final AWS inventory found no active demo resources. Deployment IAM policies and local configuration are retained.
+The selected deployment keeps everything in AWS: one 8 GiB `m7i-flex.large` server in `us-east-1`, separate visitor/admin Amplify websites, Cognito, ECR, SQS, API Gateway, private artifacts and runtime secrets. PostgreSQL and Metabase run on the server. The recorded 17 October 2026 deployment was destroyed and its final inventory was empty. Use `./demo.sh audit` to check current resources. Deployment IAM policies and local configuration are retained.
 
 ## Minikube and Ingress on the server
 
@@ -145,3 +145,42 @@ Launching with a key pair requires an additional `ec2:RunInstances` permission f
 The SSH correction scopes `RunInstances` to `key-pair/sliit_test` (the key **name**). EC2 does not authorize this launch against the `key-*` ID. The first prepared grant used the ID and was denied; the corrected bundle is `secrets/simple-cloud/terraform-permissions-ssh-name.zip`. Apply its reviewed administrator Terraform plan, then rerun `./demo.sh up` to resume the partial stack. The source preflight now checks the same name ARN that EC2 uses.
 
 The generated private `secrets/simple-cloud/install-wonderland-permissions.sh` packages the validated permission bundle for a single administrator CloudShell upload/run. It plans and applies the requested correction using the bootstrap’s saved-plan checks, then verifies installed policies/attachments. Policy definitions and user attachments both have `prevent_destroy`; normal `down` uses a different Terraform root. The script is a snapshot of the prepared correction; regenerate the bundle if installed definitions change before running it.
+
+## Inspect the EC2 server
+
+Connect using the SSH command printed by `./demo.sh status`, or use the existing key:
+
+```bash
+ssh -i ~/Projects/pem/sliit_test.pem ubuntu@SERVER_IP
+```
+
+Inside EC2 as `ubuntu`, inspect without changing resources:
+
+```bash
+free -h
+df -h /
+uptime
+sudo systemctl status docker wonderland-minikube wonderland-routing nginx wonderland-metabase-forward --no-pager
+minikube -p wonderland status
+minikube -p wonderland addons list
+kubectl get nodes -o wide
+kubectl -n wonderland get pods,svc,ingress,hpa,pvc
+kubectl -n wonderland get deployments,statefulsets,jobs
+kubectl -n ingress-nginx get pods
+kubectl -n wonderland top pods
+kubectl -n wonderland exec postgres-0 -- pg_isready
+curl -fsS http://127.0.0.1:3000/api/health
+sudo systemctl list-timers --all 'wonderland-*'
+```
+
+Expected: node Ready, running pods ready, migration Job Complete, PVC Bound, PostgreSQL accepting connections and Metabase status ok. Startup services can show `active (exited)` normally. CPU/memory metrics may take a few minutes after startup.
+
+For a failing pod, replace `POD_NAME`:
+
+```bash
+kubectl -n wonderland describe pod POD_NAME
+kubectl -n wonderland logs POD_NAME --tail=50
+kubectl -n wonderland get events --sort-by=.metadata.creationTimestamp
+```
+
+These inspect server components. Use `./demo.sh check` from the laptop for the hosted platform. Never expose Kubernetes Secrets or private credential files while recording the demo.

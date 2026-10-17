@@ -45,7 +45,7 @@ Use a valid same-day booking during operating hours. The earlier after-hours fix
 
 Refresh the seven dashboard cards and explain booking count, guests, revenue, rides and hourly activity. “The analytics worker drains an outbox through SQS. Event IDs prevent duplicate facts. A worker outage delays reporting; the source transaction and its event remain durable.”
 
-Show the observed rehearsal results: one paid booking/USD 140, four admitted guests, two ride events/eight riders; worker catch-up and pod replacement passed. Explain the load evidence carefully: the burst induced 2→3→2 scaling with unsuccessful requests above the gateway limit; a separate 18 requests/second run returned 2,724 successes and zero errors while staying below the scaling threshold. These measurements describe the small demo, not production capacity.
+Show the observed rehearsal results: one paid booking/USD 140, four admitted guests, two ride events/eight riders; worker catch-up and pod replacement passed. The latest Minikube run returned 2,724 successes and zero errors at 18 requests/second while staying below the scaling threshold. It did not demonstrate a complete HPA scale-up/down cycle. These measurements describe the small demo, not production capacity.
 
 **Close — 30 seconds**
 
@@ -89,7 +89,7 @@ The built-in ingress-nginx add-on is retired, so describe this as the lecturer-a
 | Why one server? | A small demonstration footprint fits the chosen budget and memory needs. Whole-host/DB failure remains a limitation. |
 | Does HPA lower this EC2 bill? | It changes pod replicas. The fixed server, disk and public IP remain until the relevant infrastructure is removed. |
 | Why retain IAM/state? | IAM defines reusable deployment permissions; private state tracks resources and supports safe cleanup. Neither is application source for the public ZIP. |
-| What remains before submission? | Personal chart review, a normal-hours walkthrough, authorized GitHub publication and remote CI, final screenshots/student details and submission. |
+| What remains before submission? | Personal chart review, successful remote CI, examiner repository access, report review and submission. The latest Minikube test used a normal-hours booking; the Word report includes student details and screenshots. |
 
 ## Know these code paths
 
@@ -100,4 +100,38 @@ The built-in ingress-nginx add-on is retired, so describe this as the lecturer-a
 - `services/analytics-worker/app/pipeline.py`: durable event processing and reporting.
 - `scripts/aws/cleanup.py`: backup, reviewed deletion, guarded detached-IP recovery and audit.
 
-See [code-guide.md](code-guide.md) for the complete map. Explain the reasoning in your own words and acknowledge assistance as required by the assignment.
+Explain the reasoning in your own words and acknowledge assistance as required by the assignment.
+
+## Product code map
+
+
+| Responsibility | Main file(s) | Explain in the viva |
+|---|---|---|
+| Visitor application | `frontend/src/visitor/VisitorApp.tsx`, `navigation.ts`, `AttractionCard.tsx`, `AccountPanel.tsx` | Page state coordinates browsing, booking, checkout, tickets and owned history |
+| Administrator application | `frontend/src/admin/AdminApp.tsx`, `AdminPanel.tsx`, `AnalyticsPanel.tsx` | Separate entry point; an admin identity is required before operations appear |
+| Authentication | `frontend/src/auth/`, `wonderland_common/auth.py` | Cognito identity and groups; the API still enforces roles and ownership |
+| API requests/types | `frontend/src/shared/api.ts` | One HTTP helper handles access tokens, errors and typed responses |
+| Attractions | `services/attractions-service/app/routes.py` | Public browsing and protected create/update/retire operations |
+| Reservation creation | `services/booking-service/app/reservations.py` | Validate tier/date/guests, snapshot the price and use an idempotency key |
+| Booking ownership | `services/booking-service/app/booking_store.py` | `find_owned_booking` restricts a lookup to its owner; `public_booking` limits returned fields |
+| Checkout and webhook | `services/booking-service/app/checkout.py`, `payments.py` | Verify Stripe's signature, compare the stored session/amount and confirm exactly once |
+| Signed tickets | `services/booking-service/app/tickets.py`, `wonderland_common/tickets.py` | `issue_signed_ticket` signs paid bookings; gate verifies the public key and visit date |
+| Pricing/profiles | `services/booking-service/app/pricing.py`, `profiles.py` | Keep administrative pricing separate from visitor profile operations |
+| Gate and rides | `services/gate-ride-service/app/routes.py` | Unique check-in, guest/date validation and ride retry deduplication |
+| Analytics | `services/analytics-worker/app/pipeline.py`, `sqs_transport.py` | Outbox → queue → idempotent reporting facts |
+| Reporting | `analytics/queries/`, `analytics/dashboard.json` | Seven saved SQL queries over a separate read-only BI role |
+
+Each service's `main.py` assembles the app. The booking service's `routes.py` now only combines feature routers; it no longer contains every business operation. Migrations under each service own that service's database schema.
+
+
+## Deployment code map
+
+- `scripts/aws/cli.py`: commands, target checks and Terraform planning/apply.
+- `release.py`: runtime preparation, server builds, installation, hosting and checks.
+- `verification.py`: hosted API and private Metabase checks.
+- `cleanup.py`: backup, destroy and final inventory audit.
+- `infrastructure/aws/bootstrap.sh`: Minikube startup and systemd services.
+- `infrastructure/aws/node.py`: TLS, proxy, routing and private monitoring.
+- `infrastructure/kubernetes/aws/ingress.yaml`: four API routing rules.
+
+The main Terraform files share one state: `network.tf`, `server.tf`, `storage.tf`, `identity.tf`, `hosting.tf`, `gateway.tf` and `monitoring.tf`. The separate `permissions/` root manages reusable IAM grants.

@@ -25,7 +25,7 @@ Preparation (does not create AWS resources)
   ./demo.sh local            Run the optional laptop demo
 
 Advanced: ./cloud.sh --help
-Guides: docs/demo.md, docs/viva.md, docs/code-guide.md
+Guides: docs/demo.md, docs/deployment.md, docs/viva.md
 HELP
 }
 
