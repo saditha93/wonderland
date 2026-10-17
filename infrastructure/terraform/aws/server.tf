@@ -1,6 +1,13 @@
+# Reference the existing key pair; Terraform never reads or uploads the private PEM.
+data "aws_key_pair" "ssh" {
+  key_name = var.ssh_key_name
+}
+
 resource "aws_instance" "demo" {
   ami                         = var.ami_id
   instance_type               = var.instance_type
+  key_name                    = data.aws_key_pair.ssh.key_name
+  tags                        = { Name = var.server_name }
   iam_instance_profile        = aws_iam_instance_profile.demo.name
   user_data                   = var.bootstrap_script
   user_data_replace_on_change = true

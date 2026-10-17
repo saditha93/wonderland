@@ -27,7 +27,7 @@ resource "aws_route_table_association" "demo" {
 
 resource "aws_security_group" "demo" {
   name        = local.name
-  description = "HTTPS demo API and ACME challenge; administration uses SSM"
+  description = "HTTPS API and ACME; SSH restricted to operator IPv4; SSM retained"
   vpc_id      = aws_vpc.demo.id
   ingress {
     description = "Public ACME HTTP-01 challenge only"
@@ -42,6 +42,13 @@ resource "aws_security_group" "demo" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    description = "Laptop SSH only"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_allowed_cidr]
   }
   egress {
     from_port   = 0

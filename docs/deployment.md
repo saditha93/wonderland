@@ -99,3 +99,21 @@ See [the detailed results](results/aws-rehearsal.md) for the after-hours date fi
 The retained alternative lives under `infrastructure/terraform/advanced/` and `scripts/advanced/eks.py`. It uses separate bootstrap, persistent, demo and edge states, EKS workers, private RDS, an internal load balancer, API Gateway VPC link and workload IAM roles. It requires its own `secrets/cloud-target.json`, existing domain/hosted zone, toolchain and separately reviewed cost/permission plan. It has only been checked offline; the EC2/K3s rehearsal does not verify this topology.
 
 Use `.venv/bin/python scripts/advanced/eks.py --help` to inspect commands. Its lifecycle stages are bootstrap → persistent → demo → application/controller → edge; teardown reverses dependencies and retains protected persistent state. Use the main `./demo.sh` workflow for this assignment demonstration unless deliberately choosing the alternative.
+
+## Laptop SSH and server name
+
+The server remains `m7i-flex.large` (8 GiB), the tested eligible full-stack size. The account's Free plan marks T3 Small as eligible but it has only 2 GiB; T3a Medium has 4 GiB and is not eligible. No account upgrade or server launch was made for this configuration change.
+
+Terraform references the existing `sliit_test` EC2 key pair and sets the EC2 `Name` tag to **Wonderland Demo Server**. The matching private key stays at `~/Projects/pem/sliit_test.pem`; it is never uploaded or stored in Terraform. Port 22 accepts only `112.135.65.45/32`, the laptop's public IPv4 observed on 17 October 2026. Database, Kubernetes and Metabase ports remain private, and SSM still works.
+
+The private target contains `server_name`, `ssh_key_name`, `ssh_private_key_path` and `ssh_allowed_cidr`. If your public IP changes, update `ssh_allowed_cidr` to the new IPv4 plus `/32` before reviewing a fresh plan. Broad SSH networks are rejected. The server's Ubuntu AMI uses the `ubuntu` login:
+
+```bash
+chmod 400 ~/Projects/pem/sliit_test.pem
+./demo.sh status
+ssh -i ~/Projects/pem/sliit_test.pem ubuntu@SERVER_PUBLIC_IP
+```
+
+Replace `SERVER_PUBLIC_IP` with the output of `status`; Terraform also outputs the complete SSH command. The existing key pair is referenced, not created or deleted by demo cleanup.
+
+Launching with a key pair requires an additional `ec2:RunInstances` permission for that exact key-pair ARN. The separate Terraform permission generator includes that narrow grant. Use the one-time permissions procedure above to review/apply the new bundle before the next deployment; `up` checks it before creating resources. No installed IAM grants were changed by this edit.

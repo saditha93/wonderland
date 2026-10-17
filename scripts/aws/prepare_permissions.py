@@ -22,7 +22,7 @@ def main():
     t = load_target()
     s = create_aws_session(t)
     iam = s.client("iam")
-    documents = policies(t["account_id"])
+    documents = policies(t["account_id"], ssh_key_pair_id=t.get("ssh_key_pair_id"))
     documents["WonderlandDemoDependencies"] = dependencies(t["account_id"])
     existing = []
     descriptions = {}

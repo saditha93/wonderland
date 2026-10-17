@@ -41,7 +41,7 @@ Keep Terminal open until commands finish. Stopping or manually terminating EC2 i
 | [Observed AWS results](docs/results/aws-rehearsal.md) | What was actually tested, including limitations |
 | [Assignment report](docs/assignment/report.md) | Architecture, requirements, rubric and submission checklist |
 
-The reorganized release was deployed and tested on 17 October 2026. Browser testing found a failed preflight response; the proxy was corrected on AWS and the verifier now rejects unsuccessful CORS responses. Local checks pass 200 tests, both frontend builds, startup/shutdown and six offline Terraform configurations. Terraform cleanup and an independent inventory audit passed; no active demo resources remain. See the results guide for remaining manual checks.
+The reorganized release was deployed and tested on 17 October 2026. Browser testing found a failed preflight response; the proxy was corrected on AWS and the verifier now rejects unsuccessful CORS responses. Local checks pass 202 tests, both frontend builds, startup/shutdown and six offline Terraform configurations. Terraform cleanup and an independent inventory audit passed; no active demo resources remain. See the results guide for remaining manual checks.
 
 ## Folder map
 
@@ -79,5 +79,7 @@ Optional commands:
 ./demo.sh local     # Visitor localhost:5173; admin localhost:5174
 ./demo.sh package   # Source-only ZIP in tmp/handover/
 ```
+
+Laptop SSH uses the existing `sliit_test` key and a single-IP firewall rule; the EC2 name is **Wonderland Demo Server**. See [SSH and permissions setup](docs/deployment.md#laptop-ssh-and-server-name) before the next deployment.
 
 Private credentials, Terraform state and backups stay in ignored `.env`, `secrets/` and `tmp/`. Never submit those directories. `cloud.sh` and `start.sh` remain available for advanced and existing workflows.

@@ -37,6 +37,8 @@ Review the account, region, resources and cost. Type `UP` when ready. Keep Termi
 ./demo.sh check
 ```
 
+The EC2 console displays **Wonderland Demo Server**. `status` also prints the laptop SSH command; port 22 permits only the configured IPv4 `/32`. See [SSH setup](deployment.md#laptop-ssh-and-server-name).
+
 Open the actual visitor and admin URLs. Private demo accounts are saved in `secrets/simple-cloud/accounts.json`; do not show that file while projecting. `check` verifies the platform and SQL cards. The business acceptance walkthrough is the next step.
 
 ## 3. Visitor → purchase → ticket

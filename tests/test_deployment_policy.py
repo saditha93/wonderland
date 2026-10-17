@@ -164,3 +164,22 @@ def test_installer_rejects_different_target_user_before_sdk_session(monkeypatch)
     with pytest.raises(ValueError, match="Unexpected target"):
         installer.install(bundle, installer.checksum(bundle))
     assert calls == []
+
+
+def test_ssh_key_use_is_limited_to_one_existing_key_pair():
+    docs = policies("111111111111", ssh_key_pair_id="key-0123456789abcdef0")
+    row = next(
+        row
+        for row in docs["WonderlandDemoCompute"]["Statement"]
+        if row["Sid"] == "UseExistingSshKey"
+    )
+    assert row["Action"] == "ec2:RunInstances"
+    assert (
+        row["Resource"]
+        == "arn:aws:ec2:us-east-1:111111111111:key-pair/key-0123456789abcdef0"
+    )
+    assert row["Condition"]["StringEquals"]["aws:RequestedRegion"] == "us-east-1"
+    for doc in docs.values():
+        assert len(json.dumps(doc, separators=(",", ":"))) <= 6144
+    with pytest.raises(ValueError, match="Invalid SSH"):
+        policies("111111111111", ssh_key_pair_id="*")

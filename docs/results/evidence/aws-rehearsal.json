@@ -130,5 +130,18 @@
     "iam_expanded": false
   },
   "remaining_active_resources": [],
-  "cleanup_checked_at": "2026-10-17T06:27:07.405137+05:30"
+  "cleanup_checked_at": "2026-10-17T06:27:07.405137+05:30",
+  "subsequent_ssh_configuration": {
+    "instance_type": "m7i-flex.large",
+    "server_name": "Wonderland Demo Server",
+    "ssh_key_name": "sliit_test",
+    "ssh_allowed_cidr": "112.135.65.45/32",
+    "private_pem_matches_aws_key": true,
+    "regression_tests_passed": 202,
+    "terraform_roots_passed": 6,
+    "actual_read_only_plan": "45 creations; selected server/key/name/IP rule verified",
+    "iam_policy_validation": "Zero findings; exact key-pair launch grant prepared, not applied",
+    "deployed": false,
+    "live_ssh_connectivity_tested": false
+  }
 }

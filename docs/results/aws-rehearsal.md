@@ -41,3 +41,7 @@ AWS documents its CORS preflight handling in [HTTP API CORS](https://docs.aws.am
 ## Next run
 
 Follow [the demo guide](../demo.md). Use `./demo.sh up`, demonstrate the business flow and monitoring, then `./demo.sh down` and `./demo.sh audit`. Normal cleanup retains deployment IAM, local configuration, state and verified private backups. New hosted URLs/accounts are generated; prior data is not restored automatically.
+
+## Subsequent SSH configuration change
+
+After cleanup, Terraform was updated to reference the verified existing `sliit_test` key, add **Wonderland Demo Server** as the EC2 Name tag and permit SSH from the laptop's observed IPv4 `/32`. The 8 GiB server type is retained. These changes passed 202 regression tests, six Terraform configurations and a new read-only 45-resource plan; no new server was launched and SSH connectivity has not yet been tested live. The narrow key-use IAM update is prepared for administrator Terraform review, not applied. The live results above precede this configuration edit.

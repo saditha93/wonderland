@@ -207,3 +207,32 @@ def test_destroy_retry_only_releases_detached_ip_after_server_removed(
     else:
         cleanup.apply_destroy(s, {"name": "wonderland-demo"}, "vars", ["aws_eip.demo"])
         assert calls == ["first.tfplan", "refresh", "retry.tfplan"]
+
+
+def test_missing_key_pair_permission_stops_up_before_planning(monkeypatch):
+    def simulate(**kwargs):
+        decision = (
+            "allowed"
+            if kwargs["ActionNames"] == ["s3:DeleteObjectVersion"]
+            else "implicitDeny"
+        )
+        return {"EvaluationResults": [{"EvalDecision": decision}]}
+
+    aws = SimpleNamespace(
+        client=lambda name: SimpleNamespace(simulate_principal_policy=simulate)
+    )
+    monkeypatch.setattr(
+        cloud,
+        "plan",
+        lambda *args: pytest.fail("Planning with missing SSH key permission"),
+    )
+    with pytest.raises(ValueError, match="existing SSH key pair"):
+        cloud.up(
+            aws,
+            {
+                "account_id": "111111111111",
+                "region": "us-east-1",
+                "ssh_key_pair_id": "key-0123456789abcdef0",
+            },
+            None,
+        )

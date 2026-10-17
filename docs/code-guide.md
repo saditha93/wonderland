@@ -71,8 +71,8 @@ The main root is `infrastructure/terraform/aws/`. Files share one root and one p
 | `versions.tf` | Pin Terraform/provider versions and the private local backend |
 | `providers.tf` | Restrict account/region and define ownership tags |
 | `variables.tf` | Explicit inputs and validation |
-| `network.tf` | VPC, subnet, routing, firewall and server interface |
-| `server.tf` | EC2, encrypted storage settings and public IP association |
+| `network.tf` | VPC, subnet, routing, firewall (SSH restricted to one IPv4 /32) and server interface |
+| `server.tf` | EC2, Name tag, existing SSH key, encrypted storage and public IP association |
 | `storage.tf` | Private S3 artifacts, ECR repositories and runtime secret |
 | `identity.tf` | Server role/boundary and Cognito users/groups/client configuration |
 | `hosting.tf` | Separate visitor/admin Amplify apps |

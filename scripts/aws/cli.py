@@ -3,6 +3,7 @@
 import argparse
 import base64
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -210,7 +211,35 @@ def plan(aws, target_settings):
         k: target_settings[k]
         for k in ("account_id", "ami_id", "availability_zone", "instance_type")
     }
+    key_name = target_settings.get("ssh_key_name", "sliit_test")
+    ssh_cidr = target_settings.get("ssh_allowed_cidr", "")
+    try:
+        network = ipaddress.IPv4Network(ssh_cidr, strict=True)
+        if network.prefixlen != 32 or not network.network_address.is_global:
+            raise ValueError("Expected one public IPv4 address")
+    except ValueError as exc:
+        raise GuardError(
+            "Set ssh_allowed_cidr to your public IPv4 address followed by /32"
+        ) from exc
+    key = ec2.describe_key_pairs(KeyNames=[key_name], IncludePublicKey=True)[
+        "KeyPairs"
+    ][0]
+    pem = Path(
+        target_settings.get("ssh_private_key_path", "~/Projects/pem/sliit_test.pem")
+    ).expanduser()
+    if not pem.is_file() or pem.stat().st_mode & 0o077:
+        raise GuardError("SSH private key must exist locally with mode 400 or 600")
+    public = subprocess.run(
+        ["ssh-keygen", "-y", "-f", str(pem)], check=True, capture_output=True, text=True
+    ).stdout.split()
+    if public[:2] != key.get("PublicKey", "").split()[:2]:
+        raise GuardError("Local PEM does not match the existing AWS key pair")
+    target_settings["ssh_key_pair_id"] = key["KeyPairId"]
+    write_private_json(PRIVATE / "target.json", target_settings)
     variables.update(
+        server_name=target_settings.get("server_name", "Wonderland Demo Server"),
+        ssh_key_name=key_name,
+        ssh_allowed_cidr=ssh_cidr,
         bootstrap_script=bootstrap,
         runtime_policy=json.dumps(
             policies(target_settings["account_id"])["WonderlandRuntimeBoundary"]
@@ -290,6 +319,25 @@ def check_cleanup_permissions(aws, target_settings):
             "One-time Terraform permissions setup is required: S3 version cleanup is not allowed. No infrastructure was created. See docs/deployment.md."
         )
 
+    if target_settings.get("ssh_key_pair_id"):
+        key_arn = f"arn:aws:ec2:{target_settings['region']}:{target_settings['account_id']}:key-pair/{target_settings['ssh_key_pair_id']}"
+        result = aws.client("iam").simulate_principal_policy(
+            PolicySourceArn=f"arn:aws:iam::{target_settings['account_id']}:user/wonderland",
+            ActionNames=["ec2:RunInstances"],
+            ResourceArns=[key_arn],
+            ContextEntries=[
+                {
+                    "ContextKeyName": "aws:RequestedRegion",
+                    "ContextKeyValues": [target_settings["region"]],
+                    "ContextKeyType": "string",
+                }
+            ],
+        )
+        if any(x["EvalDecision"] != "allowed" for x in result["EvaluationResults"]):
+            raise GuardError(
+                "One-time Terraform permissions update required: allow this existing SSH key pair for launch. See docs/deployment.md. No infrastructure created."
+            )
+
 
 def up(aws, target_settings, approved, infra_only=False):
     check_cleanup_permissions(aws, target_settings)
@@ -298,6 +346,8 @@ def up(aws, target_settings, approved, infra_only=False):
         approved = json.loads((PRIVATE / "review.json").read_text())["plan_sha256"]
         if not confirm_cli("up", approved):
             return
+    # Planning resolves the existing key pair ID; check that exact grant before apply.
+    check_cleanup_permissions(aws, target_settings)
     deploy(aws, target_settings, approved)
     if not infra_only:
         from scripts.aws.release import release_application
@@ -344,6 +394,12 @@ def status(aws, target_settings):
     for name, portal in deployment_details["portals"].items():
         print(name.capitalize() + ":", portal["origin"])
     print("API:", deployment_details["api_url"])
+    print("Name:", target_settings.get("server_name", "Wonderland Demo Server"))
+    print(
+        "SSH: ssh -i",
+        target_settings.get("ssh_private_key_path", "~/Projects/pem/sliit_test.pem"),
+        "ubuntu@" + deployment_details["server_ip"],
+    )
     print("Metabase: ./cloud.sh monitoring (private tunnel)")
 
 
