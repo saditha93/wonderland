@@ -59,6 +59,12 @@ def render(target, deployment, runtime):
         if deployment_details["kind"] not in {"Deployment", "Job"}:
             continue
         pod = deployment_details["spec"]["template"]["spec"]
+        if deployment_details["kind"] == "Deployment":
+            # Reserve space for Minikube's control plane, HPA and rollout surge.
+            for container in pod["containers"]:
+                container["resources"]["requests"]["cpu"] = (
+                    "100m" if name == "metabase" else "50m"
+                )
         pod["imagePullSecrets"] = [{"name": "ecr-pull"}]
         if name != "metabase":
             pod.setdefault("volumes", []).append(
@@ -82,6 +88,7 @@ def render(target, deployment, runtime):
     )
     pod = pg["spec"]["template"]["spec"]
     c = pod["containers"][0]
+    c["resources"]["requests"]["cpu"] = "100m"
     c["args"] = [
         "-c",
         "ssl=on",

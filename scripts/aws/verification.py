@@ -67,6 +67,12 @@ def verify_deployment(aws, target_settings, deployment_details):
             "Verified public IP TLS",
             "Direct API origin denied",
         ]
+        for service in ["attractions", "booking", "gate", "analytics"]:
+            response = client.get(
+                deployment_details["api_url"] + "/api/" + service + "/health"
+            )
+            response.raise_for_status()
+        evidence["checks"].append("All four APIs healthy through Minikube Ingress")
         for path in ["attractions/attractions", "booking/ticket-tiers"]:
             response = client.get(deployment_details["api_url"] + "/api/" + path)
             response.raise_for_status()

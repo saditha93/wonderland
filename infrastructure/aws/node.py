@@ -187,6 +187,11 @@ def install_units(config):
     source = Path(__file__).resolve()
     for name, execstart, kind in [
         (
+            "routing",
+            f"/opt/wonderland/runtime/bin/python {source} routing --config {config}",
+            "oneshot",
+        ),
+        (
             "metabase-forward",
             "/usr/local/bin/kubectl -n wonderland port-forward --address=127.0.0.1 service/metabase 3000:3000",
             "simple",
@@ -198,6 +203,8 @@ def install_units(config):
         ),
     ]:
         unit = f"[Unit]\nDescription=Wonderland {name}\nAfter=wonderland-minikube.service network-online.target\nRequires=wonderland-minikube.service\n[Service]\nType={kind}\nExecStart={execstart}\n"
+        if name == "routing":
+            unit += "RemainAfterExit=yes\n"
         if kind == "simple":
             unit += "Restart=always\nRestartSec=5\n"
         unit += "[Install]\nWantedBy=multi-user.target\n"
@@ -216,6 +223,7 @@ WantedBy=timers.target
             "systemctl",
             "enable",
             "--now",
+            "wonderland-routing",
             "wonderland-metabase-forward",
             "wonderland-ecr-refresh.timer",
             "wonderland-cert-renew.timer",
@@ -290,7 +298,8 @@ def configure_ingress(docs):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "action", choices=["install", "refresh", "status", "backup", "serve-backup"]
+        "action",
+        choices=["install", "routing", "refresh", "status", "backup", "serve-backup"],
     )
     parser.add_argument("--config", type=Path, required=True)
     args = parser.parse_args()
@@ -381,6 +390,11 @@ def main():
         )["SecretString"]
     )
     docs = render(target_settings, deployment_details, runtime)
+    if args.action == "routing":
+        # Minikube reapplies add-on defaults on restart; restore our TLS settings.
+        configure_ingress(docs)
+        configure_proxy(deployment_details, runtime)
+        return
     apply([x for x in docs if x["kind"] == "Namespace"])
     refresh(aws, deployment_details)
     apply(

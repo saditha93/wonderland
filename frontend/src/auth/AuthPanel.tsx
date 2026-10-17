@@ -5,6 +5,7 @@ import {
   cognitoEnabled,
   authConfigurationError,
   managedAccessToken,
+  clearManagedSession,
 } from "./session";
 
 type Mode = "login" | "register" | "confirm" | "challenge";
@@ -24,7 +25,17 @@ export function AuthPanel({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   async function finished() {
-    await onSession(await managedAccessToken());
+    try {
+      await onSession(await managedAccessToken());
+    } catch (error) {
+      // A rejected/unavailable backend must not leave a half-finished login.
+      try {
+        await clearManagedSession();
+      } catch {
+        // clearManagedSession always clears local tokens, even if sign-out fails.
+      }
+      throw error;
+    }
     setMessage("Signed in. Your permissions are verified by the backend.");
   }
   async function submit(e: React.FormEvent) {

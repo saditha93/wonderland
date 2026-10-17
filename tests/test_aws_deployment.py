@@ -90,6 +90,17 @@ def test_single_node_tls_and_private_administration():
         for x in services
         if x["spec"].get("type") == "NodePort"
     ] == []
+    # Minikube reserves approximately 1050m for system pods. Keep headroom on
+    # the 2000m host for an extra catalog replica and rolling deployment surge.
+    requests = 0
+    for doc in docs:
+        if doc["kind"] in {"Deployment", "StatefulSet", "DaemonSet"}:
+            replicas = doc["spec"].get("replicas", 1)
+            requests += replicas * sum(
+                int(c["resources"]["requests"]["cpu"].removesuffix("m"))
+                for c in doc["spec"]["template"]["spec"]["containers"]
+            )
+    assert requests <= 650
     ca = next(x for x in docs if x["metadata"]["name"] == "rds-ca")
     assert ca["data"]["global-bundle.pem"] == tls["ca"]
     pg = next(x for x in docs if x["kind"] == "StatefulSet")["spec"]["template"][

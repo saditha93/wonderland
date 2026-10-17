@@ -162,3 +162,25 @@ def test_host_proxy_uses_private_node_and_keeps_gateway_guard_before_preflight(
     assert 'proxy_set_header X-Wonderland-Gateway "";' in config
     assert ["nginx", "-t"] in calls
     assert ["systemctl", "reload", "nginx"] in calls
+
+
+def test_restart_installs_routing_reconciliation_unit(node, monkeypatch, tmp_path):
+    host = tmp_path / "units"
+    host.mkdir()
+    original_path = Path
+
+    def host_path(value):
+        if str(value).startswith("/etc/systemd/system/"):
+            return host / original_path(value).name
+        return original_path(value)
+
+    calls = []
+    monkeypatch.setattr(node, "Path", host_path)
+    monkeypatch.setattr(node, "command", lambda args, **kw: calls.append(args))
+    node.install_units(original_path("/opt/wonderland/source/node-config.json"))
+    routing = (host / "wonderland-routing.service").read_text()
+    assert "After=wonderland-minikube.service network-online.target" in routing
+    assert "Requires=wonderland-minikube.service" in routing
+    assert " routing --config /opt/wonderland/source/node-config.json" in routing
+    assert "RemainAfterExit=yes" in routing
+    assert any("enable" in args and "wonderland-routing" in args for args in calls)
