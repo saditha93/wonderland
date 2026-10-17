@@ -90,6 +90,12 @@ The observed compute quote is $0.09576/hour, about $0.58 for six hours, plus IPv
 
 ## Verification status
 
-Both Terraform mock tests and 198 Python tests passed. The complete 45-resource creation/server-side release and live acceptance checks were observed in release `r20261016-tf-lifecycle7`. This includes real email confirmation/login, admin/ownership checks, successful and declined Stripe sandbox payments, signed webhook deduplication, concurrent gate admission, booking/gate isolation, worker recovery, pod replacement, reporting reconciliation and Metabase SQL cards. A fresh database backup was verified before teardown.
+All six Terraform configurations and 200 Python tests passed. The complete 45-resource creation/server-side release and live acceptance checks were repeated in release `r20261017-tf-lifecycle8`. Browser login initially failed because the protected origin forwarded OPTIONS to services that returned 405; the proxy now returns 204 after its gateway-origin check, and verification requires a successful preflight status. Visitor and administrator browser login passed afterward. This includes real email confirmation/login, admin/ownership checks, successful and declined Stripe sandbox payments, signed webhook deduplication, concurrent gate admission, booking/gate isolation, worker recovery, pod replacement, reporting reconciliation and Metabase SQL cards. A fresh database backup was verified before teardown.
 
 See [the detailed results](results/aws-rehearsal.md) for the after-hours date fixture, burst/load interpretation and remaining manual assignment gates. Cleanup status is recorded in [acceptance evidence](results/evidence/aws-rehearsal.json). Deployment IAM policies and local configuration are retained for reuse.
+
+## Optional EKS/RDS design
+
+The retained alternative lives under `infrastructure/terraform/advanced/` and `scripts/advanced/eks.py`. It uses separate bootstrap, persistent, demo and edge states, EKS workers, private RDS, an internal load balancer, API Gateway VPC link and workload IAM roles. It requires its own `secrets/cloud-target.json`, existing domain/hosted zone, toolchain and separately reviewed cost/permission plan. It has only been checked offline; the EC2/K3s rehearsal does not verify this topology.
+
+Use `.venv/bin/python scripts/advanced/eks.py --help` to inspect commands. Its lifecycle stages are bootstrap → persistent → demo → application/controller → edge; teardown reverses dependencies and retains protected persistent state. Use the main `./demo.sh` workflow for this assignment demonstration unless deliberately choosing the alternative.

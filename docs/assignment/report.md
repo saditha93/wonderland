@@ -4,11 +4,11 @@ SE6020 — Cloud Computing / Architecting Enterprise Cloud Solutions
 Student name: **[complete]** · Student ID: **[complete]**
 Repository/submission links: **[complete after authorized publication]**
 
-**Evidence status:** the original AWS implementation completed a core cloud rehearsal. The source has since been reorganized and verified with 198 regression tests, both frontend builds, local startup and six offline Terraform configurations. A new complete AWS run of the reorganized source is not claimed. UI/chart review, an ordinary operating-hours walkthrough, remote CI and submission remain open gates.
+**Evidence status:** the reorganized release `r20261017-tf-lifecycle8` was deployed and rehearsed on 17 October 2026. Local checks pass 200 regression tests, both frontend builds, startup/shutdown and six offline Terraform configurations. Browser testing found and corrected an OPTIONS preflight failure; hosted visitor/admin login and reports then passed. Personal chart review, an ordinary operating-hours walkthrough, remote CI and submission remain open. See the results guide for final cleanup status.
 
 ## 1. Objective and scope
 
-Wonderland supports visitors browsing attractions, registering/signing in, booking one ticket tier for a party/date/time, paying in a Stripe sandbox, obtaining a signed QR ticket and viewing owned history. Administrators manage attractions and pricing, admit paid bookings, record ride activity and inspect operational reports. [Requirements](requirements.md) and [coverage](coverage.md) map the supplied assignment to implementation and evidence.
+Wonderland supports visitors browsing attractions, registering/signing in, booking one ticket tier for a party/date/time, paying in a Stripe sandbox, obtaining a signed QR ticket and viewing owned history. Administrators manage attractions and pricing, admit paid bookings, record ride activity and inspect operational reports. The requirement map and checklist below map the supplied assignment to implementation and evidence.
 
 There are separate React visitor and administrator entry points. The API enforces identity, role and ownership checks regardless of which website sends a request. Refunds, partial arrival, re-entry and production capacity planning are outside this MVP.
 
@@ -46,15 +46,15 @@ Cognito JWTs establish identity; the services enforce administrator membership a
 
 ## 6. Observed results and limits
 
-The original AWS rehearsal provisioned 45 resources and completed server-side container/site builds, HTTPS routing, Cognito confirmation/login, role/owner checks, successful and declined sandbox payments, payment retry handling, concurrent admission, ride retry handling, booking/gate isolation, analytics recovery, pod replacement and seven Metabase SQL queries. Source and reporting records reconciled to one paid booking/USD 140, four admitted guests and two ride events/eight riders.
+The reorganized AWS rehearsal provisioned 45 resources and completed server-side container/site builds, HTTPS routing, Cognito confirmation/login, role/owner checks, successful and declined sandbox payments, payment retry handling, concurrent admission, ride retry handling, booking/gate isolation, analytics recovery, pod replacement and seven Metabase SQL queries. Source and reporting records reconciled to one paid booking/USD 140, four admitted guests and two ride events/eight riders.
 
 The run occurred after available booking slots. It first rejected a future-date gate ticket, then used a documented one-booking visit-date fixture for the positive same-day admission test. Application date checks remained enabled. This does not prove an ordinary same-day purchase after closing. Hourly reports correctly showed outside-hours arrivals and zero operating-hour counts; the small dataset does not establish a meaningful business peak.
 
 A burst triggered an observed HPA 2→3→2 cycle, with 979 successes and 11,021 unclassified unsuccessful responses above the gateway's configured 20 requests/second limit. A separate 18 requests/second test returned 2,724 successes and zero errors; CPU stayed below the HPA threshold and two replicas were retained. These are bounded demo observations, not a production capacity benchmark.
 
-The first teardown pass encountered a stale IP-association authorization error. A refreshed Terraform plan released the detached IP, and inventory confirmed no active demo resources. The guarded automatic retry added afterward has four regression cases; another full AWS create/destroy cycle after the helper change and source reorganization has not been repeated.
+The reorganized release completed the full Terraform lifecycle. The initial destroy encountered the known stale IP-association error; its bounded automatic retry refreshed state and released only the detached demo IP. No IAM expansion was needed. A fresh database backup was verified before deletion; Terraform state ended with zero resources. Final inventory and backup details are recorded in the results guide.
 
-Detailed observations: [AWS results](../results/aws-rehearsal.md), [machine-readable evidence](../results/evidence/aws-rehearsal.json), and [current commands](../demo.md). Historical local results remain separate under `docs/results/`; the earlier local report is retained under `docs/archive/`.
+Detailed observations: [AWS results](../results/aws-rehearsal.md), [machine-readable evidence](../results/evidence/aws-rehearsal.json), and [current commands](../demo.md).
 
 ## 7. Submission and handover
 
@@ -66,7 +66,7 @@ The student must review the hosted pages/dashboard, rehearse the ordinary operat
 
 [1] SLIIT, *Assignment — Cloud Computing 2026 — AUG*, supplied course document, pp1–4. Primary functional requirements, tasks and assessment weights. Original retained privately.
 
-[2] SLIIT, *Lecture 4 — Cloud Design Patterns*, supplied slides: CQRS pp8–14; discovery pp21–22; circuit breaker pp23–24; gateway pp25–27; health checks pp36–37. Pattern selections are explained in [design patterns](../architecture/patterns.md).
+[2] SLIIT, *Lecture 4 — Cloud Design Patterns*, supplied slides: CQRS pp8–14; discovery pp21–22; circuit breaker pp23–24; gateway pp25–27; health checks pp36–37. Pattern selections are explained in [the code guide](../code-guide.md#design-choices).
 
 [3] SLIIT, *Lab 5 — Introduction to Docker*, supplied practical material. Supporting containerization context.
 
@@ -76,6 +76,89 @@ The student must review the hosted pages/dashboard, rehearse the ordinary operat
 
 [6] SLIIT, *SE6020 module outline*, supplied course document. Learning outcome and individual assessment context.
 
-Implementation evidence: [source/test guide](../local/testing.md), [architecture decisions](../architecture/decisions.md), [local infrastructure commands](../local/kubernetes.md), [cloud runbook and its primary technical references](../advanced/eks-runbook.md), and the timestamped local evidence record.
+Implementation evidence: [code and design guide](../code-guide.md), [local demonstration commands](../demo.md#optional-laptop-demonstration), [AWS deployment guide](../deployment.md) and [recorded AWS results](../results/aws-rehearsal.md). The optional [optional EKS design](../deployment.md#optional-eksrds-design) describes a separate design that was checked offline.
 
 OpenAI Codex assisted implementation, testing and drafting. The student must personally review the report, understand and explain the code, verify the lecturer's acknowledgement policy, add required personal/submission details and acknowledge other help accurately. No assistance acknowledgement or machine-generated report substitutes for individual understanding or submission approval.
+
+## Assignment checklist
+
+The seven marked areas below separate recorded evidence from the student’s remaining work. Detailed outcomes are in [AWS results](../results/aws-rehearsal.md).
+
+| Area | Weight | Implementation and recorded evidence | Still to do |
+|---|---:|---|---|
+| Solution report | 15% | Report, system diagram, design choices and observed limitations | Add student details, screenshots, final links and personal review |
+| Microservices | 20% | Four containerized services; bookings, payments, admission, rides and reporting exercised in AWS | Repeat the ordinary visitor journey with the student |
+| Kubernetes and API Gateway | 20% | K3s, HTTPS gateway, probes, pod replacement and bounded HPA/recovery checks | Explain the single-host limit; full HPA scale-up/down was recorded in the earlier run |
+| Web, Amplify and Cognito | 15% | Separate hosted apps, confirmed email/signup/login, role and owner checks | Review hosted screen appearance and usability |
+| Monitoring and visualization | 10% | Seven Metabase SQL cards queried and reconciled with purchases, arrivals and rides | Review chart appearance and capture screenshots |
+| Infrastructure as Code | 10% | Terraform provisioned 45 resources; scripted release, backup and teardown observed | Review the latest recorded lifecycle and rehearse the commands personally |
+| Integration demonstration | 10% | Local regression/build checks and source-only handover | Publish reviewed source, observe remote CI, verify examiner access and rehearse the timed viva |
+
+## Before submission
+
+- [ ] Complete a purchase → payment → ticket → admission → ride → reporting walkthrough during valid booking hours. The previous positive gate test used a documented after-hours date fixture.
+- [ ] Review visitor/admin pages and every Metabase chart; capture useful screenshots without passwords or tokens.
+- [x] Deploy and test the reorganized release, retaining its own results and documented proxy correction.
+- [x] Observe Terraform creation, application release, verified backup and cleanup; state ended empty. Repeat the timed command demonstration personally for the viva.
+- [ ] Add student details, repository/hosted links, references and required assistance acknowledgements to the report.
+- [ ] Verify successful remote CI and examiner access to the submitted source.
+- [ ] Explain the code and architecture personally using the [viva guide](../viva.md).
+- [ ] Verify the current Moodle deadline and submit the report plus source/artifact links. The supplied assignment lists 11 October 2026 for submission and 8 November 2026 for viva; no extension is assumed.
+
+## Infrastructure interpretation
+
+K3s supplies Kubernetes on the selected server; it is not EKS. PostgreSQL on encrypted EBS is self-managed, not RDS. The assignment's database guidance mentions managed options; confirm with the lecturer if a managed database is expected. The optional EKS/RDS files remain available. Terraform is explicitly accepted in Task 8. Pod HPA changes replicas, not the fixed EC2 bill, and one server does not provide multi-node high availability.
+
+Primary assignment PDF SHA-256: `8d91c2588dc4c25db389f895a08841632f4ec810a11073b978c8a84b9c722f37`. Original teaching materials remain private under `docs/course-materials/`.
+
+## Assignment requirements
+
+Source: supplied SE6020 assignment, pages 1–4. This map points to the current implementation. [Coverage](#assignment-checklist) lists remaining submission work; [recorded AWS results](../results/aws-rehearsal.md) distinguish observed behavior from limitations.
+
+## Functional requirements
+
+| ID | Requirement | Implementation | Demonstrate |
+|---|---|---|---|
+| F01 | Secure visitor/admin identity and profiles | Cognito, `wonderland_common/auth.py`, booking `profiles.py`, frontend `auth/` | Confirm email, sign in, deny visitor admin access |
+| F02 | Browse attraction details and suitability | Attractions service and visitor `AttractionCard.tsx` | Show description, category, age/height and availability |
+| F03 | One tier, valid party size, date and slot | Booking `reservations.py` | Reject excess guests, past dates and elapsed cloud slots |
+| F04 | Secure payment | Booking `checkout.py` and `payments.py` | Stripe sandbox success/decline; signed, deduplicated webhook |
+| F05 | Digital reference and QR ticket | Booking `tickets.py`, shared ticket signing/verification | Paid ticket works; tampered ticket fails |
+| F06 | Own booking and visit history | Booking store/profiles, gate history, visitor `AccountPanel.tsx` | Owner sees records; another visitor is denied |
+| F07 | Admin attraction create/update/retire | Attractions routes and admin `AdminPanel.tsx` | Update availability; preserve historical references |
+| F08 | Stored, editable tiers and prices | Booking `pricing.py` and reservation price snapshots | New price affects new bookings; old purchase stays unchanged |
+| F09 | Timestamped gate arrivals | Gate/ride service and unique check-in constraint | Admit the full party once on its visit date |
+| F10 | Tickets sold and revenue by tier | Reporting purchase facts and SQL queries | Count confirmed purchases; exclude unpaid bookings |
+| F11 | Popular attractions | Ride events and guest-weighted reporting | Record valid riders; retry produces no duplicate fact |
+| F12 | Busiest and quiet periods | Zero-filled hourly SQL queries in Asia/Colombo | Explain opening hours and outside-hours arrivals |
+| F13 | Durable arrival, purchase and ride data | Service outboxes, SQS and analytics worker | Pause worker, create events, resume and reconcile |
+| F14 | Stored-data visualization | Metabase dashboard, seven SQL cards, read-only BI role | Match chart totals to the underlying demonstration records |
+
+Initial tiers are Individual (1 guest/USD40), Couple (2/USD75), Family (up to 4/USD140) and Group (up to 5/USD165). Adult/child rates, peak pricing and seasonal promotions are optional. Refunds, cancellation, partial arrival and re-entry are outside this MVP.
+
+## Quality requirements
+
+| ID | Requirement | Implementation and limits |
+|---|---|---|
+| N01 | Scalability and concurrency | Stateless replicas, bounded pools, catalog HPA, SQS, idempotency and transaction constraints. Recorded burst failures are not a production capacity result. |
+| N02 | Authentication and data protection | Cognito verification, admin/owner checks, restricted database roles, signed tickets, validated webhooks and redacted logs. |
+| N03 | Encrypted storage and communication | Encrypted EBS/S3/SQS and verified HTTPS/service/database TLS. Runtime credentials remain private. |
+| N04 | Resilience and failure isolation | Independent gate ticket verification, outbox retries, circuit breakers and readiness probes. Shared host/database failure remains a limitation. |
+| N05 | Cost control | Reviewed plans, eligible server checks, stop timer, backup-before-destroy and residual-resource audit. Pod scaling does not reduce the fixed server charge. |
+
+## Deliverables
+
+| ID | Assignment task | Project location / evidence |
+|---|---|---|
+| D01 | Solution report and design | [Report](report.md), `docs/diagrams/system.mmd`, [design choices](../code-guide.md#design-choices) |
+| D02 | Microservices | `services/`, shared `wonderland_common/`, regression tests |
+| D03 | Web, Amplify and Cognito | `frontend/src/{visitor,admin,auth,shared}/`, Terraform hosting/identity |
+| D04 | Container images | Service Dockerfiles; server image builder and ECR |
+| D05 | Kubernetes and API Gateway | K3s workloads and Terraform gateway; optional EKS design retained separately |
+| D06 | Database persistence | PostgreSQL schemas/migrations and encrypted server storage; self-managed rather than RDS |
+| D07 | Run Infrastructure as Code | `infrastructure/terraform/aws/`, `./demo.sh up`, `down`, `audit`; [deployment guide](../deployment.md) |
+| D08 | Repository integration | `.github/workflows/ci.yml`; successful remote CI and examiner access still need verification |
+| A01 | Submission and viva | Source-only ZIP, report, [demo](../demo.md) and [viva guide](../viva.md); final submission is the student's responsibility |
+| A02 | Individual understanding and acknowledgements | Personally review the implementation, references and assistance disclosure in the report |
+
+The marked weights and final manual gates are maintained once in [the assignment checklist](#assignment-checklist).

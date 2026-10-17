@@ -22,6 +22,20 @@ Start with a responsibility, then follow its calls. The file layout separates th
 
 Each service's `main.py` assembles the app. The booking service's `routes.py` now only combines feature routers; it no longer contains every business operation. Migrations under each service own that service's database schema.
 
+## Design choices
+
+| Choice | Why it is used | Limit |
+|---|---|---|
+| API Gateway | One public entry point with routing and throttling | Adds an external dependency |
+| Kubernetes Services | Stable names while pods are replaced | Depends on cluster DNS |
+| Circuit breaker and timeouts | Bound failures when payment or catalog dependencies fail | Breaker state is per process |
+| Separate liveness/readiness probes | Distinguish a running process from an API ready to serve | Shared database failure affects multiple services |
+| Outbox and reporting read model | Commit business events durably and retry reporting later | Reports are eventually consistent |
+| Request IDs and JSON logs | Correlate operations across services | Request IDs are not full distributed tracing |
+| Single server | Keep the demonstration manageable | One host/database failure domain |
+
+See [the report](assignment/report.md) for architecture and [the recorded results](results/aws-rehearsal.md) for observed recovery and scaling.
+
 ## AWS command path
 
 ```text
@@ -70,10 +84,9 @@ Resource addresses were retained during the split to avoid unnecessary replaceme
 
 ## What is optional or generated?
 
-- `scripts/local/` and `docs/local/`: laptop rehearsal.
+- `scripts/local/` and `docs/demo.md`: laptop rehearsal.
 - `scripts/checks/`: integration scenarios; these deliberately generate disposable test records.
 - `scripts/advanced/`, `infrastructure/terraform/advanced/`: alternative/reference workflows.
-- `docs/archive/`: dated implementation history, not the main operating instructions.
 - `.venv`, `node_modules`, `dist*`, `.terraform`, `tmp/`: generated dependencies, caches, logs or binaries.
 - `.env` and `secrets/`: private credentials, configuration, Terraform state and backups; retained and excluded from the handover ZIP.
 

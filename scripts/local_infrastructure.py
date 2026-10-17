@@ -132,7 +132,7 @@ class Rehearsal:
         for executable in ("colima", "docker", "minikube", "kubectl"):
             if not shutil.which(executable):
                 raise RuntimeError(
-                    f"Missing {executable}. See docs/local/cluster-reference.md for first-machine setup."
+                    f"Missing {executable}. See docs/demo.md#optional-laptop-demonstration for first-machine setup."
                 )
         for port in (5180, 5181):
             with socket.socket() as sock:

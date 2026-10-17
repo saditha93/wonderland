@@ -8,8 +8,16 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def missing_links():
-    documents = [ROOT / "README.md", *(ROOT / "docs").rglob("*.md")]
-    documents += list((ROOT / "infrastructure").rglob("README.md"))
+    documents = [ROOT / "README.md"]
+    for folder in (
+        "docs",
+        "infrastructure",
+        "scripts",
+        "services",
+        "analytics",
+        ".github",
+    ):
+        documents.extend((ROOT / folder).rglob("*.md"))
     for document in documents:
         if "course-materials" in document.parts:
             continue

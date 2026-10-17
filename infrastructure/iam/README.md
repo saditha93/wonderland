@@ -1,6 +1,6 @@
 # EC2 demo deployment permissions
 
-The `wonderland` IAM user has AWS-managed `ReadOnlyAccess` and the four approved deployment policies below for the domain-free EC2 Kubernetes demo. They do not make the existing advanced EKS runbook compatible with the EC2 topology. The smaller infrastructure is deployed; application validation is in progress.
+The `wonderland` IAM user has AWS-managed `ReadOnlyAccess` and the four approved deployment policies below for the domain-free EC2 Kubernetes demo. They do not make the existing advanced EKS runbook compatible with the EC2 topology. The selected single-server topology is described in the main deployment guide; application resources are disposable and deployment grants are reusable.
 
 Generate private account-specific JSON using `.venv/bin/python scripts/aws/policies.py --account YOUR_12_DIGIT_ACCOUNT_ID`. There are three managed deployment policies because the combined document exceeds AWS's 6,144-character per-managed-policy limit. The separately approved `WonderlandDemoDependencies` supplement adds required parent-resource and Cognito MFA operations. Together with `ReadOnlyAccess`, this uses five user policy attachments.
 
@@ -18,12 +18,6 @@ Role creation requires `WonderlandRuntimeBoundary`; the deployer cannot edit tha
 
 IAM permissions do not cap instance count/runtime, enforce the account plan, stop bills, or replace plan review. The allowed types may consume credits. No EKS, RDS, load balancer, Route 53/domain purchase, account upgrade or billing mutation is granted by these new policies. ReadOnlyAccess remains a separate broad read grant. Do not attach AdministratorAccess to the EC2 role or user.
 
-## Verification and installation
+## Setup and validation
 
-Nine local security/approval-constraint tests passed. Read-only AWS `ValidatePolicy` returned zero findings for all four documents, and 17 actual IAM `SimulateCustomPolicy` allow/deny scenarios passed. Evidence: [validation](../../docs/results/evidence/deployment-policy-validation.json). Simulations use hypothetical resource contexts; they do not prove every service's live tag propagation, dependent action or Terraform lifecycle. Resolve any live denial against the exact resource/action before amending grants.
-
-The installer `scripts/advanced/maintenance/install_permissions.py` requires the exact approved bundle digest. It verifies account/user, the role boundary prerequisite, AWS document validation and existing matching definitions before writing. It creates missing policy definitions, attaches only the three deployment policies, and preserves existing attachments. It refuses silently overwriting a different existing policy. A failure can leave some definitions/attachments created and must be inspected before retrying; it does not claim transactional rollback.
-
-Run installation only in the explicitly approved administrator CloudShell session after the user confirms this concrete access expansion. The application `.env` identity cannot install these policies itself. No access keys or `.env` values belong in CloudShell commands. Installing IAM grants does not launch compute resources or authorize a Paid-plan upgrade. The policy definitions have no access effect until attached to an identity or used as a boundary for an otherwise permitted role.
-
-Primary references: [AWS PassRole](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html), [Amplify authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amplify.html), [API Gateway authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_apigatewayv2.html).
+Use the separate Terraform permissions setup in [the deployment guide](../../docs/deployment.md#one-time-permissions-setup). Normal application cleanup retains deployment policy definitions and attachments; disposable server roles are removed. This setup does not create application infrastructure. Policy simulation supports review but cannot prove every service's live tag behavior. Do not replace bounded project grants with AdministratorAccess.

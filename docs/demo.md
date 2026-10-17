@@ -1,6 +1,6 @@
 # Run and demonstrate Wonderland
 
-Use the AWS path below for the assignment. The optional laptop walkthrough is in [local/demo.md](local/demo.md).
+Use the AWS path below for the assignment. Optional laptop commands are included at the end of this guide.
 
 ## 1. Prepare without spending AWS credits
 
@@ -100,10 +100,30 @@ Do not manually terminate EC2 before `down`, because doing so prevents a fresh d
 
 ## Results and handover
 
-[The recorded AWS rehearsal](results/aws-rehearsal.md) documents what passed before the source reorganization, including its date fixture and burst-load failures. The refactor's checks are recorded separately. UI/chart review, an operating-hours walkthrough, GitHub publication/remote CI and final submission remain explicit assignment gates.
+[The recorded AWS results](results/aws-rehearsal.md) cover the reorganized release, its browser preflight correction and the documented after-hours gate fixture. User chart review, a normal-hours walkthrough, GitHub publication/remote CI and final submission remain open.
 
 ```bash
 ./demo.sh package
 ```
 
 Submit the generated source ZIP and report after review. The archive excludes private data, installed dependencies, Terraform state and provider caches.
+
+## Optional laptop demonstration
+
+```bash
+./demo.sh local
+```
+
+Keep Terminal open. Visitor: http://localhost:5173; administrator: http://localhost:5174. Use the private passwords printed in an interactive terminal or saved in `secrets/local.accounts.json`. Book a Family visit, use the local payment simulator, copy the booking reference, admit the party in admin, record a ride and refresh Reports. This mode permits today's elapsed slots for demonstration; cloud booking rules remain strict. Ctrl-C stops the apps and preserves local data.
+
+For local Metabase, install Java 21 and place the official pinned `v0.58.35` JAR at `tmp/metabase/metabase.jar`, then run `./start.sh monitoring` in a second terminal. It prints the private dashboard URL/login and checks seven SQL cards. Port 3000 must be free. Obtain the JAR from `https://downloads.metabase.com/v0.58.35/metabase.jar`. The recorded SHA-256 is `922f061ef009ccb131f06022a1b8a2d03ff64ddc5eb1b9880126924b4ab0005f` (recorded bytes, not a vendor signature). AWS Metabase uses port 3001 through its SSM tunnel.
+
+Optional Minikube rehearsal requires Colima, Docker/Buildx, Minikube and kubectl. The scripts use the named `wonderland` VM/profile and private kubeconfig rather than the default cluster. Install the tools, then:
+
+```bash
+./start.sh infra-test  # Build, deploy, business/recovery/HPA checks
+./start.sh infra       # Visitor :5180 and admin :5181; Ctrl-C closes forwarding
+./start.sh infra-stop  # Stop the cluster/VM; preserve its data
+```
+
+The local cluster is independent from native PostgreSQL and AWS. Its simulator records are demonstration data. The test writes its result to `docs/results/evidence/local-infrastructure.json`; a failed test is not successful evidence. Local HPA/pod recovery does not establish AWS or production capacity.

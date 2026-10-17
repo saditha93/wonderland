@@ -135,3 +135,44 @@ def test_deployment_plan_refuses_a_leftover_destroy_override(tmp_path, monkeypat
     (tmp_path / "cleanup_override.tf.json").write_text("{}")
     with pytest.raises(ValueError, match="interrupted cleanup"):
         cloud.plan(None, {})
+
+
+@pytest.mark.parametrize("status", [405, 500])
+def test_failed_preflight_is_rejected_even_with_correct_cors_headers(
+    monkeypatch, status
+):
+    import httpx
+    from scripts.aws import verification
+
+    origin = "https://demo.example.com"
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def get(self, url):
+            return httpx.Response(
+                200, text='<div id="root">', request=httpx.Request("GET", url)
+            )
+
+        def options(self, url, **kwargs):
+            return httpx.Response(
+                status, headers={"access-control-allow-origin": origin}
+            )
+
+    monkeypatch.setattr(verification.httpx, "Client", Client)
+    with pytest.raises(ValueError, match="CORS failed"):
+        verification.verify_deployment(
+            None,
+            {},
+            {
+                "api_url": "https://api.example.com",
+                "portals": {"visitor": {"origin": origin}},
+            },
+        )

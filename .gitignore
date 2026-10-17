@@ -23,7 +23,7 @@ tmp/
 .vscode/
 
 # Generated bootstrap backend override after explicitly approved state migration
-infrastructure/terraform/bootstrap/backend_override.tf
+infrastructure/terraform/advanced/bootstrap/backend_override.tf
 
 # Developer formatting cache
 .ruff_cache/

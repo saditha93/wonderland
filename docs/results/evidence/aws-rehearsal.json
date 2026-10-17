@@ -1,11 +1,28 @@
 {
-  "release": "r20261016-tf-lifecycle7",
+  "checked_at": "2026-10-17T06:26:29.024454+05:30",
+  "release": "r20261017-tf-lifecycle8",
   "account_id": "459154641936",
   "region": "us-east-1",
-  "local_tests_passed": 198,
+  "regression_tests_passed": 200,
+  "frontend_builds": [
+    "visitor",
+    "administrator"
+  ],
+  "terraform_offline_roots_passed": 6,
   "terraform_created_resources": 45,
-  "application_release_verified": true,
-  "base_checks": [
+  "local_startup_readiness_and_shutdown": "passed",
+  "local_business_checks": [
+    "catalog",
+    "booking retry",
+    "simulated payment",
+    "signed ticket",
+    "profile ownership",
+    "admin restrictions",
+    "gate duplicate rejection",
+    "ride retry",
+    "reporting reconciliation"
+  ],
+  "aws_platform_checks": [
     "admin HTTPS hosting",
     "visitor HTTPS hosting",
     "admin CORS",
@@ -18,9 +35,8 @@
     "Cognito admin login and protected admin authorization",
     "Seven stored Metabase SQL cards over private SSM tunnel"
   ],
-  "business_checks": [
+  "aws_business_checks": [
     "Four concurrent booking requests produced one reference",
-    "Stripe sandbox checkout confirmed via signed webhook",
     "Future-date ticket denied before explicit same-day test fixture",
     "Visitor gate mutation forbidden and invalid ticket rejected",
     "Booking API unavailable while gate admitted signed ticket independently",
@@ -28,7 +44,7 @@
     "New booking succeeds while gate service is unavailable",
     "Ride event recorded and identical retry deduplicated"
   ],
-  "additional_checks": [
+  "aws_additional_checks": [
     "Admin catalog create/update/retire; visitor mutation forbidden",
     "Cross-owner booking access denied",
     "Invalid Stripe webhook signature rejected",
@@ -37,17 +53,6 @@
     "Ride recorded during analytics outage; durable outbox drained after worker restart; retry deduplicated",
     "Cloud reporting purchases/revenue/arrivals/rides reconcile with source tables without duplicates"
   ],
-  "gate_concurrency_http_statuses": [
-    201,
-    409,
-    409,
-    409
-  ],
-  "after_hours_date_fixture": {
-    "original_visit_date": "2026-10-17",
-    "test_visit_date": "2026-10-16",
-    "reason": "Run same-day gate acceptance after all booking slots elapsed; API booking rules remain enabled. Payment/amount/status unchanged."
-  },
   "reporting_totals": {
     "confirmed_bookings": 1,
     "purchases": 1,
@@ -60,185 +65,70 @@
     "pending_booking": 0,
     "pending_visits": 0
   },
-  "reporting_query_results": {
-    "arrival-hours": [
-      {
-        "day": "2026-10-16",
-        "hour": 9,
-        "arriving_guests": 0
-      },
-      {
-        "day": "2026-10-16",
-        "hour": 10,
-        "arriving_guests": 0
-      },
-      {
-        "day": "2026-10-16",
-        "hour": 11,
-        "arriving_guests": 0
-      },
-      {
-        "day": "2026-10-16",
-        "hour": 12,
-        "arriving_guests": 0
-      },
-      {
-        "day": "2026-10-16",
-        "hour": 13,
-        "arriving_guests": 0
-      },
-      {
-        "day": "2026-10-16",
-        "hour": 14,
-        "arriving_guests": 0
-      },
-      {
-        "day": "2026-10-16",
-        "hour": 15,
-        "arriving_guests": 0
-      },
-      {
-        "day": "2026-10-16",
-        "hour": 16,
-        "arriving_guests": 0
-      },
-      {
-        "day": "2026-10-16",
-        "hour": 17,
-        "arriving_guests": 0
-      }
-    ],
-    "busy-quiet-hours": [
-      {
-        "hour": 9,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      },
-      {
-        "hour": 10,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      },
-      {
-        "hour": 11,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      },
-      {
-        "hour": 12,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      },
-      {
-        "hour": 13,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      },
-      {
-        "hour": 14,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      },
-      {
-        "hour": 15,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      },
-      {
-        "hour": 16,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      },
-      {
-        "hour": 17,
-        "arriving_guests": 0,
-        "busiest_rank": 1,
-        "quietest_rank": 1
-      }
-    ],
-    "daily-arrivals": [
-      {
-        "day": "2026-10-16",
-        "arriving_guests": 4
-      }
-    ],
-    "outside-hours": [
-      {
-        "day": "2026-10-16",
-        "arriving_guests": 4
-      }
-    ],
-    "popular-attractions": [
-      {
-        "attraction_name": "Little Explorers",
-        "riders": 8,
-        "ride_events": 2
-      }
-    ],
-    "revenue-by-tier": [
-      {
-        "tier_name": "Family",
-        "revenue_cents": 14000
-      }
-    ],
-    "tickets-by-tier": [
-      {
-        "tier_name": "Family",
-        "purchased_tickets": 1
-      }
-    ]
+  "gate_concurrency_http_statuses": [
+    201,
+    409,
+    409,
+    409
+  ],
+  "after_hours_date_fixture": {
+    "original_visit_date": "2026-10-18",
+    "test_visit_date": "2026-10-17",
+    "reason": "Run same-day gate acceptance after all booking slots elapsed; API booking rules remain enabled. Payment/amount/status unchanged."
   },
-  "declined_payment_remained_pending_and_unpaid": true,
+  "browser_checks": [
+    "Stripe sandbox success and decline",
+    "Cognito visitor login",
+    "Cognito administrator login",
+    "owned booking history",
+    "admin dashboard and all five report tables"
+  ],
+  "preflight_fix": {
+    "observed": "Cognito succeeded but API OPTIONS returned 405 and browser login failed",
+    "corrected": "Protected origin returns 204 for OPTIONS after gateway-token check; allowed origins remain restricted",
+    "verified": "Browser visitor/admin login passed; verifier requires successful HTTP status; two regression cases reject 405/500"
+  },
   "duplicate_stripe_event_replay_detected": true,
-  "duplicate_replay_note": "An observed Stripe sandbox event was re-signed for the explicit retry test. The original checkout confirmation came directly from Stripe.",
-  "self_heal_successful_public_requests": 31,
-  "blue_green": {
-    "switch_and_rollback_passed": true,
-    "note": "Identical domain code and image; alternate APP_VERSION release metadata."
-  },
-  "burst_load": {
-    "successful_requests": 979,
-    "unsuccessful_requests": 11021,
-    "hpa_2_to_3_to_2": true,
-    "note": "Burst exceeded configured gateway 20 requests/second; unsuccessful responses were not individually classified. This is not a capacity or zero-error benchmark."
-  },
+  "declined_payment_remained_pending_and_unpaid": true,
   "limited_load": {
     "successful_requests": 2724,
     "failed_requests": 0,
+    "request_rate_limit_per_second": 18,
     "http_status_counts": {
       "200": 2724
     },
-    "request_rate_limit_per_second": 18,
     "scaled_up": false,
     "returned_to_two": true
   },
-  "limited_load_note": "CPU remained below HPA threshold (maximum observed 53% vs 70% target); staying at two replicas was expected.",
-  "cleanup_verified": true,
-  "pending_manual": [
-    "Review hosted portal and Metabase chart appearance with the user",
-    "Repeat booking/gate demonstration during operating hours without an after-hours date fixture",
-    "Authorized GitHub publication and observed remote CI",
-    "Final report/screenshots/student details and submission"
-  ],
-  "lifecycle_tests_passed": 16,
-  "cleanup_recovery": {
-    "observed_error": "Stale EIP association DisassociateAddress authorization failure after server termination",
-    "fix": "One Terraform retry after fresh state confirms only an approved detached demo EIP remains and no active demo server exists",
-    "iam_expanded": false,
-    "guard_tests_passed": 4,
-    "full_create_destroy_after_helper_change_repeated": false
-  },
-  "cleanup_checked_at_unix": 1792175618,
-  "remaining_active_resources": [],
+  "limited_load_note": "No scale-up observed; CPU stayed below threshold. This is not a production capacity benchmark.",
+  "prior_run_hpa_2_to_3_to_2": "Observed in r20261016-tf-lifecycle7; not repeated by this below-threshold load.",
   "fresh_database_backup_verified": true,
   "backup_contains_rehearsal_booking": true,
-  "deployment_permissions_retained": true
+  "backup_restore_rehearsed": false,
+  "cleanup_verified": true,
+  "cleanup_status": "Independent final audit: no active demo resources",
+  "deployment_permissions_retained": true,
+  "not_repeated": [
+    "New self-service signup with emailed confirmation code",
+    "Full HPA scale-up/down",
+    "Optional EKS/RDS deployment",
+    "Local Minikube full rehearsal",
+    "Local Metabase (port 3000 belongs to unrelated Node process)"
+  ],
+  "pending_manual": [
+    "Normal-hours visitor purchase/admission without fixture",
+    "Personal Metabase chart review",
+    "Authorized GitHub publication and successful remote CI",
+    "Report details/screenshots and submission"
+  ],
+  "lint_note": "Full-repository Ruff scan reports existing import/style issues; this is not recorded as a passing check.",
+  "project_process_cleanup": "All API/frontend and SSM tunnel ports closed after checks",
+  "terraform_state_resources_after_destroy": 0,
+  "cleanup_recovery": {
+    "detached_eip_retry_exercised_live": true,
+    "result": "succeeded",
+    "iam_expanded": false
+  },
+  "remaining_active_resources": [],
+  "cleanup_checked_at": "2026-10-17T06:27:07.405137+05:30"
 }

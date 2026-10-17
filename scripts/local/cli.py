@@ -169,7 +169,7 @@ def start(check=False):
                 "Private passwords: secrets/local.accounts.json (not printed to captured output)."
             )
         print(
-            "Guide: docs/local/demo.md\nStop the apps: Ctrl-C. Your data stays saved.\n",
+            "Guide: docs/demo.md#optional-laptop-demonstration\nStop the apps: Ctrl-C. Your data stays saved.\n",
             flush=True,
         )
         if check:

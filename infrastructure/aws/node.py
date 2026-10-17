@@ -132,6 +132,8 @@ server {{
     ssl_protocols TLSv1.2 TLSv1.3;
     location /api/ {{
         if ($http_x_wonderland_gateway != "{token}") {{ return 403; }}
+        # API Gateway supplies the allowed-origin headers; keep its origin guard first.
+        if ($request_method = OPTIONS) {{ return 204; }}
         proxy_pass https://127.0.0.1:30443;
         proxy_ssl_verify on;
         proxy_ssl_trusted_certificate {ca};

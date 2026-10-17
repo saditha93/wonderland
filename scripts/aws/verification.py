@@ -39,7 +39,11 @@ def verify_deployment(aws, target_settings, deployment_details):
                     "Access-Control-Request-Headers": "authorization",
                 },
             )
-            if response.headers.get("access-control-allow-origin") != portal["origin"]:
+            if (
+                not response.is_success
+                or response.headers.get("access-control-allow-origin")
+                != portal["origin"]
+            ):
                 raise GuardError(name + " CORS failed")
             evidence["checks"].append(name + " CORS")
         response = client.options(

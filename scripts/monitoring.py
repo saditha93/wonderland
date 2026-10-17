@@ -18,10 +18,12 @@ PYTHON = str(ROOT / ".venv/bin/python")
 
 def start():
     if not shutil.which("java"):
-        raise RuntimeError("Metabase needs Java 21. See docs/local/monitoring.md.")
+        raise RuntimeError(
+            "Metabase needs Java 21. See docs/demo.md#optional-laptop-demonstration."
+        )
     if not (ROOT / "tmp/metabase/metabase.jar").exists():
         raise RuntimeError(
-            "Pinned Metabase JAR is missing. See docs/archive/phases/phase-4-outcome.md for download instructions."
+            "Pinned Metabase JAR is missing. See docs/demo.md#optional-laptop-demonstration for download instructions."
         )
     with socket.socket() as sock:
         if sock.connect_ex(("127.0.0.1", 3000)) == 0:
@@ -29,7 +31,7 @@ def start():
                 "Port 3000 is already in use. Use the existing Metabase terminal, or close it before starting another copy."
             )
     # Native setup preserves existing keys/data and prepares the read-only BI role.
-    from mvp import start_database
+    from scripts.local.cli import start_database
 
     start_database()
     directory = ROOT / "tmp/metabase"

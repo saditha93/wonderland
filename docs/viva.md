@@ -10,7 +10,7 @@ Use [demo.md](demo.md) for the exact sequence. Prepare the deployment before you
 
 **Architecture — 60 seconds**
 
-Open `docs/diagrams/system.mmd` or the architecture guide. Explain four independently built services: attractions, booking/payment/profile, gate/rides and analytics. Each owns a PostgreSQL schema. Cognito authenticates users, API Gateway receives requests, and Kubernetes runs the workloads. Amplify hosts separate visitor and admin sites. Metabase reads reporting views through a read-only database role.
+Open `docs/diagrams/system.mmd` and the report. Explain four independently built services: attractions, booking/payment/profile, gate/rides and analytics. Each owns a PostgreSQL schema. Cognito authenticates users, API Gateway receives requests, and Kubernetes runs the workloads. Amplify hosts separate visitor and admin sites. Metabase reads reporting views through a read-only database role.
 
 “The demo uses one 8 GiB EC2 server for Kubernetes, PostgreSQL and Metabase. This keeps the teaching deployment manageable. A whole-server or database outage remains a shared failure; I am not claiming multi-node high availability.”
 
@@ -74,7 +74,7 @@ Show the observed rehearsal results: one paid booking/USD 140, four admitted gue
 | Why one server? | A small demonstration footprint fits the chosen budget and memory needs. Whole-host/DB failure remains a limitation. |
 | Does HPA lower this EC2 bill? | It changes pod replicas. The fixed server, disk and public IP remain until the relevant infrastructure is removed. |
 | Why retain IAM/state? | IAM defines reusable deployment permissions; private state tracks resources and supports safe cleanup. Neither is application source for the public ZIP. |
-| What remains before submission? | User UI/chart review, a normal-hours walkthrough, authorized GitHub publication and remote CI, final screenshots/student details and submission. |
+| What remains before submission? | Personal chart review, a normal-hours walkthrough, authorized GitHub publication and remote CI, final screenshots/student details and submission. |
 
 ## Know these code paths
 

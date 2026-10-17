@@ -39,9 +39,9 @@ Keep Terminal open until commands finish. Stopping or manually terminating EC2 i
 | [Code guide](docs/code-guide.md) | Where each responsibility lives and which functions to explain |
 | [Deployment](docs/deployment.md) | Terraform, initial permissions and recovery details |
 | [Observed AWS results](docs/results/aws-rehearsal.md) | What was actually tested, including limitations |
-| [Assignment checklist](docs/assignment/coverage.md) | Remaining report, UI review, CI and submission work |
+| [Assignment report](docs/assignment/report.md) | Architecture, requirements, rubric and submission checklist |
 
-The live rehearsal completed before this source reorganization. The reorganized source is checked with regression tests, both frontend builds, local startup and offline Terraform tests; it has not yet had another complete AWS deployment. Historical results are not presented as a new live run.
+The reorganized release was deployed and tested on 17 October 2026. Browser testing found a failed preflight response; the proxy was corrected on AWS and the verifier now rejects unsuccessful CORS responses. Local checks pass 200 tests, both frontend builds, startup/shutdown and six offline Terraform configurations. Terraform cleanup and an independent inventory audit passed; no active demo resources remain. See the results guide for remaining manual checks.
 
 ## Folder map
 
@@ -56,10 +56,10 @@ infrastructure/aws/       server bootstrap and Kubernetes installation
 infrastructure/terraform/ aws/ (main), permissions/ (one-time), advanced/ (optional)
 analytics/                dashboard and seven SQL queries
 tests/                    regression and safety checks
-docs/                     current guides, assignment, results and archive
+docs/                     demo, viva, code guide, assignment and test results
 ```
 
-The optional EKS/RDS design and historical phase material are retained under `advanced/` and `docs/archive/`; they are not the main viva deployment.
+The optional EKS/RDS infrastructure is retained under `infrastructure/terraform/advanced/`. Its [runbook](docs/deployment.md#optional-eksrds-design) describes that separate alternative. The main demonstration uses the single-server stack.
 
 ## Fresh laptop setup
 
