@@ -2,7 +2,7 @@
 
 Use the AWS path below for the assignment. The server now uses Minikube, kubectl and the built-in Ingress add-on. Optional laptop commands are included at the end of this guide.
 
-For server-side viva commands and the Ingress route example, see [Minikube and Ingress](deployment.md#minikube-and-ingress-on-the-server). The previous live rehearsal used K3s; repeat `up` and `check` to validate the new runtime.
+For server-side viva commands and the Ingress route example, see [Minikube and Ingress](deployment.md#minikube-and-ingress-on-the-server). The latest AWS rehearsal used Minikube and Ingress; see the recorded results.
 
 ## 1. Prepare without spending AWS credits
 

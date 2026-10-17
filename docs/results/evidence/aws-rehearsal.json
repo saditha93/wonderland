@@ -160,5 +160,99 @@
     "regression_tests_passed": 205,
     "backup_and_saved_plan_guards_retained": true,
     "cloud_actions_executed_for_this_edit": false
+  },
+  "minikube_rehearsal": {
+    "checked_at": "2026-10-17T18:35:39.568792+05:30",
+    "release": "r20261017-minikube3",
+    "runtime": "Minikube v1.39.0 / Kubernetes v1.36.5 / built-in Ingress",
+    "regression_tests_passed": 212,
+    "terraform_roots": 6,
+    "aws_platform_checks": [
+      "admin HTTPS hosting",
+      "visitor HTTPS hosting",
+      "admin CORS",
+      "visitor CORS",
+      "Unapproved CORS origin denied",
+      "Verified public IP TLS",
+      "Direct API origin denied",
+      "All four APIs healthy through Minikube Ingress",
+      "Public seeded catalog and ticket tiers",
+      "Cognito visitor login and protected admin authorization",
+      "Cognito admin login and protected admin authorization",
+      "Seven stored Metabase SQL cards over private SSM tunnel"
+    ],
+    "business_checks": [
+      "Four concurrent booking requests produced one reference",
+      "Visitor gate mutation forbidden and invalid ticket rejected",
+      "Booking API unavailable while gate admitted signed ticket independently",
+      "Concurrent gate requests produced one admission and three duplicate conflicts",
+      "New booking succeeds while gate service is unavailable",
+      "Ride event recorded and identical retry deduplicated"
+    ],
+    "additional_checks": [
+      "Admin catalog create/update/retire; visitor mutation forbidden",
+      "Cross-owner booking access denied",
+      "Invalid Stripe webhook signature rejected",
+      "Tier revision/new pricing works; previous booking amount preserved; original price restored",
+      "Kubernetes replacement pod ready while public catalog remained available",
+      "Ride recorded during analytics outage; durable outbox drained after worker restart; retry deduplicated",
+      "Cloud reporting purchases/revenue/arrivals/rides reconcile with source tables without duplicates",
+      "Cloud reporting purchases/revenue/arrivals/rides reconcile with source tables without duplicates"
+    ],
+    "reporting_totals": {
+      "confirmed_bookings": 1,
+      "purchases": 1,
+      "booking_revenue": 14000,
+      "reported_revenue": 14000,
+      "check_ins": 1,
+      "arrivals": 1,
+      "source_rides": 2,
+      "reported_rides": 2,
+      "pending_booking": 0,
+      "pending_visits": 0
+    },
+    "gate_http_statuses": [
+      201,
+      409,
+      409,
+      409
+    ],
+    "normal_hours_no_date_fixture": true,
+    "browser_login_retry_after_outage": "passed",
+    "ssh_from_laptop": "passed",
+    "cloudwatch_streams": 22,
+    "load": {
+      "successful_requests": 2724,
+      "failed_requests": 0,
+      "request_rate_limit_per_second": 18,
+      "http_status_counts": {
+        "200": 2724
+      },
+      "scaled_up": false,
+      "returned_to_two": true
+    },
+    "restart_recovery": "All pods, routing service and Metabase forwarder healthy; reporting persisted",
+    "backup_restore_rehearsed": false,
+    "cleanup_verified": true,
+    "remaining_manual": [
+      "New self-service signup/email confirmation not repeated",
+      "HPA full scale-up/down not repeated",
+      "GitHub publication/remote CI not performed",
+      "Report personalization and submission"
+    ],
+    "restart_platform_recheck": "passed",
+    "fixes": [
+      "CPU reservations adjusted for Minikube control-plane overhead",
+      "Failed backend session acceptance clears Cognito tokens; browser outage/retry passed",
+      "Startup routing service restores Minikube add-on TLS settings"
+    ],
+    "fresh_backup_verified": true,
+    "backup_contains_paid_booking": true,
+    "backup_sha256": "51fb87735f3133ee7f186affd7a160c55fc3bfe1673a4e9fa313837072b67d1a",
+    "cleanup_status": "Final complete independent AWS audit: no active demo resources",
+    "remaining_active_resources": [],
+    "terraform_state_resources_after_destroy": 0,
+    "cleanup_checked_at": "2026-10-17T18:48:15.792485+05:30",
+    "deployment_permissions_retained": true
   }
 }

@@ -88,7 +88,7 @@ The seven marked areas below separate recorded evidence from the student’s rem
 |---|---:|---|---|
 | Solution report | 15% | Report, system diagram, design choices and observed limitations | Add student details, screenshots, final links and personal review |
 | Microservices | 20% | Four containerized services; bookings, payments, admission, rides and reporting exercised in AWS | Repeat the ordinary visitor journey with the student |
-| Kubernetes and API Gateway | 20% | Minikube/Ingress manifests and HTTPS gateway; previous K3s rehearsal covers probes, pod replacement and bounded HPA/recovery checks | Explain the single-host limit; full HPA scale-up/down was recorded in the earlier run |
+| Kubernetes and API Gateway | 20% | Minikube/Ingress manifests and HTTPS gateway; Minikube rehearsal covers probes, pod replacement, bounded load and recovery; earlier K3s run demonstrated HPA scale-up | Explain the single-host limit; full HPA scale-up/down was recorded in the earlier run |
 | Web, Amplify and Cognito | 15% | Separate hosted apps, confirmed email/signup/login, role and owner checks | Review hosted screen appearance and usability |
 | Monitoring and visualization | 10% | Seven Metabase SQL cards queried and reconciled with purchases, arrivals and rides | Review chart appearance and capture screenshots |
 | Infrastructure as Code | 10% | Terraform provisioned 45 resources; scripted release, backup and teardown observed | Review the latest recorded lifecycle and rehearse the commands personally |
@@ -107,7 +107,7 @@ The seven marked areas below separate recorded evidence from the student’s rem
 
 ## Infrastructure interpretation
 
-Minikube supplies Kubernetes on the selected server; it is not EKS. The built-in ingress-nginx add-on is retired and retained for this lab demonstration. The Minikube implementation needs a new live rehearsal; previous runtime evidence is from K3s. PostgreSQL on encrypted EBS is self-managed, not RDS. The assignment's database guidance mentions managed options; confirm with the lecturer if a managed database is expected. The optional EKS/RDS files remain available. Terraform is explicitly accepted in Task 8. Pod HPA changes replicas, not the fixed EC2 bill, and one server does not provide multi-node high availability.
+Minikube supplies Kubernetes on the selected server; it is not EKS. The built-in ingress-nginx add-on is retired and retained for this lab demonstration. The Minikube implementation was rehearsed live, including four Ingress routes, real sandbox payment/webhook, gate concurrency, service isolation, worker recovery and Metabase queries. Earlier K3s evidence is labelled separately. PostgreSQL on encrypted EBS is self-managed, not RDS. The assignment's database guidance mentions managed options; confirm with the lecturer if a managed database is expected. The optional EKS/RDS files remain available. Terraform is explicitly accepted in Task 8. Pod HPA changes replicas, not the fixed EC2 bill, and one server does not provide multi-node high availability.
 
 Primary assignment PDF SHA-256: `8d91c2588dc4c25db389f895a08841632f4ec810a11073b978c8a84b9c722f37`. Original teaching materials remain private under `docs/course-materials/`.
 

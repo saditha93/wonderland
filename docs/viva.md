@@ -69,7 +69,7 @@ kubectl -n wonderland describe ingress api-booking
 
 Explain: “Minikube creates the Kubernetes cluster. Kubectl manages its resources. The Ingress controller reads our Ingress rules and sends `/api/booking/...` to the booking Service, which selects ready booking pods. API Gateway remains the AWS public entry point.”
 
-The built-in ingress-nginx add-on is retired, so describe this as the lecturer-aligned lab setup. Historical recovery/load results below came from the previous K3s runtime; rerun the live demo before claiming them for Minikube.
+The built-in ingress-nginx add-on is retired, so describe this as the lecturer-aligned lab setup. The latest Minikube rehearsal repeated payment, gate concurrency, service isolation, worker recovery, pod replacement and bounded load. Read the results for the measured limits.
 
 ## Questions to prepare
 
