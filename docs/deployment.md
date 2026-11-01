@@ -184,3 +184,9 @@ kubectl -n wonderland get events --sort-by=.metadata.creationTimestamp
 ```
 
 These inspect server components. Use `./demo.sh check` from the laptop for the hosted platform. Never expose Kubernetes Secrets or private credential files while recording the demo.
+
+## Resume a stopped demo for the viva
+
+`./demo.sh up` plans infrastructure changes, starts the existing server and checks its installed application when the recorded server is retained. It does not rebuild an existing release. For a quicker start without Terraform, use `./demo.sh start`, then `./demo.sh check` and `./demo.sh monitor`. The six-hour timer stops compute after each boot.
+
+First-boot script changes apply to new servers; Terraform ignores user-data drift on an existing host so these edits cannot replace its database disk. Destruction protection remains enabled. To publish code changes, select a fresh release identifier and use `./cloud.sh release`. An AMI or other replacement-requiring change still needs backup and a deliberate teardown/recreation.

@@ -325,6 +325,11 @@ def check_cleanup_permissions(aws, target_settings):
 
 
 def up(aws, target_settings, approved, infra_only=False):
+    existing_id = (
+        load_deployment()["instance_id"]
+        if (PRIVATE / "deployment.json").exists()
+        else None
+    )
     check_cleanup_permissions(aws, target_settings)
     if not approved:
         plan(aws, target_settings)
@@ -335,7 +340,23 @@ def up(aws, target_settings, approved, infra_only=False):
     if not infra_only:
         from scripts.aws.release import release_application
 
-        release_application(aws, target_settings, load_deployment())
+        deployment = load_deployment()
+        if existing_id == deployment["instance_id"]:
+            from scripts.aws.verification import verify_deployment
+            from scripts.aws.remote import run_on_server
+
+            run_on_server(
+                aws,
+                deployment,
+                ["systemctl is-active wonderland-minikube wonderland-routing nginx"],
+                timeout=120,
+            )
+            verify_deployment(aws, target_settings, deployment)
+            print(
+                "Existing deployment resumed. Use ./cloud.sh release with a fresh release identifier when publishing code changes."
+            )
+        else:
+            release_application(aws, target_settings, deployment)
 
 
 def deploy(aws, target_settings, approved):
@@ -417,6 +438,17 @@ def set_server_power(aws, target_settings, action):
             ec2.get_waiter("instance_running").wait(InstanceIds=[instance_id])
         print(
             "Server running. Waiting for SSM and application readiness...", flush=True
+        )
+        from scripts.aws.remote import run_on_server
+
+        run_on_server(
+            aws,
+            deployment_details,
+            [
+                "systemctl start wonderland-cert-renew.service",
+                "systemctl is-active wonderland-minikube wonderland-routing nginx wonderland-metabase-forward",
+            ],
+            timeout=300,
         )
     else:
         ec2.stop_instances(InstanceIds=[instance_id])

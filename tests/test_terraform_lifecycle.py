@@ -293,22 +293,44 @@ def test_key_launch_preflight_checks_name_arn_not_key_id():
 
 
 def test_start_preserves_running_server_without_duplicate_start(monkeypatch):
+    from scripts.aws import remote
+
+    monkeypatch.setattr(remote, "run_on_server", lambda *args, **kwargs: None)
     monkeypatch.setattr(cloud, "require_free_plan", lambda aws: None)
     monkeypatch.setattr(cloud, "load_deployment", lambda: {"instance_id": "i-demo"})
-    instance = {"State": {"Name": "running"}, "Tags": [{"Key": "Project", "Value": "wonderland"}, {"Key": "Stack", "Value": "wonderland-demo"}]}
-    ec2 = SimpleNamespace(describe_instances=lambda **kw: {"Reservations": [{"Instances": [instance]}]})
+    instance = {
+        "State": {"Name": "running"},
+        "Tags": [
+            {"Key": "Project", "Value": "wonderland"},
+            {"Key": "Stack", "Value": "wonderland-demo"},
+        ],
+    }
+    ec2 = SimpleNamespace(
+        describe_instances=lambda **kw: {"Reservations": [{"Instances": [instance]}]}
+    )
     cloud.set_server_power(SimpleNamespace(client=lambda name: ec2), {}, "start")
 
 
 def test_start_restarts_stopped_server_without_replacement(monkeypatch):
+    from scripts.aws import remote
+
+    monkeypatch.setattr(remote, "run_on_server", lambda *args, **kwargs: None)
     monkeypatch.setattr(cloud, "require_free_plan", lambda aws: None)
     monkeypatch.setattr(cloud, "load_deployment", lambda: {"instance_id": "i-demo"})
     calls = []
-    instance = {"State": {"Name": "stopped"}, "Tags": [{"Key": "Project", "Value": "wonderland"}, {"Key": "Stack", "Value": "wonderland-demo"}]}
+    instance = {
+        "State": {"Name": "stopped"},
+        "Tags": [
+            {"Key": "Project", "Value": "wonderland"},
+            {"Key": "Stack", "Value": "wonderland-demo"},
+        ],
+    }
     ec2 = SimpleNamespace(
         describe_instances=lambda **kw: {"Reservations": [{"Instances": [instance]}]},
         start_instances=lambda **kw: calls.append(("start", kw)),
-        get_waiter=lambda name: SimpleNamespace(wait=lambda **kw: calls.append((name, kw))),
+        get_waiter=lambda name: SimpleNamespace(
+            wait=lambda **kw: calls.append((name, kw))
+        ),
     )
     cloud.set_server_power(SimpleNamespace(client=lambda name: ec2), {}, "start")
     assert [name for name, _ in calls] == ["start", "instance_running"]
