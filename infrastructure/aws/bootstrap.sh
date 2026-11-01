@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
-# Public bootstrap only: no database, AWS or payment credentials in user data.
 MINIKUBE_VERSION=v1.39.0
 KUBERNETES_VERSION=v1.36.5
 install -d -m 700 /opt/wonderland
-# Wait for Terraform to associate the fixed public address before apt/downloads.
 TOKEN=$(curl -fsS -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600' http://169.254.169.254/latest/api/token)
 for attempt in $(seq 1 120); do
   if curl -fsS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4 >/dev/null; then break; fi
@@ -27,7 +25,6 @@ net.bridge.bridge-nf-call-iptables=1
 net.bridge.bridge-nf-call-ip6tables=1
 SYSCTL
 sysctl --system >/dev/null
-# Minikube runs a Docker node as ubuntu; the EC2 host needs no nested VM.
 systemctl enable --now docker
 usermod -aG docker ubuntu
 install -d -m 755 /opt/wonderland/downloads
@@ -40,7 +37,6 @@ curl -fL --retry 5 -o kubectl-real "https://dl.k8s.io/release/${KUBERNETES_VERSI
 curl -fL --retry 5 -o kubectl.sha256 "https://dl.k8s.io/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl.sha256"
 echo "$(cat kubectl.sha256)  kubectl-real" | sha256sum -c -
 install -m 755 kubectl-real /usr/local/bin/kubectl-real
-# Root SSM commands and ubuntu SSH sessions use the same private cluster.
 cat > /usr/local/bin/kubectl <<'KUBECTL'
 #!/bin/sh
 exec /usr/local/bin/kubectl-real --kubeconfig=/home/ubuntu/.kube/config "$@"
@@ -67,7 +63,6 @@ ExecStop=/usr/local/bin/minikube stop -p wonderland
 [Install]
 WantedBy=multi-user.target
 UNIT
-# Stop compute automatically six hours after every boot; keep disk and address.
 cat > /etc/systemd/system/wonderland-autostop.service <<'UNIT'
 [Unit]
 Description=Stop the demo server after its bounded runtime
