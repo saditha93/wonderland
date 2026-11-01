@@ -45,7 +45,7 @@ def test_up_command_uses_its_fresh_saved_plan_without_an_extra_prompt(
     monkeypatch.setattr(cloud, "deploy", lambda *args: calls.append(args[-1]))
     monkeypatch.setattr(cloud, "set_server_power", lambda *args: calls.append(args[-1]))
     cloud.up(None, {}, None, infra_only=True)
-    assert calls == ["fresh-digest", "start"]
+    assert calls == ["fresh-digest"]
 
 
 @pytest.mark.parametrize("actions", [["create"], ["update"], ["delete", "create"]])

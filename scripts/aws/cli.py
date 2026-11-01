@@ -336,7 +336,8 @@ def up(aws, target_settings, approved, infra_only=False):
         approved = json.loads((PRIVATE / "review.json").read_text())["plan_sha256"]
     check_cleanup_permissions(aws, target_settings)
     deploy(aws, target_settings, approved)
-    set_server_power(aws, target_settings, "start")
+    if existing_id:
+        set_server_power(aws, target_settings, "start")
     if not infra_only:
         from scripts.aws.release import release_application
 
