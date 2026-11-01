@@ -7,6 +7,7 @@ show_help() {
 Wonderland demonstration
 
   ./demo.sh up               Plan, create AWS, build and release (no extra prompt)
+  ./demo.sh start            Start the existing server without replacing it
   ./demo.sh status           Show the current server state and website URLs
   ./demo.sh check            Check hosted APIs, access rules and Metabase SQL
   ./demo.sh monitor          Open the private Metabase tunnel
@@ -35,7 +36,7 @@ case "$command" in
   check) exec ./cloud.sh verify "$@" ;;
   monitor) exec ./cloud.sh monitoring "$@" ;;
   audit) exec ./cloud.sh cleanup-check "$@" ;;
-  up|down|status|plan|plan-down) exec ./cloud.sh "$command" "$@" ;;
+  up|down|start|stop|status|plan|plan-down) exec ./cloud.sh "$command" "$@" ;;
   test|package) exec ./start.sh "$command" "$@" ;;
   local) exec ./start.sh start "$@" ;;
   terraform-check)

@@ -331,6 +331,7 @@ def up(aws, target_settings, approved, infra_only=False):
         approved = json.loads((PRIVATE / "review.json").read_text())["plan_sha256"]
     check_cleanup_permissions(aws, target_settings)
     deploy(aws, target_settings, approved)
+    set_server_power(aws, target_settings, "start")
     if not infra_only:
         from scripts.aws.release import release_application
 
@@ -395,8 +396,31 @@ def set_server_power(aws, target_settings, action):
     tags = {x["Key"]: x["Value"] for x in instance.get("Tags", [])}
     if tags.get("Project") != "wonderland" or tags.get("Stack") != "wonderland-demo":
         raise GuardError("Instance ownership tags differ")
-    getattr(ec2, action + "_instances")(InstanceIds=[deployment_details["instance_id"]])
-    print(action.capitalize() + " requested; database and address are preserved.")
+    state = instance["State"]["Name"]
+    instance_id = deployment_details["instance_id"]
+    if state in {"terminated", "shutting-down"}:
+        raise GuardError(
+            "Recorded server was terminated. Use audit and recover the deployment before continuing."
+        )
+    if action == "start":
+        if state == "stopping":
+            print("Waiting for the server to finish stopping...", flush=True)
+            ec2.get_waiter("instance_stopped").wait(InstanceIds=[instance_id])
+            state = "stopped"
+        if state == "stopped":
+            ec2.start_instances(InstanceIds=[instance_id])
+            print(
+                "Starting existing server; database and address are preserved.",
+                flush=True,
+            )
+        if state != "running":
+            ec2.get_waiter("instance_running").wait(InstanceIds=[instance_id])
+        print(
+            "Server running. Waiting for SSM and application readiness...", flush=True
+        )
+    else:
+        ec2.stop_instances(InstanceIds=[instance_id])
+        print("Stop requested; database and address are preserved.")
 
 
 def dispatch(args, aws, target_settings):

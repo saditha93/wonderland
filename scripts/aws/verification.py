@@ -205,6 +205,23 @@ def verify_metabase(aws, target_settings, deployment_details):
 
 
 def open_monitoring_tunnel(aws, target_settings, deployment_details):
+    instance_id = deployment_details["instance_id"]
+    instance = aws.client("ec2").describe_instances(InstanceIds=[instance_id])[
+        "Reservations"
+    ][0]["Instances"][0]
+    if instance["State"]["Name"] != "running":
+        raise GuardError(
+            "Server is "
+            + instance["State"]["Name"]
+            + ". Run ./demo.sh start, wait for readiness, then ./demo.sh monitor."
+        )
+    nodes = aws.client("ssm").describe_instance_information(
+        Filters=[{"Key": "InstanceIds", "Values": [instance_id]}]
+    )["InstanceInformationList"]
+    if not nodes or nodes[0]["PingStatus"] != "Online":
+        raise GuardError(
+            "Server is running but SSM is not online yet. Wait for startup, then retry ./demo.sh monitor. Use ./demo.sh status to inspect it."
+        )
     if not shutil.which("session-manager-plugin"):
         raise GuardError(
             "Install the official AWS Session Manager plugin before opening the private tunnel"

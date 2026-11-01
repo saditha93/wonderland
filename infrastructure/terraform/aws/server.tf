@@ -28,7 +28,12 @@ resource "aws_instance" "demo" {
     instance_metadata_tags      = "disabled"
   }
   depends_on = [aws_iam_role_policy.runtime, aws_route_table_association.demo]
-  lifecycle { prevent_destroy = true }
+  lifecycle {
+    prevent_destroy = true
+    # Bootstrap runs only when a new host is created. Existing hosts retain their
+    # database disk; application updates are installed by the release controller.
+    ignore_changes = [user_data]
+  }
 }
 
 resource "aws_eip" "demo" { domain = "vpc" }

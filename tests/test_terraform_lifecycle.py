@@ -43,8 +43,9 @@ def test_up_command_uses_its_fresh_saved_plan_without_an_extra_prompt(
     calls = []
     monkeypatch.setattr(cloud, "plan", plan)
     monkeypatch.setattr(cloud, "deploy", lambda *args: calls.append(args[-1]))
+    monkeypatch.setattr(cloud, "set_server_power", lambda *args: calls.append(args[-1]))
     cloud.up(None, {}, None, infra_only=True)
-    assert calls == ["fresh-digest"]
+    assert calls == ["fresh-digest", "start"]
 
 
 @pytest.mark.parametrize("actions", [["create"], ["update"], ["delete", "create"]])
@@ -289,3 +290,26 @@ def test_key_launch_preflight_checks_name_arn_not_key_id():
     assert checked[-1]["ResourceArns"] == [
         "arn:aws:ec2:us-east-1:111111111111:key-pair/sliit_test"
     ]
+
+
+def test_start_preserves_running_server_without_duplicate_start(monkeypatch):
+    monkeypatch.setattr(cloud, "require_free_plan", lambda aws: None)
+    monkeypatch.setattr(cloud, "load_deployment", lambda: {"instance_id": "i-demo"})
+    instance = {"State": {"Name": "running"}, "Tags": [{"Key": "Project", "Value": "wonderland"}, {"Key": "Stack", "Value": "wonderland-demo"}]}
+    ec2 = SimpleNamespace(describe_instances=lambda **kw: {"Reservations": [{"Instances": [instance]}]})
+    cloud.set_server_power(SimpleNamespace(client=lambda name: ec2), {}, "start")
+
+
+def test_start_restarts_stopped_server_without_replacement(monkeypatch):
+    monkeypatch.setattr(cloud, "require_free_plan", lambda aws: None)
+    monkeypatch.setattr(cloud, "load_deployment", lambda: {"instance_id": "i-demo"})
+    calls = []
+    instance = {"State": {"Name": "stopped"}, "Tags": [{"Key": "Project", "Value": "wonderland"}, {"Key": "Stack", "Value": "wonderland-demo"}]}
+    ec2 = SimpleNamespace(
+        describe_instances=lambda **kw: {"Reservations": [{"Instances": [instance]}]},
+        start_instances=lambda **kw: calls.append(("start", kw)),
+        get_waiter=lambda name: SimpleNamespace(wait=lambda **kw: calls.append((name, kw))),
+    )
+    cloud.set_server_power(SimpleNamespace(client=lambda name: ec2), {}, "start")
+    assert [name for name, _ in calls] == ["start", "instance_running"]
+    assert all(kw["InstanceIds"] == ["i-demo"] for _, kw in calls)
