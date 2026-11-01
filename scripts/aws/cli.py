@@ -259,7 +259,6 @@ def plan(aws, target_settings):
         for c in document.get("resource_changes", [])
         if c["change"]["actions"] != ["no-op"]
     ]
-    # A later deployment may not silently replace the server/database or delete resources.
     if any("delete" in c["actions"] for c in changes):
         raise GuardError(
             "Plan includes deletion/replacement; backup and separate review required"
@@ -330,7 +329,6 @@ def up(aws, target_settings, approved, infra_only=False):
     if not approved:
         plan(aws, target_settings)
         approved = json.loads((PRIVATE / "review.json").read_text())["plan_sha256"]
-    # EC2 authorizes RunInstances against the key-pair NAME, not its key-* ID.
     check_cleanup_permissions(aws, target_settings)
     deploy(aws, target_settings, approved)
     if not infra_only:

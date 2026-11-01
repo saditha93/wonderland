@@ -10,7 +10,6 @@ export const authConfigurationError =
     ? "Configure the Cognito user pool and public app client before enabling managed authentication."
     : "";
 const memory = new Map<string, string>();
-// Access/refresh tokens stay in memory; no localStorage/sessionStorage persistence.
 if (cognitoEnabled && !authConfigurationError) {
   Amplify.configure({
     Auth: {

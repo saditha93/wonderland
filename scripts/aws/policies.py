@@ -277,9 +277,6 @@ def policies(account, region="us-east-1", name="wonderland-demo", ssh_key_name=N
         arn("amplify", "apps/*/branches/demo"),
         resource_tags,
     )
-    # Amplify deployment/job child authorization does not include app tags.
-    # Limit publishing to this account, region and demo branches; app/branch
-    # creation and management above still require Wonderland ownership tags.
     add(
         "PublishDemoDeployments",
         ["amplify:CreateDeployment", "amplify:StartDeployment"],

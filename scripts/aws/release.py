@@ -16,7 +16,6 @@ from scripts.aws.verification import verify_deployment
 
 def release_application(aws, target_settings, deployment_details):
     require_free_plan(aws)
-    # Immutable image tags may only be reused for exactly the same source.
     store = aws.client("s3")
     key = "releases/" + target_settings["release"] + "/source.json"
     fingerprint = source_fingerprint()

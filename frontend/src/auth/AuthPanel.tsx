@@ -28,11 +28,9 @@ export function AuthPanel({
     try {
       await onSession(await managedAccessToken());
     } catch (error) {
-      // A rejected/unavailable backend must not leave a half-finished login.
       try {
         await clearManagedSession();
       } catch {
-        // clearManagedSession always clears local tokens, even if sign-out fails.
       }
       throw error;
     }

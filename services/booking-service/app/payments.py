@@ -91,7 +91,6 @@ def verify_notice(raw: bytes, signature: str, settings):
             provider = "local"
         if not isinstance(event, dict):
             raise ValueError("Expected an event object")
-        # Missing livemode is also rejected: no ambiguous event may confirm payment.
         if event.get("livemode") is not False:
             raise ValueError("Live payment events are forbidden")
         if event.get("type") not in {

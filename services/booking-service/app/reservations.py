@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
-from wonderland_common.auth import Identity, visitor
+from wonderland_common.auth import Identity
 from wonderland_common.database import database
+from .guest_access import booking_identity
 
 
 from .booking_store import PARK_TIMEZONE, Reference, public_booking, find_owned_booking
@@ -33,7 +34,7 @@ def book(
     response: Response,
     request: Request,
     idempotency_key: Annotated[str, Header(pattern=r"^[A-Za-z0-9_-]{8,80}$")],
-    identity: Identity = Depends(visitor),
+    identity: Identity = Depends(booking_identity),
     engine: Engine = Depends(database),
 ):
     command = body.model_dump(mode="json")
@@ -41,7 +42,6 @@ def book(
         json.dumps(command, sort_keys=True).encode()
     ).hexdigest()
     with engine.begin() as conn:
-        # Read existing commands first: a valid retry must not change after price/date updates.
         existing = (
             conn.execute(
                 text(
@@ -126,7 +126,9 @@ def book(
 
 
 @router.get("/bookings")
-def history(identity: Identity = Depends(visitor), engine: Engine = Depends(database)):
+def history(
+    identity: Identity = Depends(booking_identity), engine: Engine = Depends(database)
+):
     with engine.connect() as conn:
         return [
             public_booking(r)
@@ -142,7 +144,7 @@ def history(identity: Identity = Depends(visitor), engine: Engine = Depends(data
 @router.get("/bookings/{reference}")
 def get_booking(
     reference: Reference,
-    identity: Identity = Depends(visitor),
+    identity: Identity = Depends(booking_identity),
     engine: Engine = Depends(database),
 ):
     with engine.connect() as conn:

@@ -43,8 +43,7 @@ def login(body: Login, request: Request):
             503,
             "Local accounts are not configured. Run local setup and restart the APIs.",
         )
-    # Bound password hashing work, including successful attempts. Process-local by
-    # design: this endpoint is for local demos, never distributed cloud identity.
+
     with request.app.state.local_login_lock:
         now = monotonic()
         attempts = [t for t in request.app.state.local_login_attempts if now - t < 60]
@@ -57,7 +56,6 @@ def login(body: Login, request: Request):
         request.app.state.local_login_attempts = [*attempts, now]
     accounts = json.loads(settings.local_accounts_json.get_secret_value())
     account = accounts.get(body.email.strip().lower())
-    # Unknown accounts also perform the expensive hash; no account enumeration.
     encoded = account["password_hash"] if account else "0" * 32 + ":" + "0" * 128
     salt = encoded.split(":", 1)[0]
     matches = hmac.compare_digest(

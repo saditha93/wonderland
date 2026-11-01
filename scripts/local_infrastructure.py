@@ -107,7 +107,6 @@ class Rehearsal:
                     raise
             step["status"] = "passed" if code == 0 else "failed"
             step["exit_code"] = code
-            # Only intentionally public pass/load summaries enter the evidence.
             step["observations"] = [
                 line[:500]
                 for line in path.read_text(errors="replace").splitlines()

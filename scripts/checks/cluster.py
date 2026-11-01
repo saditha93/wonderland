@@ -113,8 +113,6 @@ def main():
         )
         ref = booking["reference"]
         if booking["status"] == "pending":
-            # Development-only fixture: model a booking made earlier for today.
-            # Reference is server-produced and validated before SQL interpolation.
             if not re.fullmatch(r"WL-[A-F0-9]{32}", ref):
                 raise RuntimeError("Unexpected reference")
             sql = f"UPDATE booking.bookings SET visit_date='{today}' WHERE reference='{ref}' AND owner_id='{subject}' AND status='pending';"

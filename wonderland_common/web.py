@@ -21,7 +21,6 @@ def create_app(service: str, schema: str, revision: int = 1) -> FastAPI:
     app.state.settings = settings
     app.state.engine = create_database(settings)
     if settings.auth_mode == "cognito":
-        # No network on startup: fixed configured issuer, cached keys, bounded timeout.
         app.state.jwks_client = jwt.PyJWKClient(
             settings.cognito_issuer + "/.well-known/jwks.json", lifespan=300, timeout=3
         )
@@ -35,7 +34,6 @@ def create_app(service: str, schema: str, revision: int = 1) -> FastAPI:
 
     @app.exception_handler(SQLAlchemyError)
     async def database_unavailable(request: Request, exc):
-        # Never serialize SQL, bound values, credentials, or exception text.
         return JSONResponse(
             {"detail": "Database operation unavailable"}, status_code=503
         )

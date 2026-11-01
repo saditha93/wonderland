@@ -83,8 +83,7 @@ def start(check=False):
         "VITE_AUTH_MODE": "local",
         "VITE_API_BASE_URL": "",
     }
-    # A shell configured for remote API targets must not turn a local demo into
-    # an account/network operation. Always use the native loopback services.
+
     for key in list(env):
         if key.startswith("API_") and key.endswith("_TARGET"):
             del env[key]

@@ -30,7 +30,6 @@ def start():
             raise RuntimeError(
                 "Port 3000 is already in use. Use the existing Metabase terminal, or close it before starting another copy."
             )
-    # Native setup preserves existing keys/data and prepares the read-only BI role.
     from scripts.local.cli import start_database
 
     start_database()

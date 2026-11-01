@@ -122,8 +122,6 @@ def main():
     )
     args = parser.parse_args()
     if args.action == "stop":
-        # Minikube clears kubeconfig entries and Colima removes its Docker
-        # context on shutdown. Stopping again must not require either to live.
         path = Path.home() / ".minikube/profiles" / PROFILE / "config.json"
         if not path.exists():
             print("Named local cluster is already stopped/not created")
@@ -203,7 +201,6 @@ def main():
             run(
                 ["minikube", "-p", PROFILE, "image", "load", f"wonderland/{name}:0.5.0"]
             )
-        # Metadata release for selector-switch demonstration; identical domain code.
         run(
             [
                 "docker",
@@ -227,7 +224,6 @@ def main():
     elif args.action == "deploy":
         values = configure()
         kubectl("apply", "-f", "infrastructure/kubernetes/base/namespace.yaml")
-        # server-side apply avoids kubectl's last-applied secret annotation.
         kubectl(
             "apply",
             "--server-side",
@@ -241,7 +237,6 @@ def main():
         kubectl("apply", "-f", "infrastructure/kubernetes/local/config.yaml")
         kubectl("apply", "-f", "infrastructure/kubernetes/local/postgres.yaml")
         kubectl("rollout", "status", "statefulset/postgres", "--timeout=180s")
-        # Idempotent SQL; a successful versioned Job is reused on repeated deploys.
         kubectl("apply", "-f", "infrastructure/kubernetes/local/migrate.yaml")
         kubectl(
             "wait",
@@ -257,8 +252,6 @@ def main():
             "analytics-worker",
             "frontend",
         ]:
-            # Local tags are rebuilt in place. Reapplying an unchanged tag does
-            # not replace pods or reload updated Secrets by itself.
             kubectl("rollout", "restart", "deployment/" + name)
             kubectl("rollout", "status", "deployment/" + name, "--timeout=180s")
     elif args.action == "verify":
@@ -278,7 +271,6 @@ if __name__ == "__main__":
     try:
         main()
     except subprocess.CalledProcessError as exc:
-        # Stderr for secret application may include sensitive request data.
         raise SystemExit(
             f"Local Kubernetes command failed (exit {exc.returncode}); no credential payload printed"
         ) from None

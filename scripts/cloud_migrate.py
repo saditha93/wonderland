@@ -11,7 +11,6 @@ from scripts.db_migrate import main
 
 if __name__ == "__main__":
     try:
-        # Metadata DB is owned separately from the BI/read-only reporting login.
         password = os.environ["LOCAL_METABASE_ROLE_PASSWORD"]
         if not re.fullmatch(r"[A-Za-z0-9_-]{32,100}", password):
             raise ValueError("Invalid generated password")

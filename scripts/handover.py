@@ -79,8 +79,6 @@ def source_files(root):
                 return sorted(set(p.decode() for p in listed.stdout.split(b"\0") if p))
     except FileNotFoundError:
         pass
-    # Source ZIPs intentionally omit .git. Keep the commands usable after unzip;
-    # prune private/generated directories before traversing large dependencies.
     result = []
     for directory, children, filenames in os.walk(root, followlinks=False):
         children[:] = [

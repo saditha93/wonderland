@@ -181,7 +181,6 @@ def create_demo_accounts(aws, target_settings, deployment_details):
             for role in ("visitor", "admin")
         }
     )
-    # Save before writes so retry never loses the only copy of generated credentials.
     write_private_json(path, accounts)
     for role, account in accounts.items():
         try:

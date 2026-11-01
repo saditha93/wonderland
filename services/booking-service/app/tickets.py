@@ -9,8 +9,9 @@ import qrcode
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
-from wonderland_common.auth import Identity, administrator, visitor
+from wonderland_common.auth import Identity, administrator
 from wonderland_common.database import database
+from .guest_access import booking_identity
 
 
 from .booking_store import PARK_TIMEZONE, Reference, public_booking, find_owned_booking
@@ -22,7 +23,7 @@ router = APIRouter()
 def ticket(
     reference: Reference,
     request: Request,
-    identity: Identity = Depends(visitor),
+    identity: Identity = Depends(booking_identity),
     engine: Engine = Depends(database),
 ):
     with engine.connect() as conn:

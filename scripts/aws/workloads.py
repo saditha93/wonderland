@@ -136,7 +136,6 @@ def render(target, deployment, runtime):
     next(x for x in docs if x["metadata"]["name"] == "frontend-tls")[
         "type"
     ] = "kubernetes.io/tls"
-    # Bind rollouts to final secret contents after adapting the CA mount.
     fingerprint = hashlib.sha256(
         json.dumps(
             {

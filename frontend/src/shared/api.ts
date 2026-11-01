@@ -55,7 +55,9 @@ export async function api<T>(
   if (token)
     headers.set(
       "Authorization",
-      `Bearer ${cognitoEnabled ? await managedAccessToken() : token}`,
+      token.startsWith("guest:")
+        ? `Guest ${token.slice(6)}`
+        : `Bearer ${cognitoEnabled ? await managedAccessToken() : token}`,
     );
   if (options.body) headers.set("Content-Type", "application/json");
   const base = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");

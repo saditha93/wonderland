@@ -8,8 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
-from wonderland_common.auth import Identity, visitor
+from wonderland_common.auth import Identity
 from wonderland_common.database import database
+from .guest_access import booking_identity
 from . import payments
 
 
@@ -22,7 +23,7 @@ router = APIRouter()
 def checkout(
     reference: Reference,
     request: Request,
-    identity: Identity = Depends(visitor),
+    identity: Identity = Depends(booking_identity),
     engine: Engine = Depends(database),
 ):
     settings = request.app.state.settings
@@ -174,7 +175,7 @@ async def webhook(request: Request, engine: Engine = Depends(database)):
 def sandbox_pay(
     reference: Reference,
     request: Request,
-    identity: Identity = Depends(visitor),
+    identity: Identity = Depends(booking_identity),
     engine: Engine = Depends(database),
 ):
     settings = request.app.state.settings
@@ -204,7 +205,6 @@ def sandbox_pay(
         },
     }
     raw = json.dumps(event).encode()
-    # Exercise the same signed-event verification and atomic confirmation path.
     signature = payments.local_signature(
         raw, settings.local_webhook_secret.get_secret_value()
     )

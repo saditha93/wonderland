@@ -10,8 +10,6 @@ import boto3
 
 
 def prepare_source(root):
-    # The extraction umask is private. Docker COPY preserves permissions, so
-    # public source must be readable by the non-root application users.
     root.chmod(0o755)
     for path in root.rglob("*"):
         if path.is_symlink():

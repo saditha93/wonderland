@@ -58,7 +58,6 @@ def install(bundle, approved_sha):
     except ClientError as exc:
         if exc.response["Error"]["Code"] != "NoSuchEntity":
             raise
-    # Validate every document and inspect existing definitions before any write.
     missing = []
     for name in NAMES:
         doc = bundle["policies"][name]

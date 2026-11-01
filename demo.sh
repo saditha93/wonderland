@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# One entry point for the AWS viva, regression checks and source handover.
 set -euo pipefail
 cd "$(dirname "$0")"
 

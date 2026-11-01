@@ -15,6 +15,16 @@ import { clearManagedSession } from "../auth/session";
 import { type Page, readLocation, parkDate } from "./navigation";
 import { AttractionCard } from "./AttractionCard";
 const initial = readLocation();
+function guestCredential() {
+  const key = "wonderland-guest-booking";
+  const existing = sessionStorage.getItem(key);
+  if (existing && /^[a-f0-9]{64}$/.test(existing)) return existing;
+  const value = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
+  sessionStorage.setItem(key, value);
+  return value;
+}
 export function VisitorApp() {
   const [page, setPage] = useState<Page>(initial.page);
   const [reference, setReference] = useState(initial.reference);
@@ -28,6 +38,8 @@ export function VisitorApp() {
   const [busy, setBusy] = useState(false);
   const [token, setToken] = useState("");
   const [identity, setIdentity] = useState("");
+  const [guestToken, setGuestToken] = useState(guestCredential);
+  const bookingToken = token || `guest:${guestToken}`;
   const [history, setHistory] = useState<Booking[]>([]);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [checkout, setCheckout] = useState<Checkout | null>(null);
@@ -88,9 +100,9 @@ export function VisitorApp() {
   useEffect(() => {
     let active = true;
     setHistory([]);
-    if (page === "history" && token) {
+    if (page === "history") {
       setBusy(true);
-      void api<Booking[]>("/api/booking/bookings", token)
+      void api<Booking[]>("/api/booking/bookings", bookingToken)
         .then((rows) => {
           if (active) setHistory(rows);
         })
@@ -104,22 +116,22 @@ export function VisitorApp() {
     return () => {
       active = false;
     };
-  }, [page, token]);
+  }, [page, bookingToken]);
   useEffect(() => {
     let active = true;
     setBooking(null);
     setTicket(null);
     setCheckout(null);
-    if (reference && token && (page === "ticket" || page === "payment")) {
+    if (reference && (page === "ticket" || page === "payment")) {
       setBusy(true);
-      void api<Booking>(`/api/booking/bookings/${reference}`, token)
+      void api<Booking>(`/api/booking/bookings/${reference}`, bookingToken)
         .then(async (row) => {
           if (!active) return;
           setBooking(row);
           if (page === "ticket") {
             const result = await api<Ticket>(
               `/api/booking/bookings/${reference}/ticket`,
-              token,
+              bookingToken,
             );
             if (active) setTicket(result);
           }
@@ -134,7 +146,7 @@ export function VisitorApp() {
     return () => {
       active = false;
     };
-  }, [page, reference, token]);
+  }, [page, reference, bookingToken]);
 
   async function run(operation: (currentEpoch: number) => Promise<void>) {
     const current = epoch.current;
@@ -152,6 +164,8 @@ export function VisitorApp() {
     epoch.current++;
     setToken("");
     setIdentity("");
+    sessionStorage.removeItem("wonderland-guest-booking");
+    setGuestToken(guestCredential());
     void clearManagedSession().catch(() =>
       setError("Managed sign-out could not complete. Local session cleared."),
     );
@@ -190,7 +204,7 @@ export function VisitorApp() {
   async function createBooking(e: React.FormEvent) {
     e.preventDefault();
     await run(async (current) => {
-      const result = await api<Booking>("/api/booking/bookings", token, {
+      const result = await api<Booking>("/api/booking/bookings", bookingToken, {
         method: "POST",
         headers: { "Idempotency-Key": commandKey.current },
         body: JSON.stringify({
@@ -213,7 +227,7 @@ export function VisitorApp() {
   );
   const authNotice = !token ? (
     <div className="notice">
-      Sign in to book or view your history.{" "}
+      Book as a guest without signing in. Guest bookings stay in this browser tab; download your ticket before closing it. Sign in for account bookings.{" "}
       <button className="text-button" onClick={() => navigate("login")}>
         Sign in
       </button>
@@ -280,7 +294,10 @@ export function VisitorApp() {
           {token ? (
             <button onClick={disconnect}>Sign out</button>
           ) : (
-            <button onClick={() => navigate("login")}>Sign in</button>
+            <>
+              <button onClick={() => navigate("login")}>Sign in</button>
+              <button onClick={disconnect}>End guest session</button>
+            </>
           )}
         </nav>
       </header>
@@ -515,7 +532,7 @@ export function VisitorApp() {
                 <p className="muted">Arrival times use Sri Lanka time.</p>
                 <button
                   className="primary"
-                  disabled={busy || !token || !selectedTier}
+                  disabled={busy || !selectedTier}
                 >
                   {busy ? "Creating booking…" : "Create booking"}
                 </button>
@@ -573,7 +590,7 @@ export function VisitorApp() {
                 </article>
               ))}
             </div>
-            {token && !busy && !error && history.length === 0 && (
+            {!busy && !error && history.length === 0 && (
               <p>No bookings yet. Your next adventure is waiting.</p>
             )}
           </section>
@@ -612,14 +629,14 @@ export function VisitorApp() {
                           void run(async (current) => {
                             const result = await api<Checkout>(
                               `/api/booking/bookings/${reference}/checkout`,
-                              token,
+                              bookingToken,
                               { method: "POST" },
                             );
                             if (current !== epoch.current) return;
                             if (result.provider === "local") {
                               await api(
                                 `/api/booking/bookings/${reference}/sandbox-pay`,
-                                token,
+                                bookingToken,
                                 { method: "POST" },
                               );
                               if (current === epoch.current)
@@ -650,7 +667,7 @@ export function VisitorApp() {
                           void run(async (current) => {
                             const result = await api<Booking>(
                               `/api/booking/bookings/${reference}`,
-                              token,
+                              bookingToken,
                             );
                             if (current === epoch.current) setBooking(result);
                           })
