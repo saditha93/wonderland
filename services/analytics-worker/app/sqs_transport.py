@@ -38,8 +38,6 @@ class SqsTransport:
                 with engine.begin() as conn:
                     project(conn, raw)
             except (ValueError, ValidationError, IntegrityError):
-                # Leave poison messages unacknowledged for configured visibility retry/DLQ.
-                # Continue the batch so one poison message cannot starve valid messages.
                 continue
             self.client.delete_message(
                 QueueUrl=self.queue_url, ReceiptHandle=message["ReceiptHandle"]
