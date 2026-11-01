@@ -445,7 +445,7 @@ def set_server_power(aws, target_settings, action):
             aws,
             deployment_details,
             [
-                "systemctl start wonderland-cert-renew.service",
+                "/opt/wonderland/certbot/bin/certbot renew --quiet --no-random-sleep-on-renew --deploy-hook 'systemctl reload nginx'",
                 "systemctl is-active wonderland-minikube wonderland-routing nginx wonderland-metabase-forward",
             ],
             timeout=300,
