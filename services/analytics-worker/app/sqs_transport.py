@@ -31,7 +31,6 @@ class SqsTransport:
         )
         completed = 0
         for message in response.get("Messages", []):
-            # Database commit precedes delete. A lost delete or process crash replays safely.
             try:
                 raw = json.loads(message["Body"])
                 Envelope.model_validate(raw)
@@ -69,7 +68,6 @@ class SqsTransport:
                             "payload": row["payload"],
                         }
                     )
-                    # Remote send may succeed before this transaction commits. Replay is expected.
                     conn.execute(
                         text(
                             f"UPDATE {schema}.outbox SET published_at=now() WHERE event_id=:id"
